@@ -1,0 +1,35 @@
+---
+/**
+ * Designed empty state.
+ *
+ * Shown when a collection genuinely has nothing in it. Since the site ships
+ * empty, this is what a visitor actually sees — so it is composed, not an
+ * apology. A full-width hairline band with the section's own voice, stating
+ * what belongs here and how it gets there.
+ *
+ * Deliberately not: a dashed grey box, an illustration, a stock photo, or a
+ * "coming soon" label that implies content is imminent when it may not be.
+ */
+interface Props {
+  title: string;
+  body: string;
+  /** How to populate it, e.g. the admin path or a CLI command. */
+  hint?: string;
+  /** Short mono label that frames the slot, e.g. 'awaiting first entry'. */
+  status?: string;
+}
+
+const { title, body, hint, status = 'awaiting first entry' } = Astro.props;
+---
+
+<div class="empty">
+  <div class="empty__lead">
+    <p class="empty__status"><span class="empty__dot" aria-hidden="true"></span>{status}</p>
+    <p class="empty__title">{title}</p>
+  </div>
+
+  <div class="empty__detail">
+    <p class="empty__body">{body}</p>
+    {hint && <p class="empty__hint">{hint}</p>}
+  </div>
+</div>

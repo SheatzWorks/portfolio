@@ -1,0 +1,1708 @@
+/* =========================================================================
+   Components
+   Hairlines separate, never shadows. The only accent usage is interactive or
+   selected. Radius is 0 except on form controls.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   Spacing utilities
+   Exists because inline style attributes are blocked by the site's CSP, and
+   because a handful of one-off offsets do not justify a component each.
+   ---------------------------------------------------------------------- */
+
+.mt-4 { margin-top: var(--sp-4); }
+.mt-6 { margin-top: var(--sp-6); }
+.mb-6 { margin-bottom: var(--sp-6); }
+.list-none { list-style: none; padding: 0; margin: 0; }
+
+/* -------------------------------------------------------------------------
+   Container
+   ---------------------------------------------------------------------- */
+
+.shell {
+  width: 100%;
+  max-width: var(--max-w);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.shell--wide {
+  max-width: 100rem;
+}
+
+/* -------------------------------------------------------------------------
+   Buttons
+   One primary (accent), one secondary (hairline), one quiet (text+arrow).
+   ---------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding: 0 var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+  white-space: nowrap;
+}
+
+.btn--primary {
+  background-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn--primary:hover {
+  background-color: #c8ff5e;
+  color: var(--accent-ink);
+}
+.btn--primary:active {
+  background-color: var(--accent-dim);
+}
+
+.btn--secondary {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.btn--secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn--quiet {
+  padding-inline: 0;
+  min-height: var(--tap);
+  color: var(--ink-muted);
+}
+.btn--quiet:hover {
+  color: var(--accent);
+}
+
+.btn__arrow {
+  transition: transform var(--dur-2) var(--ease);
+}
+
+.btn:hover .btn__arrow {
+  transform: translateX(3px);
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+}
+
+/* -------------------------------------------------------------------------
+   Header
+   Sticky, hairline-bottom on scroll. Condenses rather than transforms, so
+   nothing shifts and CLS stays at zero.
+   ---------------------------------------------------------------------- */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  /*
+   * Fully opaque, and deliberately NOT using backdrop-filter.
+   *
+   * Two reasons, one of them a real bug: `backdrop-filter` (like `filter` and
+   * `transform`) makes this element the containing block for `position: fixed`
+   * descendants. The mobile menu is a fixed child inset from the top, so with a
+   * backdrop-filter on the header the panel's height resolved against the ~60px
+   * header instead of the viewport and it collapsed to nothing — the menu
+   * appeared to open and showed the page through it.
+   *
+   * The design system also rules out glass: surfaces here are separated by
+   * hairlines, not by blur.
+   */
+  background-color: var(--bg);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur-2) var(--ease);
+}
+
+.site-header[data-scrolled='true'] {
+  border-bottom-color: var(--line);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  min-height: 3.75rem;
+  transition: min-height var(--dur-2) var(--ease);
+}
+
+.site-header[data-scrolled='true'] .site-header__inner {
+  min-height: 3.25rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.brand:hover {
+  color: var(--accent);
+}
+
+.brand__mark {
+  width: 0.6em;
+  height: 0.6em;
+  background-color: var(--accent);
+  flex: none;
+}
+
+.site-nav__list {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.site-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-muted);
+  text-decoration: none;
+  border-radius: var(--radius);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.site-nav__link:hover {
+  color: var(--ink);
+}
+
+.site-nav__link[aria-current='page'] {
+  color: var(--accent);
+}
+
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* Menu button. A real button with a real label, not a bare hamburger glyph. */
+.nav-toggle {
+  display: none;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  padding-inline: var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink);
+}
+
+.nav-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.nav-toggle__bars {
+  display: grid;
+  gap: 3px;
+  width: 14px;
+}
+
+.nav-toggle__bars span {
+  height: 1px;
+  background-color: currentColor;
+  transition: transform var(--dur-2) var(--ease), opacity var(--dur-1) var(--ease);
+}
+
+.nav-toggle[aria-expanded='true'] .nav-toggle__bars span:nth-child(1) {
+  transform: translateY(4px) rotate(45deg);
+}
+.nav-toggle[aria-expanded='true'] .nav-toggle__bars span:nth-child(2) {
+  opacity: 0;
+}
+.nav-toggle[aria-expanded='true'] .nav-toggle__bars span:nth-child(3) {
+  transform: translateY(-4px) rotate(-45deg);
+}
+
+/* Mobile panel: a full-width sheet, not a dropdown. Gives large tap targets
+   and room for the contact shortcut inside the menu. */
+@media (max-width: 47.99rem) {
+  .site-header__actions .btn {
+    display: none;
+  }
+  .nav-toggle {
+    display: inline-flex;
+  }
+  .site-nav {
+    position: fixed;
+    inset: 3.75rem 0 0;
+    background-color: var(--bg);
+    border-top: 1px solid var(--line);
+    padding: var(--sp-5) var(--gutter) var(--sp-8);
+    overflow-y: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition:
+      opacity var(--dur-2) var(--ease),
+      transform var(--dur-2) var(--ease),
+      visibility var(--dur-2) step-end;
+  }
+  .site-nav[data-open='true'] {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      opacity var(--dur-2) var(--ease),
+      transform var(--dur-2) var(--ease),
+      visibility 0s;
+  }
+  .site-nav__list {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+  .site-nav__list li {
+    border-bottom: 1px solid var(--line);
+  }
+  .site-nav__link {
+    min-height: var(--tap);
+    font-size: var(--step-1);
+    font-family: var(--font-display);
+    color: var(--ink);
+    padding-inline: 0;
+  }
+  .site-nav__link[aria-current='page'] {
+    color: var(--accent);
+  }
+  .site-nav__footer {
+    margin-top: var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 48rem) {
+  .site-nav__footer {
+    display: none;
+  }
+}
+
+body[data-nav-open='true'] {
+  overflow: hidden;
+}
+
+/* -------------------------------------------------------------------------
+   Hero
+   Positioning first, one primary action, one quiet secondary. Leads straight
+   into the creations grid.
+   ---------------------------------------------------------------------- */
+
+.hero {
+  padding-block: clamp(3rem, 1rem + 8vw, 8rem) var(--section-y);
+  position: relative;
+}
+
+.hero__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-muted);
+  margin-bottom: var(--sp-5);
+}
+
+/* The single decorative element on the site: a 5px status dot. It means
+   "available for work", which is a real fact the studio controls. */
+.status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  flex: none;
+}
+
+.hero__title {
+  font-size: var(--step-6);
+  max-width: 18ch;
+  margin-bottom: var(--sp-5);
+}
+
+.hero__title em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.hero__body {
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-body);
+  max-width: 52ch;
+  margin-bottom: var(--sp-6);
+}
+
+.hero__meta {
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-6);
+}
+
+.hero__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.hero__meta-label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.hero__meta-value {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------------------------
+   Section header
+   The eyebrow is its own line, directly above the heading. The optional note
+   sits to the right of the heading on the same row.
+   ---------------------------------------------------------------------- */
+
+.section-head {
+  display: grid;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.section-head__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-6);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.section-head .eyebrow {
+  margin: 0;
+}
+
+.section-head__title {
+  font-size: var(--step-4);
+  max-width: 20ch;
+}
+
+.section-head__note {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  margin-left: auto;
+}
+
+/* -------------------------------------------------------------------------
+   Creations grid
+   Irregular fractional rows on a 12-column grid. Rows justify to the same
+   total width but never tile into a uniform 2x2, which is the template
+   default that makes a portfolio look generated.
+
+   The row pattern is data-driven: a project's position in the sequence picks
+   its span, so the composition is deterministic and testable rather than
+   arbitrary.
+   ---------------------------------------------------------------------- */
+
+.creations {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--sp-4) var(--sp-4);
+}
+
+.creations__item {
+  grid-column: span 12;
+}
+
+@media (min-width: 40rem) {
+  /* 58 / 41 — never 50 / 50 */
+  .creations__item[data-span='a'] {
+    grid-column: span 7;
+  }
+  .creations__item[data-span='b'] {
+    grid-column: span 5;
+  }
+  /* full-bleed statement */
+  .creations__item[data-span='full'] {
+    grid-column: span 12;
+  }
+}
+
+@media (min-width: 64rem) {
+  .creations__item[data-span='a'] {
+    grid-column: span 7;
+  }
+  .creations__item[data-span='b'] {
+    grid-column: span 5;
+  }
+  .creations__item[data-span='c'] {
+    grid-column: span 8;
+  }
+  .creations__item[data-span='d'] {
+    grid-column: span 4;
+  }
+  .creations__item[data-span='full'] {
+    grid-column: span 12;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Project card
+   The whole card is the link. Title, one-line descriptor, and tags. No
+   arrow icon, no "View case" button, no border, no shadow — the media is the
+   affordance and the cursor confirms it.
+   ---------------------------------------------------------------------- */
+
+.project {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  text-decoration: none;
+  color: inherit;
+}
+
+.project__media {
+  position: relative;
+  overflow: hidden;
+  /* Fallback before the per-card scoped style applies. */
+  background-color: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  aspect-ratio: var(--ar, 1.6);
+  /* Hard ceiling on card height.
+     aspect-ratio alone is not enough: a 1:1 project in an 8-column slot would
+     render an 780px-tall box, and a 4:5 in a 12-column slot a 1800px one. Any
+     future content, at any ratio, is now guaranteed to stay within a sane
+     band. The image cover-crops to fill, so nothing is distorted. */
+  max-height: min(58vh, 520px);
+}
+
+/* Ratio set, chosen by data attribute (see lib/preview.ts AR_BUCKETS). */
+.project[data-ar='4-3'] .project__media { aspect-ratio: 4 / 3; }
+.project[data-ar='3-2'] .project__media { aspect-ratio: 3 / 2; }
+.project[data-ar='16-9'] .project__media { aspect-ratio: 16 / 9; }
+.project[data-ar='1-1'] .project__media { aspect-ratio: 1 / 1; }
+.project[data-ar='4-5'] .project__media { aspect-ratio: 4 / 5; }
+.project[data-ar='3-4'] .project__media { aspect-ratio: 3 / 4; }
+
+.project__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Scale on hover only. A transform, so it stays on the compositor. */
+  transition: transform var(--dur-3) var(--ease), opacity var(--dur-2) var(--ease);
+}
+
+.project:hover .project__img {
+  transform: scale(1.02);
+}
+
+.project__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease);
+}
+
+.project[data-video-playing='true'] .project__video {
+  opacity: 1;
+}
+
+.project[data-video-playing='true'] .project__img {
+  opacity: 0;
+}
+
+/* Designed plate, used when no external image is available or the image
+   failed to load. Sits behind the <img> so it costs nothing when the image
+   succeeds. */
+.project__placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: var(--sp-4);
+}
+
+.project__placeholder[hidden] {
+  display: none;
+}
+
+.project__frameable {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0.25rem var(--sp-2);
+  background-color: color-mix(in srgb, var(--bg) 78%, transparent);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ink-muted);
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+
+.project:hover .project__frameable,
+.project:focus-visible .project__frameable {
+  opacity: 1;
+}
+
+.project__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.project__title {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.15;
+  color: var(--ink);
+  transition: color var(--dur-1) var(--ease);
+}
+
+.project:hover .project__title {
+  color: var(--accent);
+}
+
+.project__blurb {
+  font-size: var(--step-0);
+  color: var(--ink-muted);
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+
+.project__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.project__tags li {
+  position: relative;
+}
+
+.project__tags li + li::before {
+  content: '/';
+  position: absolute;
+  left: calc(var(--sp-3) * -1);
+  color: var(--line-strong);
+}
+
+.project__year {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  margin-left: auto;
+}
+
+/* Mobile: hover does not exist, so the hover-only affordances become always-on
+   and the media gets a gentle press state instead. */
+@media (hover: none) {
+  .project__frameable {
+    opacity: 1;
+  }
+  .project:active .project__img {
+    transform: scale(1.015);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Empty state
+   A full-width hairline band, not a dashed box. Reads as a designed slot the
+   content will fill, rather than as a missing module. This is the state the
+   site ships in, so it carries real weight.
+   ---------------------------------------------------------------------- */
+
+.empty {
+  display: grid;
+  gap: var(--sp-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--bg-raised);
+  padding: var(--sp-5);
+}
+
+@media (min-width: 48rem) {
+  .empty {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: var(--sp-7);
+    padding: var(--sp-6);
+  }
+}
+
+.empty__lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.empty__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+/* A hollow ring, not the solid accent dot — this is an empty slot, not a
+   live status. Reusing .status-dot here would imply activity that is not
+   happening. */
+.empty__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--line-focus);
+  flex: none;
+}
+
+.empty__title {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.15;
+  color: var(--ink);
+  max-width: 20ch;
+}
+
+.empty__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.empty__body {
+  color: var(--ink-muted);
+  font-size: var(--step-0);
+  max-width: 52ch;
+  text-wrap: pretty;
+}
+
+.empty__hint {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+/* -------------------------------------------------------------------------
+   Services — a spec list, not cards
+   ---------------------------------------------------------------------- */
+
+.service-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.service {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-2);
+  padding-block: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  transition: border-color var(--dur-2) var(--ease);
+}
+
+.service:hover {
+  border-bottom-color: var(--line-focus);
+}
+
+@media (min-width: 48rem) {
+  .service {
+    grid-template-columns: minmax(12rem, 1fr) minmax(0, 2fr);
+    gap: var(--sp-6);
+    align-items: start;
+  }
+}
+
+.service__name {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.service__outcome {
+  color: var(--ink-body);
+  margin-bottom: var(--sp-3);
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+
+.service__deliverables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.service__deliverables li {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.1rem var(--sp-2);
+}
+
+/* -------------------------------------------------------------------------
+   Process — a schematic track with hairline rules.
+   NOT numbered circles: a 1-2-3 step sequence is a current AI-slop tell and
+   reads as a marketing funnel rather than how the work actually runs.
+   ---------------------------------------------------------------------- */
+
+.process {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 56rem) {
+  .process {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+  .process__step {
+    border-right: 1px solid var(--line);
+    border-bottom: none;
+    padding-inline: var(--sp-4) var(--sp-5);
+  }
+  .process__step:first-child {
+    padding-left: 0;
+  }
+  .process__step:last-child {
+    border-right: none;
+    padding-right: 0;
+  }
+}
+
+.process__step {
+  padding-block: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  position: relative;
+}
+
+.process__marker {
+  display: block;
+  width: 1.5rem;
+  height: 1px;
+  background-color: var(--accent);
+  margin-bottom: var(--sp-2);
+}
+
+.process__phase {
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+  color: var(--ink);
+}
+
+.process__detail {
+  font-size: var(--step--1);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* -------------------------------------------------------------------------
+   Capabilities — compact spec table, not a résumé
+   ---------------------------------------------------------------------- */
+
+.capabilities {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+@media (min-width: 56rem) {
+  .capabilities {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-6) var(--sp-8);
+  }
+}
+
+.capability__group {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-3);
+}
+
+.capability__label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--accent);
+  margin-bottom: var(--sp-3);
+}
+
+.capability__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: var(--ink-body);
+  font-size: var(--step-0);
+}
+
+.capability__items li {
+  position: relative;
+}
+
+.capability__items li:not(:first-child)::before {
+  content: '·';
+  position: absolute;
+  left: calc(var(--sp-3) * -1);
+  color: var(--line-focus);
+}
+
+/* -------------------------------------------------------------------------
+   Team — an editorial spread, not circular-avatar profile cards
+   ---------------------------------------------------------------------- */
+
+.team {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+@media (min-width: 48rem) {
+  .team {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-7);
+  }
+  /* A hairline between, rather than a card around each. */
+  .team__member + .team__member {
+    border-left: 1px solid var(--line);
+    padding-left: var(--sp-6);
+  }
+}
+
+.team__member {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.team__name {
+  font-family: var(--font-display);
+  font-size: var(--step-3);
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.team__role {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--accent);
+}
+
+.team__bio {
+  color: var(--ink-body);
+  text-wrap: pretty;
+}
+
+.team__focus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.team__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  list-style: none;
+  padding: var(--sp-2) 0 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+/* -------------------------------------------------------------------------
+   FAQ — an editorial definition list.
+   Deliberately not an accordion: a collapsible "Frequently Asked Questions"
+   block is a current AI-slop tell, and there is nothing here to conceal.
+   ---------------------------------------------------------------------- */
+
+.faq {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+  max-width: var(--measure);
+}
+
+.faq__item {
+  padding-block: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 48rem) {
+  .faq__item {
+    grid-template-columns: minmax(14rem, 1fr) minmax(0, 1.6fr);
+    gap: var(--sp-6);
+    align-items: baseline;
+  }
+}
+
+.faq__q {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.faq__a {
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* -------------------------------------------------------------------------
+   Testimonials
+   ---------------------------------------------------------------------- */
+
+.testimonials {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+@media (min-width: 56rem) {
+  .testimonials {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.testimonial {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.testimonial__quote {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  line-height: 1.4;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.testimonial__attrib {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+/* -------------------------------------------------------------------------
+   Instagram — studio-owned images, no embed, no third-party JS
+   ---------------------------------------------------------------------- */
+
+.ig-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2);
+}
+
+@media (min-width: 48rem) {
+  .ig-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.ig-tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--bg-raised);
+}
+
+.ig-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--dur-3) var(--ease), opacity var(--dur-2) var(--ease);
+}
+
+.ig-tile:hover img {
+  transform: scale(1.03);
+  opacity: 0.86;
+}
+
+/* -------------------------------------------------------------------------
+   CTA band
+   ---------------------------------------------------------------------- */
+
+.cta {
+  display: grid;
+  gap: var(--sp-5);
+  padding-block: var(--section-y-lg);
+  border-top: 1px solid var(--line);
+}
+
+@media (min-width: 48rem) {
+  .cta {
+    grid-template-columns: 1.2fr 1fr;
+    align-items: end;
+    gap: var(--sp-8);
+  }
+}
+
+.cta__title {
+  font-size: var(--step-5);
+  max-width: 16ch;
+}
+
+.cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  justify-content: flex-start;
+}
+
+@media (min-width: 48rem) {
+  .cta__actions {
+    justify-content: flex-end;
+  }
+}
+
+.copy-email {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: var(--tap);
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+.copy-email:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.copy-email__state {
+  font-size: var(--step--1);
+  color: var(--accent);
+  min-width: 3.5em;
+}
+
+/* -------------------------------------------------------------------------
+   Footer
+   ---------------------------------------------------------------------- */
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding-block: var(--sp-7) var(--sp-5);
+  font-size: var(--step--1);
+}
+
+.site-footer__grid {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+@media (min-width: 48rem) {
+  .site-footer__grid {
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: var(--sp-7);
+  }
+}
+
+.site-footer__brand {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  margin-bottom: var(--sp-2);
+}
+
+.site-footer__blurb {
+  color: var(--ink-faint);
+  max-width: 34ch;
+}
+
+.site-footer__heading {
+  font-family: var(--font-mono);
+  color: var(--ink-faint);
+  margin-bottom: var(--sp-3);
+}
+
+.site-footer__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.site-footer__list a {
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+
+.site-footer__list a:hover {
+  color: var(--accent);
+}
+
+.site-footer__base a {
+  display: inline-flex;
+  align-items: center;
+  /* min-width as well as min-height: a short label like "Terms" would
+     otherwise clear the height bar and miss the width one. */
+  min-height: var(--tap);
+  min-width: var(--tap);
+  justify-content: center;
+  padding-inline: var(--sp-2);
+  text-decoration: none;
+}
+
+.site-footer__base a:hover {
+  color: var(--accent);
+}
+
+.site-footer__base {
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  justify-content: space-between;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+}
+
+/* -------------------------------------------------------------------------
+   Filters — only rendered when there are enough projects to justify them
+   ---------------------------------------------------------------------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--sp-5);
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition:
+    color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+
+.filter:hover {
+  color: var(--ink);
+}
+
+.filter[aria-current='true'] {
+  color: var(--accent-ink);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.filter__count {
+  opacity: 0.6;
+  margin-left: var(--sp-2);
+}
+
+/* -------------------------------------------------------------------------
+   Forms
+   ---------------------------------------------------------------------- */
+
+.form {
+  display: grid;
+  gap: var(--sp-5);
+  max-width: 40rem;
+}
+
+.form__row {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+@media (min-width: 40rem) {
+  .form__row--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.field {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.field__label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-muted);
+}
+
+.field__label .req {
+  color: var(--accent);
+}
+
+.field__hint {
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.field__error {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--err);
+  min-height: 1.2em;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--sp-2) var(--sp-3);
+  background-color: var(--bg-inset);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  font-size: var(--step-0);
+  transition: border-color var(--dur-1) var(--ease);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--ink-faint);
+}
+
+.input:hover,
+.select:hover,
+.textarea:hover {
+  border-color: var(--line-focus);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input[aria-invalid='true'],
+.textarea[aria-invalid='true'],
+.select[aria-invalid='true'] {
+  border-color: var(--err);
+}
+
+.textarea {
+  min-height: 8rem;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-faint) 50%),
+    linear-gradient(135deg, var(--ink-faint) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.05rem) calc(50% + 1px),
+    calc(100% - 0.7rem) calc(50% + 1px);
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: var(--sp-7);
+}
+
+/* Honeypot: off-screen, not display:none, so simple bots still fill it. */
+.hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.form__status {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  padding: var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+}
+
+.form__status[data-state='success'] {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.form__status[data-state='error'] {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+/* -------------------------------------------------------------------------
+   Contact
+   ---------------------------------------------------------------------- */
+
+.contact {
+  display: grid;
+  gap: var(--sp-7);
+}
+
+@media (min-width: 56rem) {
+  .contact {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--sp-8);
+    align-items: start;
+  }
+}
+
+.contact__aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+}
+
+.contact__aside-heading {
+  margin-top: var(--sp-4);
+}
+
+.contact__social {
+  padding-top: 0;
+  border-top: none;
+  gap: var(--sp-2);
+}
+
+.contact__next {
+  display: grid;
+  gap: var(--sp-3);
+  counter-reset: step;
+  font-size: var(--step-0);
+  color: var(--ink-muted);
+}
+
+.contact__next li {
+  display: grid;
+  gap: var(--sp-2);
+  line-height: 1.5;
+}
+
+.contact__next .process__marker {
+  margin-bottom: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Case study
+   ---------------------------------------------------------------------- */
+
+.case__meta {
+  display: grid;
+  gap: var(--sp-4);
+  padding-block: var(--sp-5);
+  border-block: 1px solid var(--line);
+  margin-block: var(--sp-6);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+@media (min-width: 40rem) {
+.case__title {
+  font-size: var(--step-5);
+  max-width: 20ch;
+}
+
+.case__summary {
+  max-width: 60ch;
+}
+
+.case__placeholder {
+  /*
+   * `position: static` overrides the absolute fill that .project__placeholder
+   * uses inside a card. Without it the figure collapses to zero height — it
+   * has no other in-flow content — and the label renders on top of the meta
+   * block below. Here the element IS the figure's content, so it must
+   * participate in layout and provide the height itself.
+   */
+  position: static;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  border: 0;
+}
+
+.case__placeholder-title {
+  font-family: var(--font-display);
+  font-size: var(--step-3);
+  color: var(--ink-muted);
+}
+
+.case__placeholder-note {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+/* Case-study prose sections sit closer together than marketing sections: they
+   are one continuous narrative, not a set of independent blocks. */
+.case .section {
+  padding-block: var(--sp-6);
+}
+
+.case__metric-label {
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+}
+
+.case__meta {
+
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.case__meta-item {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.case__meta-label {
+  color: var(--ink-faint);
+}
+
+.case__meta-value {
+  color: var(--ink);
+}
+
+.case__media {
+  margin-block: var(--sp-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background-color: var(--bg-raised);
+}
+
+.case__media img {
+  width: 100%;
+  height: auto;
+}
+
+.case__media figcaption {
+  padding: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.case__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-block: var(--sp-6);
+}
+
+.case__credits {
+  border-top: 1px solid var(--line);
+  margin-top: var(--section-y);
+  padding-top: var(--sp-5);
+}
+
+.case__credit-row {
+  display: grid;
+  gap: var(--sp-1);
+  padding-block: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+@media (min-width: 40rem) {
+  .case__credit-row {
+    grid-template-columns: 10rem 1fr;
+    gap: var(--sp-4);
+  }
+}
+
+.case__credit-role {
+  color: var(--ink-faint);
+}
+
+.case__credit-name {
+  color: var(--ink-body);
+}
+
+.case__pager {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  border-top: 1px solid var(--line);
+  margin-top: var(--section-y);
+  padding-top: var(--sp-5);
+}
+
+/* -------------------------------------------------------------------------
+   Admin
+   ---------------------------------------------------------------------- */
+
+.admin {
+  padding-block: var(--sp-6) var(--section-y);
+}
+
+.admin__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--sp-5);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.admin-table th {
+  font-family: var(--font-mono);
+  color: var(--ink-faint);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  color: var(--ink-body);
+}
+
+.admin-table__scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.1rem var(--sp-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.badge[data-state='ready'] {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.badge[data-state='failed'] {
+  border-color: var(--err);
+  color: var(--err);
+}
+.badge[data-state='queued'],
+.badge[data-state='metadata'],
+.badge[data-state='capturing'] {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.badge[data-state='on'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}

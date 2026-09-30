@@ -1,0 +1,64 @@
+---
+/**
+ * The creations grid.
+ *
+ * Column spans follow a repeating composition rather than a uniform 2x2. The
+ * pattern is a pure function of index, so the layout is deterministic (and
+ * testable) instead of hand-placed per project.
+ *
+ * The composition is also RATIO-AWARE, which matters more than it sounds. A
+ * full-bleed 12-column slot holding a 4:5 portrait would render as a 1440x1800
+ * void — a single card taller than the viewport. So a portrait project is
+ * promoted into a paired slot instead of the full-bleed one, and only landscape
+ * content is ever allowed to take the statement position.
+ */
+import type { Project } from '~/lib/types';
+import { resolveProjectPreview, safeAspectRatio, type ResolveOptions } from '~/lib/preview';
+import ProjectCard from './ProjectCard.astro';
+
+type Span = 'a' | 'b' | 'c' | 'd' | 'full';
+
+interface Props {
+  projects: Project[];
+  /** Only the first N cards load media eagerly. */
+  priorityCount?: number;
+  resolveOptions?: ResolveOptions;
+  /** Offset added to the index, so a filtered list keeps a coherent rhythm. */
+  startIndex?: number;
+}
+
+const { projects, priorityCount = 2, resolveOptions = {}, startIndex = 0 } = Astro.props;
+
+const PATTERN: Span[] = ['a', 'b', 'c', 'd', 'full'];
+
+/** A 4:3 landscape, the widest aspect we are willing to give 12 columns. */
+const MAX_FULL_BLEED_ASPECT = 2.1;
+
+function spanFor(index: number, ratio: number): Span {
+  const slot = PATTERN[(index + startIndex) % PATTERN.length];
+
+  // The full-bleed slot is reserved for wide landscape media. A portrait or a
+  // very tall landscape crop would dominate the page as a single empty box.
+  if (slot === 'full' && ratio < 1.35) {
+    // Promote to the wide-but-not-full slot, keeping its neighbour intact.
+    return 'c';
+  }
+  if (slot === 'full' && ratio > MAX_FULL_BLEED_ASPECT) {
+    return 'a';
+  }
+  return slot;
+}
+---
+
+<div class="creations">
+  {
+    projects.map((project, i) => (
+      <ProjectCard
+        project={project}
+        preview={resolveProjectPreview(project, resolveOptions)}
+        span={spanFor(i, safeAspectRatio(project.aspectRatio))}
+        priority={i < priorityCount}
+      />
+    ))
+  }
+</div>

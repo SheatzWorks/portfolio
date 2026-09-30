@@ -1,0 +1,160 @@
+---
+/**
+ * Root document. Everything security- and SEO-relevant about <head> lives here
+ * so no page can forget it.
+ */
+import '../styles/tokens.css';
+import '../styles/fonts.css';
+import '../styles/global.css';
+import '../styles/components.css';
+
+import { studio } from '~/config/site';
+import SiteNav from '~/components/SiteNav.astro';
+import SiteFooter from '~/components/SiteFooter.astro';
+import { getEnv } from '~/lib/env';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Path-only canonical, e.g. '/creations'. */
+  canonicalPath?: string;
+  /** Absolute or media-relative image for social cards. */
+  ogImage?: string;
+  ogImageAlt?: string;
+  /** 'website' for the home page, 'article' for a case study. */
+  ogType?: 'website' | 'article';
+  /** Extra JSON-LD objects appended to the page-level graph. */
+  jsonLd?: unknown[];
+  /** Hide the footer (used by the admin shell, which has its own chrome). */
+  chrome?: boolean;
+  bodyClass?: string;
+}
+
+const {
+  title,
+  description,
+  canonicalPath = Astro.url.pathname,
+  ogImage,
+  ogImageAlt,
+  ogType = 'website',
+  jsonLd = [],
+  chrome = true,
+  bodyClass,
+} = Astro.props;
+
+const env = await getEnv(Astro.locals);
+const siteUrl = env.PUBLIC_SITE_URL || studio.siteUrl;
+const canonical = new URL(canonicalPath, siteUrl).toString();
+const ogUrl = ogImage ? new URL(ogImage, siteUrl).toString() : `${siteUrl.replace(/\/+$/, '')}/og-default.png`;
+
+// One connected graph. Organization + WebSite always; page-specific nodes
+// (CreativeWork / BreadcrumbList) are appended by the page.
+const graph = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${siteUrl.replace(/\/+$/, '')}/#organization`,
+      name: studio.name,
+      url: siteUrl,
+      description: studio.description,
+      email: studio.email,
+      ...(studio.location ? { address: { '@type': 'PostalAddress', addressLocality: studio.location } } : {}),
+      ...(studio.social.length
+        ? { sameAs: studio.social.filter((s) => s.href.startsWith('http')).map((s) => s.href) }
+        : {}),
+      ...(studio.people.length
+        ? {
+            member: studio.people.map((p) => ({
+              '@type': 'Person',
+              name: p.name,
+              jobTitle: p.role,
+            })),
+          }
+        : {}),
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl.replace(/\/+$/, '')}/#website`,
+      url: siteUrl,
+      name: studio.name,
+      description: studio.description,
+      publisher: { '@id': `${siteUrl.replace(/\/+$/, '')}/#organization` },
+      inLanguage: 'en',
+    },
+    ...jsonLd,
+  ],
+};
+
+// Serialised safely: Astro's set:html would otherwise allow a project
+// description containing "</script>" to terminate the block early.
+const jsonLdPayload = JSON.stringify(graph).replace(/</g, '\\u003c');
+---
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <meta name="generator" content={Astro.generator} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={studio.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogUrl} />
+    <meta property="og:image:alt" content={ogImageAlt ?? `${title} — ${studio.name}`} />
+    <meta property="og:locale" content="en" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogUrl} />
+
+    <script type="application/ld+json" set:html={jsonLdPayload} is:inline />
+
+    <link
+      rel="preload"
+      href="/fonts/newsreader-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="/fonts/plexsans-var.woff2" as="font" type="font/woff2" crossorigin />
+  </head>
+
+  <body class={bodyClass}>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    {chrome && <SiteNav currentPath={Astro.url.pathname} />}
+
+    <main id="main">
+      <slot />
+    </main>
+
+    {chrome && <SiteFooter />}
+
+    {/*
+      Not `is:inline`: Astro cannot hash an inline script, so it would be
+      blocked by the CSP it generates. As a bundled module Astro emits the
+      hash itself. It runs on DOMContentLoaded, which is early enough — the
+      reveal styles only matter once content is on screen.
+    */}
+    <script>
+      document.documentElement.classList.remove('no-js');
+    </script>
+  </body>
+</html>

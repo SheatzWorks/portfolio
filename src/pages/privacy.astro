@@ -1,0 +1,93 @@
+---
+/**
+ * Legal pages.
+ *
+ * These describe what the site actually does, in plain language. They are not
+ * legal advice and deliberately make no compliance claims — the placeholders
+ * marked MUST BE COMPLETED are the items that genuinely depend on the studio's
+ * jurisdiction and hosting choices, and shipping invented text there would be
+ * worse than shipping a visible gap.
+ */
+import Base from '~/layouts/Base.astro';
+import Section from '~/components/Section.astro';
+import { studio } from '~/config/site';
+
+export const prerender = true;
+---
+
+<Base
+  title={`Privacy — ${studio.name}`}
+  description={`What ${studio.name} collects, why, and how to have it removed.`}
+  canonicalPath="/privacy"
+>
+  <Section id="privacy" eyebrow="Legal" title="Privacy" headingLevel={1}>
+    <div class="prose">
+      <p>
+        This page describes exactly what this website does with your data. It is
+        short because there is not much to describe.
+      </p>
+
+      <h2>What is collected</h2>
+      <ul>
+        <li>
+          <strong>If you send an enquiry.</strong> The name, email address, and
+          message you type into the contact form, plus the optional company,
+          project type, timeline and budget range. These are stored so the
+          enquiry can be answered.
+        </li>
+        <li>
+          <strong>Server logs.</strong> Our host keeps standard request logs
+          containing IP address, user agent and requested path, for a short
+          period, for security and debugging.
+        </li>
+        <li>
+          <strong>Aggregate analytics.</strong> Privacy-preserving, cookie-free
+          page counts. No cross-site tracking, no advertising identifier, no
+          profile of you.
+        </li>
+      </ul>
+
+      <h2>What is not collected</h2>
+      <ul>
+        <li>No advertising or tracking cookies.</li>
+        <li>No third-party advertising pixels.</li>
+        <li>No data sold or shared with advertisers.</li>
+        <li>
+          No third-party social embeds. The Instagram section of this site
+          displays images we host ourselves and links out to Instagram; it does
+          not load Meta's embed code, so visiting this page does not tell
+          Instagram you were here.
+        </li>
+      </ul>
+
+      <h2>How long it is kept</h2>
+      <p>
+        Enquiries are kept until they are answered and for a reasonable period
+        afterwards, then deleted. Raw IP addresses are never stored in the
+        application database: the rate limiter keeps a salted, truncated, one-way
+        hash, which cannot be reversed to an address.
+      </p>
+
+      <h2>Your rights</h2>
+      <p>
+        You can ask what we hold about you, ask for it to be corrected, or ask
+        for it to be deleted. Email
+        <a href={`mailto:${studio.email}`}>{studio.email}</a> and we will
+        action it. There is no automated decision-making or profiling here, so
+        there is nothing else to opt out of.
+      </p>
+
+      <h2>Before launch</h2>
+      <p>
+        The following must be completed with wording reviewed for the studio's
+        actual jurisdiction and hosting arrangement before the site goes live:
+      </p>
+      <ul>
+        <li>Registered business or trading name, and a postal address if required locally.</li>
+        <li>Which analytics provider is actually enabled, named explicitly.</li>
+        <li>Retention period for server logs, if a local rule requires disclosure.</li>
+        <li>A contact route for data-subject requests if email alone is not sufficient.</li>
+      </ul>
+    </div>
+  </Section>
+</Base>

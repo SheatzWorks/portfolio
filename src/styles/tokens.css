@@ -1,0 +1,121 @@
+/* =========================================================================
+   Design tokens
+   -------------------------------------------------------------------------
+   Direction: near-black ground, hairline separators, ONE acid accent.
+
+   Rules this file enforces, deliberately:
+   - 4 named surface values + 1 accent. No fifth hue.
+   - Hairlines are the only separator mechanism. No box-shadow anywhere.
+   - Radius is 0 by default. The 2px token exists only for form controls,
+     where a square input reads as unstyled rather than as a decision.
+   - Body ink is #D4D4DA, not a muted grey. Muted grey on near-black is the
+     single most common tell of machine-generated dark UI.
+
+   Two type voices, three files:
+   - Newsreader (variable serif) ....... display only
+   - IBM Plex Sans (variable) ......... text + UI
+   - IBM Plex Mono 500 ................ meta, tags, indices
+   Plex Sans and Plex Mono are one designed superfamily, so this reads as two
+   voices rather than three.
+   ========================================================================= */
+
+:root {
+  /* ---- surfaces ------------------------------------------------------- */
+  --bg: #0a0a0b;
+  --bg-raised: #101012;
+  --bg-sunken: #060607;
+  --bg-inset: #0d0d0f;
+
+  /* ---- hairlines ------------------------------------------------------ */
+  --line: #1f1f23;
+  --line-strong: #2a2a30;
+  --line-focus: #4a4a52;
+
+  /* ---- ink ------------------------------------------------------------ */
+  --ink: #ededf0;
+  --ink-body: #d4d4da;
+  --ink-muted: #9a9aa4;
+  --ink-faint: #6e6e78;
+  --ink-inverse: #0a0a0b;
+
+  /* ---- accent: exactly one. Interactive and selected, nothing else. --- */
+  --accent: #b8f14a;
+  --accent-dim: #8fbb36;
+  --accent-ink: #0a0a0b;
+
+  /* ---- semantic (derived, never new hues) ----------------------------- */
+  --ok: #7ee787;
+  --warn: #e3b341;
+  --err: #ff7b72;
+
+  /* ---- type ----------------------------------------------------------- */
+  --font-display: 'Newsreader', 'Newsreader Fallback', 'Iowan Old Style',
+    Palatino, Georgia, serif;
+  --font-text: 'IBM Plex Sans', 'Plex Sans Fallback', 'Segoe UI', Roboto,
+    system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Plex Mono Fallback', ui-monospace, Menlo,
+    monospace;
+
+  /* Fluid root scale. Every spacing value below is a rem multiple, so the
+     type scale and the spacing scale move together across viewports.
+     ~16px at 390px wide, ~19px at 1600px wide. */
+  --step--1: clamp(0.78rem, 0.75rem + 0.12vw, 0.84rem);
+  --step-0: clamp(0.95rem, 0.92rem + 0.15vw, 1.03rem);
+  --step-1: clamp(1.13rem, 1.06rem + 0.32vw, 1.31rem);
+  --step-2: clamp(1.35rem, 1.21rem + 0.62vw, 1.72rem);
+  --step-3: clamp(1.62rem, 1.36rem + 1.14vw, 2.28rem);
+  --step-4: clamp(1.94rem, 1.5rem + 1.94vw, 3.02rem);
+  --step-5: clamp(2.33rem, 1.62rem + 3.12vw, 4rem);
+  --step-6: clamp(2.8rem, 1.68rem + 4.85vw, 5.3rem);
+
+  /* ---- spacing (rem, tracks the root scale) --------------------------- */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+  --sp-9: 6rem;
+  --sp-10: 8rem;
+
+  /* Section rhythm. Deliberately restrained: research on the current premium
+     studios found generosity in the *type* scale, not in empty vertical space.
+     These were tightened after a full-page screenshot at 1440px read as
+     sparse rather than composed. */
+  --section-y: clamp(3rem, 1.6rem + 4.4vw, 5.5rem);
+  --section-y-lg: clamp(3.5rem, 1.8rem + 5.6vw, 7rem);
+
+  /* ---- layout --------------------------------------------------------- */
+  --gutter: clamp(1.15rem, 0.55rem + 2.4vw, 3.25rem);
+  --measure: 68ch;
+  --measure-narrow: 46ch;
+  --max-w: 84rem;
+
+  /* ---- shape ---------------------------------------------------------- */
+  --radius: 2px;
+  --radius-full: 999px;
+
+  /* Minimum touch target, in px on purpose.
+     The root font-size is fluid (0.95rem at a 390px viewport ≈ 15.2px), so a
+     rem-based `min-height: 2.75rem` resolves to 42px on a phone — just under
+     the 44px guideline. Interactive controls reference this token instead. */
+  --tap: 44px;
+
+  /* ---- motion --------------------------------------------------------- */
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --reveal-shift: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 1ms;
+    --dur-2: 1ms;
+    --dur-3: 1ms;
+    --reveal-shift: 0px;
+  }
+}

@@ -1,0 +1,70 @@
+---
+/**
+ * Section shell. One place that owns the eyebrow + heading + optional aside
+ * pattern, so no page has to re-derive the spacing.
+ */
+interface Props {
+  id?: string;
+  eyebrow?: string;
+  title?: string;
+  note?: string;
+  /** `lg` for the biggest rhythm, e.g. the creations section. */
+  size?: 'default' | 'lg';
+  as?: 'section' | 'div';
+  class?: string;
+  /**
+   * Render the title as the page's <h1> instead of an <h2>. Exactly one per
+   * page: the index and any standalone top-level route should opt in, nested
+   * sections should not.
+   */
+  headingLevel?: 1 | 2;
+}
+
+const {
+  id,
+  eyebrow,
+  title,
+  note,
+  size = 'default',
+  as: Tag = 'section',
+  class: className,
+  headingLevel = 2,
+} = Astro.props;
+
+const headingId = title && id ? `${id}-title` : undefined;
+---
+
+<Tag
+  id={id}
+  class:list={['section', size === 'lg' && 'section--lg', className]}
+  aria-labelledby={headingId}
+>
+  <div class="shell">
+    {
+      (eyebrow || title || note) && (
+        <div class="section-head" data-reveal>
+          {eyebrow && <p class="eyebrow eyebrow--plain">{eyebrow}</p>}
+          <div class="section-head__row">
+            {title && (
+              <>
+                {/* Written out rather than as a dynamic tag name: Astro renders
+                    a string-valued component as a custom element, not an <h1>. */}
+                {headingLevel === 1 ? (
+                  <h1 class="section-head__title" id={headingId}>
+                    {title}
+                  </h1>
+                ) : (
+                  <h2 class="section-head__title" id={headingId}>
+                    {title}
+                  </h2>
+                )}
+              </>
+            )}
+            {note && <p class="section-head__note">{note}</p>}
+          </div>
+        </div>
+      )
+    }
+    <slot />
+  </div>
+</Tag>

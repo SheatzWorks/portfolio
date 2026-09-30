@@ -1,0 +1,50 @@
+{
+  "name": "studio-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Two-person digital studio website. Data-driven creations portfolio with automated preview generation.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "node scripts/generate-og.mjs && node scripts/build.mjs",
+    "preview": "astro preview",
+    "check": "astro check",
+    "db:migrate:local": "wrangler d1 migrations apply studio --local",
+    "db:migrate:remote": "wrangler d1 migrations apply studio --remote",
+    "db:seed:local": "wrangler d1 execute studio --local --file=./scripts/seed.sql",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "capture:drain": "node scripts/capture.mjs --drain",
+    "capture:serve": "node scripts/capture.mjs --serve",
+    "capture:one": "node scripts/capture.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "perf": "node scripts/perf.mjs",
+    "qa": "node scripts/qa-matrix.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run test:e2e && npm run perf && npm run qa",
+    "db:clear:remote": "wrangler d1 execute studio --remote --file=./scripts/clear-demo.sql",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json"
+  },
+  "dependencies": {
+    "astro": "7.3.5",
+    "@astrojs/cloudflare": "14.3.3",
+    "cheerio": "1.2.0",
+    "ipaddr.js": "2.5.0",
+    "resend": "6.31.0",
+    "sharp": "0.35.5",
+    "@aws-sdk/client-s3": "3.712.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "wrangler": "4.144.0",
+    "playwright-core": "1.63.0",
+    "@astrojs/check": "0.9.6",
+    "@cloudflare/workers-types": "5.20260926.1"
+  }
+}

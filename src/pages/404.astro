@@ -1,0 +1,27 @@
+---
+import Base from '~/layouts/Base.astro';
+import NotFound from '~/components/NotFound.astro';
+import { studio } from '~/config/site';
+import { getEnv, hasDb } from '~/lib/env';
+import { listPublishedProjects } from '~/lib/db';
+
+export const prerender = true;
+
+const env = await getEnv();
+let recent: Awaited<ReturnType<typeof listPublishedProjects>> = [];
+if (hasDb(env)) {
+  recent = await listPublishedProjects(env.DB as never).catch(() => []);
+}
+---
+
+<Base
+  title={`Page not found — ${studio.name}`}
+  description="That page does not exist."
+  canonicalPath="/404"
+>
+  <div class="shell">
+    <section class="section section--lg">
+      <NotFound recent={recent} />
+    </section>
+  </div>
+</Base>

@@ -1,0 +1,54 @@
+---
+/**
+ * Admin sign-in. Deliberately has no JavaScript: the form posts normally and
+ * the server redirects. Nothing here can be bypassed client-side, and the
+ * token is never held in page state.
+ */
+import { studio } from '~/config/site';
+
+export const prerender = false;
+
+const error = Astro.url.searchParams.has('error');
+const next = Astro.url.searchParams.get('next') ?? '/admin';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Sign in — {studio.name} admin</title>
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body class="admin-login">
+    <main>
+      <h1>Studio admin</h1>
+      {
+        error && (
+          <p class="error" role="alert">
+            That token is not valid.
+          </p>
+        )
+      }
+      <form method="post" action="/api/admin/session">
+        <input type="hidden" name="next" value={next} />
+        <label for="token">Admin token</label>
+        <input
+          id="token"
+          name="token"
+          type="password"
+          autocomplete="current-password"
+          required
+          autofocus
+        />
+        <button type="submit">Sign in</button>
+      </form>
+      <p class="hint">
+        The token is exchanged for an HttpOnly, SameSite=Strict cookie and is never exposed to
+        page scripts. Put Cloudflare Access in front of <code>/admin</code> as well — this is
+        defence in depth, not a replacement for it.
+      </p>
+    </main>
+  </body>
+</html>

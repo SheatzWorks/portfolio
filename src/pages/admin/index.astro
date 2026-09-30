@@ -1,0 +1,339 @@
+---
+/**
+ * Admin dashboard: projects, ordering, publish state, preview regeneration.
+ *
+ * Everything is rendered server-side and mutated over the authenticated API.
+ * There is no client framework; the page is a form and a table, which keeps the
+ * admin's JavaScript trivial and means it works even if the bundle fails.
+ */
+import { getEnv, getDb } from '~/lib/env';
+import { listAllProjects } from '~/lib/db';
+import type { D1Database } from '@cloudflare/workers-types';
+
+export const prerender = false;
+
+const env = await getEnv();
+const db: D1Database = getDb(env);
+
+const projects = await listAllProjects(db as never).catch(() => []);
+
+let jobCounts: { pending: number; failed: number } = { pending: 0, failed: 0 };
+try {
+  const row = await db
+    .prepare(
+      `SELECT
+         SUM(CASE WHEN state = 'pending' THEN 1 ELSE 0 END) AS pending,
+         SUM(CASE WHEN state = 'failed'  THEN 1 ELSE 0 END) AS failed
+       FROM jobs`,
+    )
+    .bind()
+    .first<{ pending: number | null; failed: number | null }>();
+  jobCounts = { pending: row?.pending ?? 0, failed: row?.failed ?? 0 };
+} catch {
+  /* counts are decorative */
+}
+
+const provider = env.CAPTURE_PROVIDER ?? 'none';
+const previewMode = env.PREVIEW_FETCH_MODE ?? 'egress';
+const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.trim()).length;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Admin</title>
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <div class="bar">
+        <div>
+          <h1>Creations</h1>
+          <p class="bar__meta">
+            {projects.length} total · {projects.filter((p) => p.published).length} published ·
+            {jobCounts.pending} jobs queued · {jobCounts.failed} failed
+          </p>
+        </div>
+        <div class="bar__actions">
+          <a class="btn" href="/" target="_blank" rel="noopener">View site</a>
+          <form method="post" action="/api/admin/session" data-signout class="signout-form">
+            <button class="btn" type="submit">Sign out</button>
+          </form>
+        </div>
+      </div>
+
+      <p class="bar__meta config-line">
+        capture provider: <strong>{provider}</strong> · fetch mode: <strong>{previewMode}</strong> ·
+        host allowlist: <strong>{allowlist === 0 ? 'none (relies on SSRF filtering)' : `${allowlist} host(s)`}</strong>
+      </p>
+
+      <!-- ------------------------------------------------------------ add -->
+      <h2 class="section-title">Add a project</h2>
+      <div class="card">
+        <form id="add-form" class="form-grid">
+          <p class="hint hint--flush">
+            A URL is the only required field. Title, description and the social image are read
+            from the page automatically; the capture is queued and finishes in the background.
+          </p>
+
+          <div class="field">
+            <label for="add-url">Project URL *</label>
+            <input id="add-url" name="url" type="url" placeholder="https://example.netlify.app" required />
+          </div>
+
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label for="add-title">Title</label>
+              <input id="add-title" name="title" type="text" placeholder="Read from the page if blank" />
+            </div>
+            <div class="field">
+              <label for="add-blurb">One-line description</label>
+              <input id="add-blurb" name="blurb" type="text" placeholder="Shown on the card" />
+            </div>
+          </div>
+
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label for="add-kind">Type</label>
+              <select id="add-kind" name="kind">
+                <option value="web">Website</option>
+                <option value="webapp">Web application</option>
+                <option value="mobile">Mobile app</option>
+                <option value="saas">SaaS</option>
+                <option value="ai">AI</option>
+                <option value="experiment">Experiment</option>
+                <option value="client">Client work</option>
+                <option value="internal">Internal</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="add-year">Year</label>
+              <input id="add-year" name="year" type="number" min="1990" max="2100" placeholder="2026" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="add-tech">Technologies</label>
+            <input id="add-tech" name="technologies" type="text" placeholder="Astro, TypeScript, D1" />
+            <span class="hint">Comma separated. Shown as tags on the card.</span>
+          </div>
+
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label for="add-ar">Media ratio</label>
+              <select id="add-ar" name="aspect_ratio">
+                <option value="1.7778">16:9 landscape</option>
+                <option value="1.5">3:2 landscape</option>
+                <option value="1.3333">4:3 landscape</option>
+                <option value="1" selected>Square</option>
+                <option value="0.8">4:5 portrait</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="add-github">Source repository</label>
+              <input id="add-github" name="github" type="url" placeholder="https://github.com/..." />
+            </div>
+          </div>
+
+          <div class="form-grid form-grid--2">
+            <div class="field">
+              <label class="check" for="add-featured"><input type="checkbox" id="add-featured" name="featured" /> Feature on the home page</label>
+            </div>
+            <div class="field">
+              <label class="check" for="add-published"><input type="checkbox" id="add-published" name="published" checked /> Publish immediately</label>
+            </div>
+          </div>
+
+          <div>
+            <button class="btn btn--primary" type="submit" data-submit>Add project</button>
+          </div>
+
+          <p class="status" data-status role="status" aria-live="polite" hidden></p>
+        </form>
+      </div>
+
+      <!-- ---------------------------------------------------------- list -->
+      <h2 class="section-title">All projects</h2>
+      <div class="table-wrap">
+        <table data-table>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Title</th>
+              <th>Type</th>
+              <th>Preview</th>
+              <th>Flags</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody data-rows>
+            {
+              projects.length === 0 ? (
+                <tr class="empty-row">
+                  <td colspan={6}>
+                    Nothing here yet. Add a project above — a URL is all that is required.
+                  </td>
+                </tr>
+              ) : (
+                projects.map((p) => (
+                  <tr data-id={p.id} data-slug={p.slug}>
+                    <td class="mono">{p.sortOrder}</td>
+                    <td>
+                      <strong class="row-title">{p.title}</strong>
+                      <br />
+                      <span class="mono">{p.url}</span>
+                    </td>
+                    <td class="mono">{p.kind}</td>
+                    <td>
+                      <span class="badge" data-state={p.previewState}>
+                        {p.previewState}
+                      </span>
+                      {p.preview.source && (
+                        <>
+                          <br />
+                          <span class="mono">{p.preview.source}</span>
+                        </>
+                      )}
+                      {p.preview.note && (
+                        <>
+                          <br />
+                          <span class="mono">{p.preview.note}</span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      <span class="badge" data-on={String(p.published)}>
+                        {p.published ? 'published' : 'draft'}
+                      </span>{' '}
+                      {p.featured && (
+                        <span class="badge" data-on="true">
+                          featured
+                        </span>
+                      )}{' '}
+                      {p.hasCaseStudy && <span class="badge">case study</span>}
+                    </td>
+                    <td class="actions">
+                      <button class="btn btn--sm" data-action="toggle-published" data-id={p.id}>
+                        {p.published ? 'Unpublish' : 'Publish'}
+                      </button>
+                      <button class="btn btn--sm" data-action="toggle-featured" data-id={p.id}>
+                        {p.featured ? 'Unfeature' : 'Feature'}
+                      </button>
+                      <button class="btn btn--sm" data-action="regenerate" data-id={p.id} data-run="1">
+                        Re-capture
+                      </button>
+                      <a class="btn btn--sm" href={`/creations/${p.slug}`} target="_blank" rel="noopener">
+                        View
+                      </a>
+                      <button class="btn btn--sm" data-action="delete" data-id={p.id}>Delete</button>
+                    </td>
+                  </tr>
+                ))
+              )
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      async function call(action: string, body: Record<string, unknown>) {
+        const response = await fetch(`/api/admin/projects?action=${encodeURIComponent(action)}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify(body),
+        });
+        type AdminResponse = { ok: boolean; error?: string; [key: string]: unknown };
+        const data = (await response.json().catch(() => ({}))) as AdminResponse;
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.error ?? `Request failed (${response.status})`);
+        }
+        return data;
+      }
+
+      // ---- add form ----------------------------------------------------
+      const form = document.getElementById('add-form') as HTMLFormElement | null;
+      const statusEl = document.querySelector<HTMLElement>('[data-status]');
+      const setStatus = (message: string, state: 'ok' | 'error') => {
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.dataset.state = state;
+        statusEl.hidden = false;
+      };
+
+      form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submit = form.querySelector<HTMLButtonElement>('[data-submit]');
+        if (submit) {
+          submit.disabled = true;
+          submit.textContent = 'Adding…';
+        }
+        const fd = new FormData(form);
+        try {
+          const result = await call('create', {
+            url: String(fd.get('url') ?? ''),
+            title: String(fd.get('title') ?? ''),
+            blurb: String(fd.get('blurb') ?? ''),
+            kind: String(fd.get('kind') ?? 'web'),
+            year: String(fd.get('year') ?? ''),
+            technologies: String(fd.get('technologies') ?? ''),
+            aspect_ratio: Number(fd.get('aspect_ratio') ?? 1),
+            github: String(fd.get('github') ?? ''),
+            featured: fd.get('featured') === 'on',
+            published: fd.get('published') === 'on',
+          });
+          setStatus(`Added "${result.slug}". Reloading…`, 'ok');
+          setTimeout(() => location.reload(), 600);
+        } catch (err) {
+          setStatus(err instanceof Error ? err.message : 'Could not add the project.', 'error');
+          if (submit) {
+            submit.disabled = false;
+            submit.textContent = 'Add project';
+          }
+        }
+      });
+
+      // ---- sign out ----------------------------------------------------
+      // A plain form POST hits the LOGIN handler, which would just bounce back
+      // to the login page with the session intact. DELETE is the sign-out verb,
+      // and a method override carries it from a form that cannot issue one.
+      document.querySelector<HTMLFormElement>('[data-signout]')?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const form = event.currentTarget as HTMLFormElement;
+        fetch(form.action, { method: 'DELETE', credentials: 'same-origin' }).finally(() => {
+          location.href = '/admin/login';
+        });
+      });
+
+      // ---- row actions -------------------------------------------------
+      document.addEventListener('click', async (event) => {
+        const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-action]');
+        if (!button) return;
+
+        const action = button.dataset.action!;
+        const id = Number(button.dataset.id);
+
+        if (action === 'delete') {
+          const slug = button.closest('tr')?.dataset.slug ?? 'this project';
+          if (!confirm(`Delete "${slug}"? This also removes its queued capture jobs.`)) return;
+        }
+
+        const original = button.textContent;
+        button.disabled = true;
+        button.textContent = '…';
+
+        try {
+          await call(action, { id, run: button.dataset.run === '1' });
+          location.reload();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Request failed.');
+          button.disabled = false;
+          button.textContent = original;
+        }
+      });
+    </script>
+  </body>
+</html>

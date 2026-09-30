@@ -1,0 +1,69 @@
+---
+import Base from '~/layouts/Base.astro';
+import Section from '~/components/Section.astro';
+import { studio } from '~/config/site';
+
+export const prerender = true;
+---
+
+<Base
+  title={`Terms — ${studio.name}`}
+  description={`The terms for using ${studio.name}'s website and commissioning work.`}
+  canonicalPath="/terms"
+>
+  <Section id="terms" eyebrow="Legal" title="Terms" headingLevel={1}>
+    <div class="prose">
+      <p>
+        The plain-language version. The binding version is the written contract
+        signed before any project starts, and this page does not replace it.
+      </p>
+
+      <h2>About this site</h2>
+      <p>
+        This website is provided by {studio.name}. It is a portfolio and a way
+        to make contact. You may browse it, link to it, and quote from it. You
+        may not republish it as your own, scrape it at scale, or use it to send
+        unsolicited commercial messages.
+      </p>
+
+      <h2>The work shown here</h2>
+      <p>
+        Projects displayed in the creations section are our own work, work we
+        built with a client, or experimental work. Where a project belongs to a
+        client, its name and their team are credited on its page. Screenshots
+        are of the public, live site as it appeared when the capture was taken;
+        they are not representations of the current state of that site, and the
+        linked product is not offered for sale through this page.
+      </p>
+
+      <h2>Availability</h2>
+      <p>
+        The site is provided as-is. Third-party project links may be broken,
+        changed, or withdrawn by their owners; that is outside our control. We
+        do not guarantee that any project linked from this site will remain
+        available, though we do maintain the links we control.
+      </p>
+
+      <h2>Commissioning work</h2>
+      <p>
+        Nothing on this site is an offer, a quotation, or a contract. Work begins
+        only after a written agreement covering scope, deliverables, price,
+        payment schedule, IP transfer, and support terms has been signed by both
+        sides. Any figure mentioned in conversation before that point is an
+        estimate, not a commitment.
+      </p>
+
+      <h2>Before launch</h2>
+      <p>
+        The following must be reviewed by someone qualified in the studio's
+        jurisdiction before the site goes live:
+      </p>
+      <ul>
+        <li>Governing law and jurisdiction clause.</li>
+        <li>Limitation of liability and warranty disclaimers.</li>
+        <li>Any consumer-cancellation rights that apply to the studio's location.</li>
+        <li>Registered entity name and address, if required for business.</li>
+      </ul>
+    </div>
+  </Section>
+</Base>

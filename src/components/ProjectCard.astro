@@ -1,0 +1,187 @@
+---
+/**
+ * Project card.
+ *
+ * Interaction budget, kept deliberately low:
+ *   - the whole card is one link (no nested interactive controls to tab through)
+ *   - a still image always paints first
+ *   - a video, when one exists, replaces it only on hover/focus on pointer
+ *     devices; on touch the still is what the user gets, because autoplaying
+ *     video on a metered mobile connection is the wrong trade
+ *   - tags are plain text, not links, so they do not add tab stops
+ *
+ * Nothing here can render broken: `resolvePreview` guarantees a non-empty image
+ * URL or a designed plate.
+ */
+import type { Project, ResolvedPreview } from '~/lib/types';
+import { safeAspectRatio, arBucketFor } from '~/lib/preview';
+
+interface Props {
+  project: Project;
+  preview: ResolvedPreview;
+  /** Grid position, drives the fractional column span. */
+  span?: 'a' | 'b' | 'c' | 'd' | 'full';
+  /** Eagerly load the first row's media; the rest stay lazy. */
+  priority?: boolean;
+}
+
+const { project, preview, span = 'a', priority = false } = Astro.props;
+
+const ar = safeAspectRatio(project.aspectRatio);
+// A data attribute rather than an inline style: the CSP does not allow style
+// attributes, and hashing every possible ratio is not worth 400 bytes of CSS.
+const arBucket = arBucketFor(ar);
+const href = project.hasCaseStudy ? `/creations/${project.slug}` : project.url;
+const isExternal = href === project.url;
+const title = project.title;
+const accessibleName = `${project.title} — ${project.blurb ?? project.url}`;
+---
+
+<article class="creations__item" data-span={span} data-project={project.slug}>
+  {/*
+    The dominant colour is genuinely per-project, so it cannot live in a
+    utility class. It goes in a scoped <style> block instead of a style
+    attribute: Astro collects and hashes page styles, so this is covered by
+    the CSP's style-src hash. The `is:global` escape is not needed because the
+    selector is scoped to this component instance.
+  */}
+  <style>{`[data-project="${project.slug}"] .project__media{background-color:${preview.background}}`}</style>
+
+  <a
+    class="project"
+    href={href}
+    {...isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {}}
+    aria-label={accessibleName}
+    data-ar={arBucket.name}
+    data-project-card
+    data-has-video={preview.videoUrl ? 'true' : 'false'}
+  >
+    <div class="project__media">
+      <span class="project__placeholder" data-plate hidden>{project.title}</span>
+      {
+        preview.imageUrl && (
+          <img
+            class="project__img"
+            src={preview.imageUrl}
+            srcset={preview.srcset}
+            sizes="(min-width: 1024px) 46vw, (min-width: 640px) 58vw, 100vw"
+            alt=""
+            width={preview.width ?? 1440}
+            height={preview.height ?? Math.round(1440 / ar)}
+            loading={priority ? 'eager' : 'lazy'}
+            decoding={priority ? 'sync' : 'async'}
+            fetchpriority={priority ? 'high' : 'auto'}
+            /* If the external image 404s or is blocked, fall back to the
+               designed plate rather than showing a broken-image glyph. One
+               unreachable third party must not damage the grid. */
+            data-img-fallback
+          />
+        )
+      }
+
+      {
+        preview.videoUrl && (
+          <video
+            class="project__video"
+            data-project-video
+            src={preview.videoUrl}
+            poster={preview.videoPoster ?? preview.imageUrl}
+            muted
+            loop
+            playsinline
+            preload="none"
+            aria-hidden="true"
+            tabindex={-1}
+          />
+        )
+      }
+
+      {preview.live && <span class="project__frameable">Live preview</span>}
+    </div>
+
+    <div class="project__body">
+      <h3 class="project__title">{title}</h3>
+      {project.blurb && <p class="project__blurb">{project.blurb}</p>}
+
+      {
+        (project.technologies.length > 0 || project.year) && (
+          <ul class="project__tags">
+            {project.technologies.slice(0, 4).map((tech) => (
+              <li>{tech}</li>
+            ))}
+            {project.year && <li class="project__year">{project.year}</li>}
+          </ul>
+        )
+      }
+    </div>
+  </a>
+</article>
+
+<script>
+  /**
+   * Video-on-hover for pointer devices only.
+   *
+   * Guarded by `matchMedia('(hover: hover)')` so this never runs on a phone,
+   * and gated on `preload="none"` so no bytes are fetched until the pointer
+   * actually arrives. `prefers-reduced-motion` skips it entirely.
+   */
+  function initVideo() {
+    // Image error fallback first: an unreachable og: or favicon host must not
+    // leave a broken-image glyph in the grid.
+    for (const img of document.querySelectorAll<HTMLImageElement>('[data-img-fallback]')) {
+      const media = img.closest('.project__media');
+      const plate = media?.querySelector<HTMLElement>('[data-plate]');
+      img.addEventListener(
+        'error',
+        () => {
+          img.remove();
+          if (plate) plate.hidden = false;
+        },
+        { once: true },
+      );
+    }
+
+    const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
+    if (!canHover.matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const cards = document.querySelectorAll<HTMLElement>('[data-project-card][data-has-video="true"]');
+
+    for (const card of cards) {
+      const video = card.querySelector<HTMLVideoElement>('[data-project-video]');
+      if (!video) continue;
+
+      let playing = false;
+
+      const play = async () => {
+        if (playing) return;
+        try {
+          await video.play();
+          playing = true;
+          card.dataset.videoPlaying = 'true';
+        } catch {
+          // Autoplay refused. The poster frame is already showing, which is a
+          // complete and acceptable result.
+        }
+      };
+
+      const stop = () => {
+        if (!playing) return;
+        video.pause();
+        video.currentTime = 0;
+        playing = false;
+        card.dataset.videoPlaying = 'false';
+      };
+
+      card.addEventListener('pointerenter', play);
+      card.addEventListener('pointerleave', stop);
+      // Keyboard users get the still: focus is not a hover.
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initVideo, { once: true });
+  } else {
+    initVideo();
+  }
+</script>

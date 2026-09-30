@@ -1,0 +1,71 @@
+---
+import { studio } from '~/config/site';
+import { getEnv } from '~/lib/env';
+import { listServices } from '~/lib/db';
+
+const env = await getEnv(Astro.locals);
+const year = new Date().getFullYear();
+
+// Services in the footer, when there are real ones. Falls back to a short list
+// so the column is never empty or padded with placeholder text.
+let services: { name: string; slug: string }[] = [];
+if (env.DB) {
+  try {
+    services = (await listServices(env.DB as never)).map((s) => ({ name: s.name, slug: s.slug }));
+  } catch {
+    services = [];
+  }
+}
+const footerServices = services.length
+  ? services
+  : [
+      { name: 'Websites', slug: 'websites' },
+      { name: 'Web applications', slug: 'web-applications' },
+      { name: 'Product & SaaS', slug: 'product' },
+    ];
+---
+
+<footer class="site-footer">
+  <div class="shell">
+    <div class="site-footer__grid">
+      <div>
+        <p class="site-footer__brand">{studio.name}</p>
+        <p class="site-footer__blurb">{studio.tagline}</p>
+      </div>
+
+      <nav aria-labelledby="footer-nav">
+        <h2 class="site-footer__heading" id="footer-nav">Site</h2>
+        <ul class="site-footer__list">
+          <li><a href="/">Home</a></li>
+          <li><a href="/creations">Creations</a></li>
+          <li><a href="/studio">Studio</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+
+      <nav aria-labelledby="footer-services">
+        <h2 class="site-footer__heading" id="footer-services">Work</h2>
+        <ul class="site-footer__list">
+          {
+            footerServices.map((s) => (
+              <li>
+                <a href={`/#services`}>{s.name}</a>
+              </li>
+            ))
+          }
+          <li><a href="/contact">Start a project</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="site-footer__base">
+      <span>© {year} {studio.name}</span>
+      <span>
+        <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+      </span>
+      <span class="site-footer__status">
+        <span class="status-dot" aria-hidden="true"></span> Available for new work
+      </span>
+    </div>
+  </div>
+</footer>

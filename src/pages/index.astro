@@ -1,0 +1,432 @@
+---
+import Base from '~/layouts/Base.astro';
+import Section from '~/components/Section.astro';
+import CreationsGrid from '~/components/CreationsGrid.astro';
+import EmptyState from '~/components/EmptyState.astro';
+import { studio } from '~/config/site';
+import { getEnv } from '~/lib/env';
+import {
+  listPublishedProjects,
+  listServices,
+  listTeam,
+  listTestimonials,
+  listInstagramPosts,
+  getSiteContent,
+} from '~/lib/db';
+import { getMediaBaseUrl } from '~/lib/preview';
+
+// The home page is prerendered, so it reads from D1 at build time. Projects
+// added later appear on /creations immediately (that route is SSR) and on the
+// home page at the next build. See docs/architecture.md for why the split.
+export const prerender = true;
+
+const env = await getEnv(Astro.locals);
+const db = env.DB as never;
+
+let projects: Awaited<ReturnType<typeof listPublishedProjects>> = [];
+let services: Awaited<ReturnType<typeof listServices>> = [];
+let team: Awaited<ReturnType<typeof listTeam>> = [];
+let testimonials: Awaited<ReturnType<typeof listTestimonials>> = [];
+let posts: Awaited<ReturnType<typeof listInstagramPosts>> = [];
+let content: Awaited<ReturnType<typeof getSiteContent>> = {
+  faq: [],
+  capabilities: [],
+  process: [],
+  servicesIntro: null,
+  contactBlurb: null,
+};
+
+if (db) {
+  // Each read is independent: a failure in one must not blank the whole page.
+  const [p, s, t, q, i, c] = await Promise.all([
+    listPublishedProjects(db).catch(() => []),
+    listServices(db).catch(() => []),
+    listTeam(db).catch(() => []),
+    listTestimonials(db).catch(() => []),
+    listInstagramPosts(db).catch(() => []),
+    getSiteContent(db).catch(() => content),
+  ]);
+  projects = p;
+  services = s;
+  team = t;
+  testimonials = q;
+  posts = i;
+  content = c;
+}
+
+const featured = projects.filter((p) => p.featured);
+const shown = featured.length ? featured : projects;
+const hasCreations = shown.length > 0;
+
+const title = `${studio.name} — ${studio.tagline}`;
+---
+
+<Base title={title} description={studio.description} canonicalPath="/">
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Hero                                                                -->
+  <!-- ------------------------------------------------------------------ -->
+  <section class="hero">
+    <div class="shell">
+      <p class="hero__status">
+        <span class="status-dot" aria-hidden="true"></span>
+        Available for new work
+      </p>
+
+      <h1 class="hero__title">
+        Software, <em>built</em> and shown.
+      </h1>
+
+      <p class="hero__body">
+        {studio.tagline} Every creation below is a real, running thing you can
+        open — not a concept, not a mockup.
+      </p>
+
+      <div class="btn-row">
+        <a class="btn btn--primary" href="/creations">
+          See the creations
+          <span class="btn__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="btn btn--quiet" href="/contact">Start a project</a>
+      </div>
+
+      <div class="hero__meta">
+        <div class="hero__meta-item">
+          <span class="hero__meta-label">Focus</span>
+          <span class="hero__meta-value">Web · Apps · Product</span>
+        </div>
+        <div class="hero__meta-item">
+          <span class="hero__meta-label">Team</span>
+          <span class="hero__meta-value">Two people, end to end</span>
+        </div>
+        <div class="hero__meta-item">
+          <span class="hero__meta-label">Working</span>
+          <span class="hero__meta-value">{studio.location}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Creations — the centrepiece                                          -->
+  <!-- ------------------------------------------------------------------ -->
+  <Section
+    id="creations"
+    eyebrow="Creations"
+    title="What we have built"
+    note={hasCreations ? `${shown.length} shown` : undefined}
+    size="lg"
+  >
+    {
+      hasCreations ? (
+        <CreationsGrid projects={shown.slice(0, 5)} priorityCount={1} />
+      ) : (
+        <EmptyState
+          title="The work goes here"
+          body="This section is the centre of the site, so it is left deliberately empty rather than filled with placeholder projects. Published creations appear here automatically, each with a captured screenshot of the live site."
+          hint="Add one from /admin — a URL is all that is required."
+        />
+      )
+    }
+
+    {
+      hasCreations && shown.length > 5 && (
+        <p class="mt-6">
+          <a class="btn btn--secondary" href="/creations">
+            All {projects.length} creations
+            <span class="btn__arrow" aria-hidden="true">&rarr;</span>
+          </a>
+        </p>
+      )
+    }
+  </Section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Services — outcomes, not a technology list                          -->
+  <!-- ------------------------------------------------------------------ -->
+  <Section id="services" eyebrow="Services" title="What you get">
+    {
+      content.servicesIntro && (
+        <p class="lede mb-6" data-reveal>
+          {content.servicesIntro}
+        </p>
+      )
+    }
+
+    {
+      services.length ? (
+        <div class="service-list" data-reveal>
+          {services.map((service) => (
+            <article class="service">
+              <h3 class="service__name">{service.name}</h3>
+              <div>
+                <p class="service__outcome">{service.outcome}</p>
+                {service.deliverables.length > 0 && (
+                  <ul class="service__deliverables">
+                    {service.deliverables.map((d) => (
+                      <li>{d}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="Services are being written"
+          body="Each service is described by what a client ends up holding, not by a list of technologies. They will appear here once added in the admin."
+          hint="Add in /admin under Services."
+        />
+      )
+    }
+  </Section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Process — a schematic track, not numbered steps                     -->
+  <!-- ------------------------------------------------------------------ -->
+  <Section id="process" eyebrow="Process" title="How it runs">
+    {
+      content.process.length ? (
+        <ol class="process list-none" data-reveal>
+          {content.process.map((phase) => (
+            <li class="process__step">
+              <span class="process__marker" aria-hidden="true" />
+              <span class="process__phase">{phase.phase}</span>
+              <span class="process__detail">{phase.detail}</span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <EmptyState
+          title="The process is being written"
+          body="How a project actually runs between the first message and the handover. It will appear here as a track rather than a numbered list, because a project is not a funnel."
+          hint="Add in /admin under Process."
+        />
+      )
+    }
+  </Section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Studio — the two people                                              -->
+  <!-- ------------------------------------------------------------------ -->
+  <Section id="studio-preview" eyebrow="Studio" title="Two people, end to end">
+    {
+      team.length ? (
+        <div class="team" data-reveal>
+          {team.map((member) => (
+            <article class="team__member">
+              <h3 class="team__name">{member.name}</h3>
+              <p class="team__role">{member.role}</p>
+              {member.bio && <p class="team__bio">{member.bio}</p>}
+              {member.focus.length > 0 && (
+                <ul class="team__focus">
+                  {member.focus.map((f) => (
+                    <li>{f}</li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="Profiles are being written"
+          body="This is a two-person studio and both bios are still PLACEHOLDER text in the site configuration. They will be replaced with real names, roles and focus areas."
+          hint="Edit src/config/site.ts"
+        />
+      )
+    }
+
+    <p class="mt-6">
+      <a class="btn btn--secondary" href="/studio">
+        More about the studio
+        <span class="btn__arrow" aria-hidden="true">&rarr;</span>
+      </a>
+    </p>
+  </Section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Capabilities — a spec table, not a resume                          -->
+  <!-- ------------------------------------------------------------------ -->
+  {
+    content.capabilities.length > 0 && (
+      <Section id="capabilities" eyebrow="Capabilities" title="What we work in">
+        <div class="capabilities" data-reveal>
+          {content.capabilities.map((group) => (
+            <div class="capability__group">
+              <p class="capability__label">{group.group}</p>
+              <ul class="capability__items">
+                {group.items.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Social proof — only ever with real, published entries                -->
+  <!-- ------------------------------------------------------------------ -->
+  {
+    testimonials.length > 0 && (
+      <Section id="testimonials" eyebrow="Client notes" title="In their words">
+        <div class="testimonials" data-reveal>
+          {testimonials.map((t) => (
+            <figure class="testimonial">
+              <blockquote class="testimonial__quote">&ldquo;{t.quote}&rdquo;</blockquote>
+              <figcaption class="testimonial__attrib">
+                {t.author}
+                {t.role ? `, ${t.role}` : ''}
+                {t.company ? ` — ${t.company}` : ''}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Instagram — studio-owned images, zero third-party JS                -->
+  <!-- ------------------------------------------------------------------ -->
+  {
+    posts.length > 0 && (
+      <Section
+        id="instagram"
+        eyebrow="Instagram"
+        title="Build notes"
+        note={`@${studio.social.find((s) => s.label === 'Instagram')?.handle?.replace('@', '') ?? ''}`}
+      >
+        <div class="ig-grid" data-reveal>
+          {posts.slice(0, 8).map((post) => (
+            <a
+              class="ig-tile"
+              href={post.permalink}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {post.imageUrl ? (
+                <img
+                  src={
+                      post.imageUrl.startsWith('http')
+                        ? post.imageUrl
+                        : `${getMediaBaseUrl().replace(/\/+$/, '')}/${post.imageUrl}`
+                    }
+                  alt={post.caption ?? 'Instagram post'}
+                  width={1080}
+                  height={1080}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <span class="project__placeholder">Post</span>
+              )}
+            </a>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- FAQ — an editorial list, not an accordion                            -->
+  <!-- ------------------------------------------------------------------ -->
+  {
+    content.faq.length > 0 && (
+      <Section id="faq" eyebrow="Questions" title="Before you write">
+        <div class="faq" data-reveal>
+          {content.faq.map((entry) => (
+            <div class="faq__item">
+              <h3 class="faq__q">{entry.question}</h3>
+              <p class="faq__a">{entry.answer}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- CTA                                                                  -->
+  <!-- ------------------------------------------------------------------ -->
+  <div class="shell">
+    <section class="cta">
+      <div>
+        <h2 class="cta__title">Tell us what you are building.</h2>
+        <p class="lede mt-4">
+          {content.contactBlurb ??
+            'Send a short description of the project, the timeline and the budget range. We reply with a straight answer about whether it is a fit.'}
+        </p>
+      </div>
+      <div class="cta__actions">
+        <a class="btn btn--primary" href="/contact">Start a project</a>
+        <a class="copy-email" href={`mailto:${studio.email}`} data-copy-email>
+          <span>{studio.email}</span>
+          <span class="copy-email__state" data-copy-state aria-hidden="true"></span>
+        </a>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  /**
+   * Scroll reveal + click-to-copy email. Both are progressive enhancements and
+   * both are scoped to one module so the whole client script stays tiny.
+   */
+  function init() {
+    // --- reveal ----------------------------------------------------------
+    const targets = document.querySelectorAll<HTMLElement>('[data-reveal]');
+    if (targets.length) {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+      if (reduce.matches || !('IntersectionObserver' in window)) {
+        targets.forEach((el) => el.classList.add('is-revealed'));
+      } else {
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              entry.target.classList.add('is-revealed');
+              io.unobserve(entry.target); // reveal once, never re-animate
+            }
+          },
+          { rootMargin: '0px 0px -8% 0px', threshold: 0.05 },
+        );
+        targets.forEach((el) => io.observe(el));
+      }
+    }
+
+    // --- copy email ------------------------------------------------------
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-copy-email]')) {
+      const state = link.querySelector<HTMLElement>('[data-copy-state]');
+      const email = link.getAttribute('href')?.replace(/^mailto:/, '') ?? '';
+      if (!email) continue;
+
+      link.addEventListener('click', async (event) => {
+        // Modifier-clicks and middle-clicks must still open the mail client.
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+        event.preventDefault();
+        try {
+          await navigator.clipboard.writeText(email);
+          if (state) {
+            state.textContent = 'Copied';
+            setTimeout(() => (state.textContent = ''), 1800);
+          }
+        } catch {
+          // Clipboard blocked (insecure context, permission). Fall back to the
+          // mailto, which is exactly what the link would have done.
+          window.location.href = `mailto:${email}`;
+        }
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+</script>

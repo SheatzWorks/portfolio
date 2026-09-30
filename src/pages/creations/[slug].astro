@@ -1,0 +1,389 @@
+---
+/**
+ * Project detail / case study.
+ *
+ * Structure follows what the strongest current studio case studies do: a meta
+ * block, media-led sections, prose, then credits naming real people — including
+ * the client's team. Credits are the credibility substitute for testimonials
+ * and stat banners, and they are the only honest way to show scope.
+ *
+ * There is no "3x conversion" bar anywhere on this page. Metrics render only
+ * when a project has genuinely measured ones.
+ */
+import Base from '~/layouts/Base.astro';
+import Section from '~/components/Section.astro';
+import NotFound from '~/components/NotFound.astro';
+import EmptyState from '~/components/EmptyState.astro';
+import { studio } from '~/config/site';
+import { getEnv } from '~/lib/env';
+import { getProjectBySlug, listPublishedProjects } from '~/lib/db';
+import { resolveProjectPreview, safeAspectRatio } from '~/lib/preview';
+import { renderCaseStudy } from '~/lib/markdown';
+
+export const prerender = false;
+
+const { slug = '' } = Astro.params;
+const env = await getEnv(Astro.locals);
+const db = env.DB as never;
+
+let project = null;
+let siblings: Awaited<ReturnType<typeof listPublishedProjects>> = [];
+let recent: Awaited<ReturnType<typeof listPublishedProjects>> = [];
+
+if (db) {
+  // A few recent projects, for the not-found view.
+  recent = await listPublishedProjects(db).catch(() => []);
+  project = await getProjectBySlug(db, slug);
+  // Same visibility rule as the index: a private or archived project must 302
+  // away rather than render.
+  const publiclyVisible =
+    project?.published === true && project.status !== 'private' && project.status !== 'archived';
+
+  if (publiclyVisible) {
+    siblings = await listPublishedProjects(db);
+  } else {
+    project = null;
+  }
+}
+
+/*
+ * A real 404 with the site's own not-found content.
+ *
+ * Redirecting an unknown slug to /creations returned 200 for a URL that does
+ * not exist, which tells a crawler the page is fine and hides broken links
+ * from the analytics. `Astro.rewrite('/404')` was tried and 500s, because a
+ * prerendered route cannot be rewritten to from an on-demand one — so the
+ * status is set here and the shared component is rendered inline instead.
+ *
+ * An unpublished, private or archived project resolves to exactly the same
+ * thing on purpose: its existence should not be discoverable from its URL.
+ */
+const found = project !== null;
+if (!found) Astro.response.status = 404;
+
+/*
+ * A non-null alias for the template. Astro's compiler does not narrow `project`
+ * across the `{!found ? ... : ...}` ternary in the markup, so every reference
+ * in the found branch would otherwise be flagged as possibly null. Safe because
+ * that branch is only rendered when `found` is true.
+ */
+const item = project as NonNullable<typeof project>;
+
+/*
+ * Everything derived from the project is guarded. A page frontmatter body keeps
+ * executing after the not-found branch — there is no early return that skips
+ * the render — so an unguarded `project.aspectRatio` below would throw and turn
+ * a clean 404 into a 500.
+ */
+let preview: ReturnType<typeof resolveProjectPreview> | null = null;
+let ar = 1.6;
+let prev: (typeof siblings)[number] | null = null;
+let next: (typeof siblings)[number] | null = null;
+let hasSiblings = false;
+let bodyHtml: string | null = null;
+
+if (project) {
+  preview = resolveProjectPreview(project, { allowLive: false });
+  ar = safeAspectRatio(project.aspectRatio);
+
+  // Prev/next in the same published ordering, wrapping at the ends.
+  const idx = siblings.findIndex((p) => p.slug === project.slug);
+  prev = idx > 0 ? siblings[idx - 1] : siblings[siblings.length - 1];
+  next = idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : siblings[0];
+  hasSiblings = siblings.length > 1;
+
+  bodyHtml = project.bodyMd ? await renderCaseStudy(project.bodyMd) : null;
+}
+
+const statusLabels: Record<string, string> = {
+  live: 'Live',
+  'in-progress': 'In progress',
+  archived: 'Archived',
+  private: 'Private',
+  experiment: 'Experiment',
+};
+
+const jsonLd: unknown[] = [];
+
+const externalLinks: { label: string; href: string; primary?: boolean }[] = [];
+
+if (item) {
+  const base = studio.siteUrl.replace(/\/+$/, '');
+
+  jsonLd.push(
+    {
+      '@type': 'CreativeWork',
+      '@id': `${base}/creations/${item.slug}#work`,
+      name: item.title,
+      description: item.summary ?? item.blurb ?? '',
+      url: `${base}/creations/${item.slug}`,
+      ...(item.year ? { dateCreated: String(item.year) } : {}),
+      ...(item.technologies.length ? { keywords: item.technologies.join(', ') } : {}),
+      ...(preview?.imageUrl ? { image: preview.imageUrl } : {}),
+      author: { '@id': `${base}/#organization` },
+      ...(item.links.github ? { codeRepository: item.links.github } : {}),
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: base },
+        { '@type': 'ListItem', position: 2, name: 'Creations', item: `${base}/creations` },
+        { '@type': 'ListItem', position: 3, name: item.title, item: `${base}/creations/${item.slug}` },
+      ],
+    },
+  );
+
+  const candidates = [
+    { label: 'Open the live site', href: item.url, primary: true },
+    item.links.github ? { label: 'Source code', href: item.links.github } : null,
+    item.links.store ? { label: 'Get the app', href: item.links.store } : null,
+    item.links.instagram ? { label: 'Announcement post', href: item.links.instagram } : null,
+  ];
+  for (const link of candidates) {
+    if (link) externalLinks.push(link as { label: string; href: string; primary?: boolean });
+  }
+}
+
+---
+
+{!found ? (
+  <Base
+    title={`Page not found — ${studio.name}`}
+    description="That page does not exist."
+    canonicalPath={Astro.url.pathname}
+  >
+    <div class="shell">
+      <section class="section section--lg">
+        <NotFound recent={recent} />
+      </section>
+    </div>
+  </Base>
+) : (
+<Base
+  title={`${item.title} — ${studio.name}`}
+  description={item.summary ?? item.blurb ?? `${item.title}, built by ${studio.name}.`}
+  canonicalPath={`/creations/${item.slug}`}
+  ogImage={preview?.imageUrl || undefined}
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <article class="section case">
+    <div class="shell">
+      <p class="eyebrow">
+        <a href="/creations">Creations</a>
+      </p>
+
+      <h1 class="case__title">{item.title}</h1>
+
+      {
+        item.summary && (
+          <p class="lede mt-4 case__summary">
+            {item.summary}
+          </p>
+        )
+      }
+
+      <!-- Meta block: what it is, when, how long, status. Roles are filter
+           links back into the index, which is how the reference sites make
+           scope legible without a word of copy. -->
+      <dl class="case__meta">
+        <div class="case__meta-item">
+          <dt class="case__meta-label">Type</dt>
+          <dd class="case__meta-value">{item.category}</dd>
+        </div>
+        {
+          item.year && (
+            <div class="case__meta-item">
+              <dt class="case__meta-label">Year</dt>
+              <dd class="case__meta-value">{item.year}</dd>
+            </div>
+          )
+        }
+        <div class="case__meta-item">
+          <dt class="case__meta-label">Status</dt>
+          <dd class="case__meta-value">{statusLabels[item.status] ?? item.status}</dd>
+        </div>
+        {
+          item.technologies.length > 0 && (
+            <div class="case__meta-item">
+              <dt class="case__meta-label">Built with</dt>
+              <dd class="case__meta-value">{item.technologies.join(' · ')}</dd>
+            </div>
+          )
+        }
+      </dl>
+
+      {
+        externalLinks.length > 0 && (
+          <div class="case__links">
+            {externalLinks.map((link) => (
+              <a
+                class={link.primary ? 'btn btn--primary' : 'btn btn--secondary'}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {link.label}
+                <span class="btn__arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </a>
+            ))}
+          </div>
+        )
+      }
+
+      <!-- The captured preview. Falls back to a designed plate; never blank. -->
+      <figure class="case__media">
+        {
+          preview?.imageUrl ? (
+            <img
+              src={preview?.imageUrl}
+              srcset={preview?.srcset}
+              sizes="(min-width: 1100px) 1100px, 100vw"
+              alt={`A captured screenshot of ${item.title}`}
+              width={preview?.width ?? 1440}
+              height={preview?.height ?? Math.round(1440 / ar)}
+              loading="eager"
+              decoding="sync"
+              fetchpriority="high"
+              data-fallback-src=""
+            />
+          ) : (
+            /* No capture yet. A designed plate inside the frame, not an empty
+               bordered box, which would read as a failed embed. */
+            <div class="project__placeholder case__placeholder">
+              <span class="case__placeholder-title">{item.title}</span>
+              <span class="case__placeholder-note">
+                Preview not captured yet — {preview?.source === 'placeholder'
+                  ? 'no external image available'
+                  : 'waiting on the capture job'}
+              </span>
+            </div>
+          )
+        }
+      </figure>
+
+      {
+        item.technologies.length > 0 && (
+          <ul class="project__tags mb-6">
+            {item.technologies.map((tech) => (
+              <li>{tech}</li>
+            ))}
+          </ul>
+        )
+      }
+
+      {
+        item.metrics && item.metrics.length > 0 && (
+          <Section eyebrow="Measured" title="What it does now" size="default">
+            <ul class="service-list">
+              {item.metrics.map((metric) => (
+                <li class="service">
+                  <span class="service__name case__metric-label">
+                    {metric.label}
+                  </span>
+                  <div>
+                    <p class="service__outcome">{metric.value}</p>
+                    {metric.note && <p class="field__hint">{metric.note}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )
+      }
+
+      {bodyHtml && <div class="prose" set:html={bodyHtml} />}
+
+      {
+        item.challengeMd && (
+          <Section eyebrow="The problem" title="What it had to do" size="default">
+            <div class="prose" set:html={await renderCaseStudy(item.challengeMd)} />
+          </Section>
+        )
+      }
+
+      {
+        item.approachMd && (
+          <Section eyebrow="The approach" title="How it was built" size="default">
+            <div class="prose" set:html={await renderCaseStudy(item.approachMd)} />
+          </Section>
+        )
+      }
+
+      {
+        item.outcomeMd && (
+          <Section eyebrow="The outcome" title="Where it landed" size="default">
+            <div class="prose" set:html={await renderCaseStudy(item.outcomeMd)} />
+          </Section>
+        )
+      }
+
+      {
+        item.gallery.length > 0 && (
+          <Section eyebrow="Details" title="In the interface" size="default">
+            {item.gallery.map((image) => (
+              <figure class="case__media">
+                <img
+                  src={image.src}
+                  alt={image.alt}
+                  width={image.width}
+                  height={image.height}
+                  loading="lazy"
+                  decoding="async"
+                />
+                {image.caption && <figcaption>{image.caption}</figcaption>}
+              </figure>
+            ))}
+          </Section>
+        )
+      }
+
+      <!-- Credits. Naming everyone, including the client's own team, is the
+           cheapest credible proof of scope that exists. -->
+      {
+        item.credits.length > 0 && (
+          <div class="case__credits">
+            <h2 class="eyebrow eyebrow--plain">Credits</h2>
+            {item.credits.map((credit) => (
+              <div class="case__credit-row">
+                <span class="case__credit-role">{credit.role}</span>
+                <span class="case__credit-name">
+                  {credit.href ? (
+                    <a href={credit.href} target="_blank" rel="noopener noreferrer">
+                      {credit.name}
+                    </a>
+                  ) : (
+                    credit.name
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        )
+      }
+
+      {
+        hasSiblings && (
+          <nav class="case__pager" aria-label="More creations">
+            <a class="btn btn--quiet" href={`/creations/${prev!.slug}`}>
+              <span class="btn__arrow" aria-hidden="true">
+                ←
+              </span>
+              {prev!.title}
+            </a>
+            <a class="btn btn--quiet" href={`/creations/${next!.slug}`}>
+              {next!.title}
+              <span class="btn__arrow" aria-hidden="true">
+                →
+              </span>
+            </a>
+          </nav>
+        )
+      }
+    </div>
+  </article>
+</Base>
+)}
+

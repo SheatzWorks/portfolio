@@ -1,0 +1,32 @@
+{
+  "name": "studio-site",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "studio",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "studio-media"
+    }
+  ],
+  "triggers": {
+    "crons": ["*/7 * * * *"]
+  },
+  "vars": {
+    "PUBLIC_SITE_URL": "https://example.com",
+    "MEDIA_BASE_URL": "https://media.example.com",
+    "CAPTURE_PROVIDER": "none",
+    "PREVIEW_FETCH_MODE": "egress",
+    "ALLOWED_CAPTURE_HOSTS": ""
+  }
+}

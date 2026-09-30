@@ -1,0 +1,213 @@
+---
+/**
+ * Studio page: the two people, how the work runs, what we work in, and the
+ * questions people actually ask.
+ *
+ * Team bios come from D1 so the admin can edit them; the config file is the
+ * fallback when the table is empty. Either way the page never shows a
+ * half-populated team.
+ */
+import Base from '~/layouts/Base.astro';
+import Section from '~/components/Section.astro';
+import EmptyState from '~/components/EmptyState.astro';
+import { studio } from '~/config/site';
+import { getEnv } from '~/lib/env';
+import { listTeam, getSiteContent } from '~/lib/db';
+
+export const prerender = true;
+
+const env = await getEnv(Astro.locals);
+const db = env.DB as never;
+
+let team: Awaited<ReturnType<typeof listTeam>> = [];
+let content: Awaited<ReturnType<typeof getSiteContent>> = {
+  faq: [],
+  capabilities: [],
+  process: [],
+  servicesIntro: null,
+  contactBlurb: null,
+};
+
+if (db) {
+  const [t, c] = await Promise.all([
+    listTeam(db).catch(() => []),
+    getSiteContent(db).catch(() => content),
+  ]);
+  team = t;
+  content = c;
+}
+
+// D1 rows win; config is the fallback so the page is never blank.
+const people = team.length
+  ? team.map((m) => ({ name: m.name, role: m.role, bio: m.bio, focus: m.focus, links: m.links }))
+  : studio.people.map((p) => ({
+      name: p.name,
+      role: p.role,
+      bio: p.bio,
+      focus: p.focus,
+      links: p.links,
+    }));
+---
+
+<Base
+  title={`Studio — ${studio.name}`}
+  description={`${studio.name} is a two-person studio. Meet the people, see how a project runs, and find out what we work in.`}
+  canonicalPath="/studio"
+>
+  <Section id="people" eyebrow="Studio" title="Two people, end to end" size="lg" headingLevel={1}>
+    <div class="team">
+      {
+        people.map((person) => (
+          <article class="team__member">
+            <h3 class="team__name">{person.name}</h3>
+            <p class="team__role">{person.role}</p>
+            {person.bio && <p class="team__bio">{person.bio}</p>}
+            {person.focus.length > 0 && (
+              <ul class="team__focus">
+                {person.focus.map((f) => (
+                  <li>{f}</li>
+                ))}
+              </ul>
+            )}
+            {person.links.length > 0 && (
+              <ul class="team__links">
+                {person.links.map((l) => (
+                  <li>
+                    <a href={l.href} target="_blank" rel="noopener noreferrer">
+                      {l.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section id="process" eyebrow="Process" title="How a project runs">
+    {
+      content.process.length ? (
+        <ol class="process list-none" data-reveal>
+          {content.process.map((phase) => (
+            <li class="process__step">
+              <span class="process__marker" aria-hidden="true" />
+              <span class="process__phase">{phase.phase}</span>
+              <span class="process__detail">{phase.detail}</span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <EmptyState
+          title="The process is being written"
+          body="How a project actually runs between the first message and the handover. It appears here as a track rather than a numbered list, because a project is not a funnel."
+          hint="Add in /admin under Process."
+        />
+      )
+    }
+  </Section>
+
+  {
+    content.capabilities.length > 0 && (
+      <Section id="capabilities" eyebrow="Capabilities" title="What we work in">
+        <div class="capabilities" data-reveal>
+          {content.capabilities.map((group) => (
+            <div class="capability__group">
+              <p class="capability__label">{group.group}</p>
+              <ul class="capability__items">
+                {group.items.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  {
+    content.faq.length > 0 && (
+      <Section id="faq" eyebrow="Questions" title="Things people ask first">
+        <div class="faq" data-reveal>
+          {content.faq.map((entry) => (
+            <div class="faq__item">
+              <h3 class="faq__q">{entry.question}</h3>
+              <p class="faq__a">{entry.answer}</p>
+            </div>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  <div class="shell">
+    <section class="cta">
+      <div>
+        <h2 class="cta__title">Tell us what you are building.</h2>
+        <p class="lede mt-4">
+          A short description, a timeline and a budget range is enough for us to
+          give you a straight answer.
+        </p>
+      </div>
+      <div class="cta__actions">
+        <a class="btn btn--primary" href="/contact">Start a project</a>
+        <a class="copy-email" href={`mailto:${studio.email}`} data-copy-email>
+          <span>{studio.email}</span>
+          <span class="copy-email__state" data-copy-state aria-hidden="true"></span>
+        </a>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  // Same reveal + click-to-copy behaviour as the home page. Kept inline here
+  // rather than extracted to a shared module: two small copies cost less than
+  // a chunk request, and Astro hashes each page's script into its own CSP.
+  function init() {
+    const targets = document.querySelectorAll<HTMLElement>('[data-reveal]');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (reduce.matches || !('IntersectionObserver' in window)) {
+      targets.forEach((el) => el.classList.add('is-revealed'));
+    } else {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            entry.target.classList.add('is-revealed');
+            io.unobserve(entry.target);
+          }
+        },
+        { rootMargin: '0px 0px -8% 0px', threshold: 0.05 },
+      );
+      targets.forEach((el) => io.observe(el));
+    }
+
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-copy-email]')) {
+      const state = link.querySelector<HTMLElement>('[data-copy-state]');
+      const email = link.getAttribute('href')?.replace(/^mailto:/, '') ?? '';
+      if (!email) continue;
+      link.addEventListener('click', async (event) => {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+        event.preventDefault();
+        try {
+          await navigator.clipboard.writeText(email);
+          if (state) {
+            state.textContent = 'Copied';
+            setTimeout(() => (state.textContent = ''), 1800);
+          }
+        } catch {
+          window.location.href = `mailto:${email}`;
+        }
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
+</script>
