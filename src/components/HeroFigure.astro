@@ -1,0 +1,116 @@
+---
+/**
+ * HeroFigure — the hero's right column.
+ *
+ * The studio's idea is a ledger with one line through it: what we run above,
+ * what we build for you below. The figure is a file of ruled lines; the
+ * pointer runs the formatter down it and each line above snaps square.
+ *
+ * Three states, in order of preference:
+ *
+ *   1. Live: `@lucasmarkes/hairline` draws an isometric sheet that answers the
+ *      pointer and plays a slow loop at rest. Loaded as a separate chunk, only
+ *      on fine pointers with motion allowed.
+ *   2. Static: the same composition as plain SVG, for touch, reduced motion,
+ *      and no-JS. It is the poster frame, not a placeholder.
+ *   3. Nothing: never. The box is reserved in CSS so there is no layout shift
+ *      between the two.
+ *
+ * Decorative by contract: the hero's words carry the meaning, so the stage is
+ * hidden from assistive tech. The library supplies its own accessible label
+ * on the element it mounts into.
+ */
+---
+
+<figure class="hero-figure" data-hero-figure>
+  <div class="hero-figure__stage" data-hero-figure-stage>
+    <svg class="hero-figure__static" viewBox="0 0 400 320" aria-hidden="true" focusable="false">
+      <rect class="hf-plate" x="34" y="26" width="332" height="268" />
+      <path class="hf-ticks" d="M46 38v-6h6M354 38v-6h-6M46 282v6h6M354 282v6h-6" />
+      <g class="hf-rule">
+        <line x1="64" y1="72" x2="300" y2="72" />
+        <line x1="64" y1="90" x2="280" y2="90" />
+        <line x1="64" y1="108" x2="312" y2="108" />
+        <line x1="64" y1="126" x2="252" y2="126" />
+        <line class="hf-rule--accent" x1="64" y1="144" x2="296" y2="144" />
+        <line x1="64" y1="162" x2="268" y2="162" />
+        <line x1="64" y1="180" x2="308" y2="180" />
+        <line x1="64" y1="198" x2="240" y2="198" />
+        <line x1="64" y1="216" x2="288" y2="216" />
+        <line x1="64" y1="234" x2="260" y2="234" />
+      </g>
+      <path class="hf-dash" d="M56 62v188" />
+    </svg>
+  </div>
+
+  <figcaption class="hero-figure__caption">
+    <span class="hero-figure__index">Fig. 01</span>
+    <span class="hero-figure__note">A file of ten lines. The pointer rules it.</span>
+    <span class="hero-figure__readout" data-hero-figure-readout aria-hidden="true">rest</span>
+  </figcaption>
+</figure>
+
+<script>
+  /*
+   * One driver, one figure. The library already owns pointer position, the
+   * idle tour and the reduced-motion rest; this module only decides whether
+   * it is allowed to run, and hands it the read-out.
+   *
+   * The import is dynamic so touch, reduced-motion and no-JS visitors never
+   * download the figure chunk at all.
+   */
+  type Figure = { destroy(): void; update(options: Record<string, unknown>): void };
+
+  const FINE = '(pointer: fine)';
+  const REDUCED = '(prefers-reduced-motion: reduce)';
+
+  let live: Figure | null = null;
+
+  function teardown(): void {
+    live?.destroy();
+    live = null;
+    document.querySelector<HTMLElement>('[data-hero-figure]')?.removeAttribute('data-mounted');
+  }
+
+  async function mount(): Promise<void> {
+    const figure = document.querySelector<HTMLElement>('[data-hero-figure]');
+    const stage = figure?.querySelector<HTMLElement>('[data-hero-figure-stage]');
+    if (!figure || !stage || figure.dataset.mounted === 'true') return;
+
+    if (window.matchMedia(REDUCED).matches) return;
+    if (!window.matchMedia(FINE).matches) return;
+
+    const readout = figure.querySelector<HTMLElement>('[data-hero-figure-readout]');
+
+    try {
+      const { format } = await import('@lucasmarkes/hairline');
+
+      /* The page may have been swapped while the chunk was in flight. */
+      if (!stage.isConnected) return;
+
+      live = format(stage, {
+        intensity: 0.62,
+        theme: 'light',
+        play: true,
+        onRead: (text) => {
+          if (readout) readout.textContent = text;
+        },
+      }) as Figure;
+
+      figure.dataset.mounted = 'true';
+    } catch (error) {
+      /* The static frame is already on screen; a failed upgrade must leave it
+         there rather than empty the column. */
+      console.error('[hero-figure]', error);
+    }
+  }
+
+  document.addEventListener('astro:page-load', mount);
+  document.addEventListener('astro:before-swap', teardown);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount, { once: true });
+  } else {
+    mount();
+  }
+</script>

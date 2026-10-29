@@ -8,6 +8,7 @@ import '../styles/fonts.css';
 import '../styles/global.css';
 import '../styles/components.css';
 
+import { ClientRouter } from 'astro:transitions';
 import { studio, publishableSocial } from '~/config/site';
 import SiteNav from '~/components/SiteNav.astro';
 import SiteFooter from '~/components/SiteFooter.astro';
@@ -93,6 +94,15 @@ const jsonLdPayload = JSON.stringify(graph).replace(/</g, '\\u003c');
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+
+    {/*
+      MPA view transitions, not an SPA. Each page is still a full document with
+      its own canonical, CSP and metadata; the router only replaces the body.
+      The treatment is one quiet rise — see the ::view-transition rules in
+      global.css. No loader: the pages arrive in milliseconds, and a fake one
+      would be dishonest.
+    */}
+    <ClientRouter />
 
     <meta name="generator" content={Astro.generator} />
     <meta name="color-scheme" content="light" />

@@ -484,3 +484,58 @@ html.no-motion [data-reveal] {
   display: inline-block;
   will-change: transform;
 }
+
+/* =========================================================================
+   Page transitions (Astro ClientRouter)
+
+   One quiet treatment: the old page lifts 4px and fades, the new one settles
+   in from 4px below. The masthead and progress bar keep their own names so
+   the frame stays put instead of cross-fading with the content — a nav that
+   blinks on every click reads as a full reload, which is the opposite of the
+   point.
+   ========================================================================= */
+.masthead {
+  view-transition-name: site-nav;
+}
+
+.scroll-progress {
+  view-transition-name: scroll-progress;
+}
+
+::view-transition-old(site-nav),
+::view-transition-new(site-nav),
+::view-transition-old(scroll-progress),
+::view-transition-new(scroll-progress) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: page-leave var(--dur-2) var(--ease) both;
+  }
+
+  ::view-transition-new(root) {
+    animation: page-enter var(--dur-3) var(--ease-out) both;
+  }
+}
+
+@keyframes page-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}

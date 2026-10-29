@@ -1836,13 +1836,32 @@
 .hero__grid {
   display: grid;
   gap: var(--sp-7);
-  align-items: end;
+  align-items: stretch;
 }
 
 @media (min-width: 64rem) {
   .hero__grid {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    gap: var(--sp-8);
+    /* The figure spans both rows; the meta sits under the copy rather than
+       under the figure, which is where it reads as part of the argument. */
+    grid-template-areas:
+      'intro figure'
+      'meta figure';
+    gap: var(--sp-6) var(--sp-8);
+    align-items: end;
+  }
+
+  .hero__intro {
+    grid-area: intro;
+  }
+
+  .hero__meta {
+    grid-area: meta;
+  }
+
+  .hero-figure {
+    grid-area: figure;
+    align-self: end;
   }
 }
 
@@ -1886,7 +1905,7 @@
 }
 
 .hero__meta {
-  margin-top: var(--sp-5);
+  margin-top: 0;
   padding-top: var(--sp-3);
   border-top: 1px solid var(--line);
   /* Two columns: three flex-wrapped items always orphaned the third onto its
@@ -1907,144 +1926,116 @@
  * the drawing and colour appears only where a pen would have left it. All
  * geometry lives in the SVG; this block only dresses it in tokens.
  */
-.hero-sketch {
-  display: block;
+/*
+ * The hero figure: a file of ruled lines that answers the pointer.
+ *
+ * The stage reserves a 5:4 box before any JavaScript runs, so the static
+ * frame and the live figure occupy identical space and the upgrade never
+ * shifts the page. Both states are absolutely positioned inside it.
+ */
+.hero-figure {
+  /*
+   * The figure's palette, mapped onto the site's tokens. `plate` is the sheet
+   * the drawing sits on, `hi` is what is lit, `lo` what recedes.
+   */
+  --hairline-plate: var(--bg-raised);
+  /* The line the pointer is ruling is the one place the accent appears in
+     the figure — the same relationship the static frame has to its one
+     accent rule. */
+  --hairline-hi: var(--accent-deep);
+  --hairline-edge: var(--ink-faint);
+  --hairline-mid: var(--line-strong);
+  --hairline-lo: var(--line);
+  --hairline-stroke: 1;
+  margin: 0;
+}
+
+.hero-figure__stage {
+  position: relative;
+  aspect-ratio: 5 / 4;
   width: 100%;
-  height: auto;
 }
 
-.hero-sketch .hs-ink {
+.hero-figure__static {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transition: opacity var(--dur-4) var(--ease);
+}
+
+/* The handoff: the drawn sheet fades out as the live figure arrives. */
+.hero-figure[data-mounted='true'] .hero-figure__static {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hero-figure .hf-plate {
+  fill: var(--bg-raised);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.hero-figure .hf-ticks {
   fill: none;
-  stroke: var(--ink);
-  stroke-width: 3;
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
   stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
-.hero-sketch .hs-mid {
-  fill: none;
-  stroke: var(--ink-muted);
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hero-sketch .hs-soft {
-  fill: none;
-  stroke: var(--ink-faint);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.hero-sketch .hs-hatch {
-  fill: none;
+.hero-figure .hf-rule line {
   stroke: var(--ink-faint);
   stroke-width: 1.4;
   stroke-linecap: round;
+  opacity: 0.62;
 }
 
-.hero-sketch .hs-paper {
-  fill: var(--bg-raised);
-  stroke: var(--ink);
-  stroke-width: 2.6;
+.hero-figure .hf-rule line.hf-rule--accent {
+  stroke: var(--accent-deep);
+  stroke-width: 2.2;
+  opacity: 1;
+}
+
+.hero-figure .hf-dash {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 1 4;
   stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
-.hero-sketch .hs-solid {
-  fill: var(--ink);
-}
-
-.hero-sketch .hs-acid {
-  fill: var(--accent);
-}
-
-.hero-sketch .hs-glow {
-  fill: var(--accent);
-  opacity: 0.26;
-}
-
-/*
- * Ambient motion. Three loops only — steam rising, the sparks breathing, the
- * lamp glow pulsing — so the drawing feels alive without becoming an
- * animation. CSS transforms and opacity: composited, cheap, and the whole
- * block is disabled for reduced-motion and no-motion readers.
- */
-.hero-sketch .hs-steam path {
-  animation: hs-steam 3.4s ease-in-out infinite;
-}
-
-.hero-sketch .hs-steam path:nth-child(2) {
-  animation-delay: -1.1s;
-}
-
-.hero-sketch .hs-steam path:nth-child(3) {
-  animation-delay: -2.2s;
-}
-
-@keyframes hs-steam {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: translateY(2px);
-  }
-  50% {
-    opacity: 1;
-    transform: translateY(-3px);
-  }
-}
-
-.hero-sketch .hs-sparks path {
-  transform-box: fill-box;
-  transform-origin: 50% 50%;
-  animation: hs-spark 4.5s ease-in-out infinite;
-}
-
-.hero-sketch .hs-sparks path:nth-child(2) {
-  animation-delay: -2.2s;
-}
-
-@keyframes hs-spark {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.14);
-  }
-}
-
-.hero-sketch .hs-glow {
-  animation: hs-glow 6s ease-in-out infinite;
-}
-
-@keyframes hs-glow {
-  0%,
-  100% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 0.32;
-  }
-}
-
-html.no-motion .hero-sketch path {
-  animation: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-sketch path {
-    animation: none;
-  }
-}
-
-.hero__caption {
-  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+.hero-figure__caption {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: var(--step--1);
   color: var(--ink-faint);
+}
+
+.hero-figure__index {
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
+}
+
+.hero-figure__note {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-figure__readout {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-deep);
+}
+
+@media (max-width: 63.99rem) {
+  /* Below the split, the figure sits under the copy: cap it so it never
+     dominates a phone screen. */
+  .hero-figure {
+    max-width: 30rem;
+  }
 }
 
 /* -------------------------------------------------------------------------

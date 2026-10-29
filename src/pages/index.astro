@@ -21,7 +21,7 @@
  */
 import Base from '~/layouts/Base.astro';
 import Section from '~/components/Section.astro';
-import HeroSketch from '~/components/HeroSketch.astro';
+import HeroFigure from '~/components/HeroFigure.astro';
 import ProductCard from '~/components/ProductCard.astro';
 import ProductsMore from '~/components/ProductsMore.astro';
 import WorkGrid from '~/components/WorkGrid.astro';
@@ -114,35 +114,41 @@ const HOME_FAQ = content.faq.slice(0, 6);
             </a>
           </div>
 
-          <dl class="hero__meta">
-            <div class="hero__meta-item">
-              <dt class="hero__meta-label">Focus</dt>
-              <dd class="hero__meta-value">Web apps, mobile, on-device AI</dd>
-            </div>
-            <div class="hero__meta-item">
-              <dt class="hero__meta-label">Engagement</dt>
-              <dd class="hero__meta-value">Fixed scope, fixed price</dd>
-            </div>
-            <div class="hero__meta-item">
-              <dt class="hero__meta-label">Status</dt>
-              <dd class="hero__meta-value">
-                <span class="status-dot" aria-hidden="true"></span>
-                Available for new work
-              </dd>
-            </div>
-            <div class="hero__meta-item">
-              <dt class="hero__meta-label">Reply</dt>
-              <dd class="hero__meta-value">Within a couple of days</dd>
-            </div>
-          </dl>
         </div>
 
         {/*
-          The right column is the studio's own hand rather than another
-          product card: the first card here was the same product section 02
-          already leads with, so it doubled the claim instead of making one.
+          The right column is the ledger line made visible: a file of ruled
+          lines that answers the pointer. It is the site's one signature
+          moment, not another product card — section 02 already leads with
+          those, and repeating one here would double the claim.
+
+          It sits before the meta list in the DOM so a phone sees the
+          signature while it is still in the first screenful; the desktop grid
+          puts the meta back under the copy with grid areas.
         */}
-        <HeroSketch />
+        <HeroFigure />
+
+        <dl class="hero__meta">
+          <div class="hero__meta-item">
+            <dt class="hero__meta-label">Focus</dt>
+            <dd class="hero__meta-value">Web apps, mobile, on-device AI</dd>
+          </div>
+          <div class="hero__meta-item">
+            <dt class="hero__meta-label">Engagement</dt>
+            <dd class="hero__meta-value">Fixed scope, fixed price</dd>
+          </div>
+          <div class="hero__meta-item">
+            <dt class="hero__meta-label">Status</dt>
+            <dd class="hero__meta-value">
+              <span class="status-dot" aria-hidden="true"></span>
+              Available for new work
+            </dd>
+          </div>
+          <div class="hero__meta-item">
+            <dt class="hero__meta-label">Reply</dt>
+            <dd class="hero__meta-value">Within a couple of days</dd>
+          </div>
+        </dl>
       </div>
     </div>
   </section>

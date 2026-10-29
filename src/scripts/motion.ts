@@ -39,6 +39,14 @@ const REDUCED = '(prefers-reduced-motion: reduce)';
 
 const root = document.documentElement;
 
+/**
+ * Teardown for the current page. ClientRouter swaps the document body but
+ * keeps this module loaded, so without a teardown the old IntersectionObserver
+ * would keep watching detached nodes and the new page's reveals would never be
+ * observed — they would sit at opacity 0 until the failsafe.
+ */
+let dispose: (() => void) | null = null;
+
 function revealAll(): void {
   root.classList.add('no-motion');
   document.querySelectorAll<HTMLElement>('[data-reveal]').forEach((el) => {
@@ -71,7 +79,12 @@ function splitWords(el: HTMLElement): HTMLElement[] {
 }
 
 export function initMotion(): void {
+  dispose?.();
+  dispose = null;
+
   const reveals = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
+  /* Every listener this pass adds dies with the page. */
+  const abort = new AbortController();
 
   /* -----------------------------------------------------------------------
      Reduced motion: no entrance choreography at all. The CSS already forces
@@ -154,7 +167,7 @@ export function initMotion(): void {
       hero.querySelector('.hero__lede'),
       hero.querySelector('.hero__actions'),
       hero.querySelector('.hero__meta'),
-      hero.querySelector('.product-card'),
+      hero.querySelector('.hero-figure'),
     ].filter((n): n is HTMLElement => n instanceof HTMLElement);
 
     const title = hero.querySelector<HTMLElement>('.hero__title');
@@ -195,8 +208,8 @@ export function initMotion(): void {
       ticking = true;
       requestAnimationFrame(update);
     };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true, signal: abort.signal });
+    window.addEventListener('resize', onScroll, { passive: true, signal: abort.signal });
     update();
   }
 
@@ -205,7 +218,7 @@ export function initMotion(): void {
      element that should already have settled is still at opacity 0, force it.
      Scoped to elements whose box is actually on screen so a genuine IO failure
      cannot wipe out the scroll reveals still to come. */
-  window.setTimeout(() => {
+  const timer = window.setTimeout(() => {
     document
       .querySelectorAll<HTMLElement>('[data-reveal]:not(.is-revealed)')
       .forEach((el) => {
@@ -217,13 +230,33 @@ export function initMotion(): void {
         el.style.transform = 'none';
       });
   }, 2500);
+
+  dispose = () => {
+    io.disconnect();
+    abort.abort();
+    window.clearTimeout(timer);
+    gsap.killTweensOf(reveals);
+  };
 }
 
-try {
-  initMotion();
-} catch (error) {
-  /* Reveal everything rather than leave a blank page. Swallowing here is
-     deliberate — a motion failure must never take the content with it. */
-  root.classList.add('no-motion');
-  console.error('[motion]', error);
+/**
+ * ClientRouter keeps this module alive across navigations, so the motion pass
+ * has to be re-run per page. `astro:page-load` fires on first load and after
+ * every swap; `astro:before-swap` tears the previous pass down first.
+ */
+function boot(): void {
+  try {
+    initMotion();
+  } catch (error) {
+    /* Reveal everything rather than leave a blank page. Swallowing here is
+       deliberate — a motion failure must never take the content with it. */
+    root.classList.add('no-motion');
+    console.error('[motion]', error);
+  }
 }
+
+document.addEventListener('astro:before-swap', () => {
+  dispose?.();
+  dispose = null;
+});
+document.addEventListener('astro:page-load', boot);
