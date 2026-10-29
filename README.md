@@ -12,7 +12,9 @@ Anything added by pasting a URL has its preview generated automatically —
 screenshot, social image, favicon or live iframe.
 
 Astro 7 on Cloudflare Workers. D1 for content, R2 for media, a Node capture
-worker for screenshots and video. No client-side JavaScript at all.
+worker for screenshots and video. Client-side behavior is a single bundled
+GSAP module (`src/scripts/motion.ts`) for reveals and the hairline hero;
+everything else — scroll, navigation, form submission — is native.
 
 ---
 

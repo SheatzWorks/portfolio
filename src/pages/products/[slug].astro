@@ -75,11 +75,35 @@ const beats = found
 
 const narrative = found && item.bodyMd ? renderMarkdown(item.bodyMd) : null;
 
+/**
+ * The lifecycle state, the surface it runs on, the stack and the year.
+ *
+ * "Platform" used to read a hardcoded "Mobile", which made every product
+ * page claim to be a mobile app. The kind column is the real record, so the
+ * label is derived from it and a product whose kind is not one of the known
+ * values falls back to its free-text category rather than inventing a fact.
+ */
+const KIND_LABELS: Record<string, string> = {
+  web: 'Web',
+  webapp: 'Web app',
+  mobile: 'Mobile',
+  saas: 'SaaS',
+  ai: 'AI',
+  experiment: 'Experiment',
+  client: 'Commission',
+  internal: 'Internal',
+};
+
 const facts: { label: string; value: string }[] = !found
   ? []
   : ([
     { label: 'State', value: status },
-    { label: 'Platform', value: 'Mobile' },
+    {
+      label: 'Platform',
+      value:
+        KIND_LABELS[item.kind ?? ''] ??
+        (item.category.trim().length > 0 ? item.category : ''),
+    },
     { label: 'Built with', value: item.technologies.slice(0, 4).join(' · ') },
     { label: 'Year', value: String(item.year) },
   ] as { label: string; value: string }[]).filter((f) => f.value.trim().length > 0);

@@ -7,6 +7,7 @@
  * a first call are all answerable on the page before it.
  */
 import Base from '~/layouts/Base.astro';
+import NotFound from '~/components/NotFound.astro';
 import { studio } from '~/config/site';
 import { getEnv, hasDb } from '~/lib/env';
 import { listServices, readFallback } from '~/lib/db';
@@ -36,13 +37,10 @@ const range =
 
 {
   !service ? (
-    <Base title={`Page not found — ${studio.name}`} description="That page does not exist.">
+    <Base title={`Page not found — ${studio.name}`} description="That service does not exist.">
       <div class="shell">
         <section class="section section--lg">
-          <h1 class="page-head__title">No such service.</h1>
-          <p>
-            <a href="/services">See everything we do</a>
-          </p>
+          <NotFound services={services.map((s) => ({ name: s.name, slug: s.slug }))} />
         </section>
       </div>
     </Base>

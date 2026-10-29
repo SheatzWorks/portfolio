@@ -131,7 +131,7 @@
    * original had 128px above and 88px below, which made the hero float free
    * of the page instead of leading into the first section.
    */
-  padding-block: clamp(1.75rem, 0.75rem + 3.4vw, 3.25rem) clamp(2.75rem, 1.1rem + 5.4vw, 6rem);
+  padding-block: clamp(1.75rem, 0.75rem + 3.4vw, 3.25rem) clamp(3.5rem, 1.25rem + 6vw, 7rem);
   position: relative;
 }
 
@@ -173,10 +173,12 @@
 
 @media (min-width: 40rem) {
   /* 58 / 41 — never 50 / 50 */
-  .work-grid__item[data-span='a'] {
+  .work-grid__item[data-span='a'],
+  .work-grid__item[data-span='c'] {
     grid-column: span 7;
   }
-  .work-grid__item[data-span='b'] {
+  .work-grid__item[data-span='b'],
+  .work-grid__item[data-span='d'] {
     grid-column: span 5;
   }
   /* full-bleed statement */
@@ -1046,7 +1048,12 @@
   margin-bottom: var(--sp-5);
 }
 
-.filter {
+/*
+ * Chips are links, not buttons: the filter is in the URL so it survives a
+ * reload, a share and the back button. The active chip is a filled pill —
+ * the one place the accent is allowed to fill a control.
+ */
+.filters__chip {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
@@ -1055,26 +1062,26 @@
   font-size: var(--step--1);
   color: var(--ink-muted);
   text-decoration: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
   transition:
     color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease),
     border-color var(--dur-1) var(--ease);
 }
 
-.filter:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .filters__chip:hover {
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
 }
 
-.filter[aria-current='true'] {
+.filters__chip--on,
+.filters__chip[aria-current='page'] {
   color: var(--accent-ink);
   background-color: var(--accent);
   border-color: var(--accent);
-}
-
-.filter__count {
-  opacity: 0.6;
-  margin-left: var(--sp-2);
 }
 
 /* -------------------------------------------------------------------------
@@ -1307,15 +1314,32 @@
 }
 
 #contact .section-head__title {
-  font-size: var(--step-3);
+  /* The page's only h1 was capped at step-3, a third smaller than every other
+     page's h1 — the most important page on the site opened quietly. Step-4
+     keeps the one-screen budget while restoring the hierarchy. */
+  font-size: var(--step-4);
+  max-width: 18ch;
 }
 
 #contact .form .lede {
   font-size: var(--step-0);
 }
 
+/* The aside headings are real h2s, so they must look like headings rather
+   than borrow `.eyebrow` (which draws a rule and a flex baseline for a label
+   that is not a heading). Small, tracked, muted: a column label. */
 .contact__aside-heading {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
   margin-top: var(--sp-4);
+}
+
+.contact__aside-heading:first-child {
+  margin-top: 0;
 }
 
 .contact__social {
@@ -1357,23 +1381,35 @@
 }
 
 @media (min-width: 40rem) {
+  .case__summary {
+    max-width: 60ch;
+  }
+}
+
+/*
+ * The case title is the largest type on its own page.
+ *
+ * It used to drop from the h1 scale to step-5 above 40rem — display type that
+ * got smaller as the screen got bigger, which read as a page less important
+ * than the index that links to it.
+ */
 .case__title {
-  font-size: var(--step-5);
+  font-size: var(--step-6);
+  line-height: 1.02;
   max-width: 20ch;
+  text-wrap: balance;
 }
 
-.case__summary {
-  max-width: 60ch;
-}
-
+/*
+ * The plate is the figure's in-flow content, at every width.
+ *
+ * These rules used to live inside the 40rem query, so below 640px the element
+ * kept `.project__placeholder`'s `position: absolute; inset: 0`: the figure
+ * had no in-flow child, collapsed to zero height, and the plate painted over
+ * the metadata underneath it. A designed fallback that only works on desktop
+ * is not a fallback.
+ */
 .case__placeholder {
-  /*
-   * `position: static` overrides the absolute fill that .project__placeholder
-   * uses inside a card. Without it the figure collapses to zero height — it
-   * has no other in-flow content — and the label renders on top of the meta
-   * block below. Here the element IS the figure's content, so it must
-   * participate in layout and provide the height itself.
-   */
   position: static;
   aspect-ratio: 16 / 9;
   display: flex;
@@ -1395,6 +1431,14 @@
   font-size: var(--step--1);
   color: var(--ink-faint);
 }
+
+/* The 404 body already sits inside one padded section. A nested `.section`
+   doubled the rhythm and put a band boundary through the middle of a short
+   page, so the "more" block is a rule and a beat, not another section. */
+.notfound__more {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--line);
 }
 
 /* Case-study prose sections sit closer together than marketing sections: they
@@ -1609,19 +1653,19 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--sp-5);
-  min-height: 3.25rem;
+  min-height: var(--masthead-h);
   padding-block: var(--sp-3);
 }
 
 .masthead__brand {
   font-family: var(--font-display);
   font-size: var(--step-1);
-  font-weight: 500;
   color: var(--ink);
   text-decoration: none;
   letter-spacing: -0.02em;
   line-height: 1;
   flex: none;
+  white-space: nowrap;
   /* WCAG 2.5.8: the wordmark is ~17px of type, which is far below a usable
      touch target. Padding extends the hit area without enlarging the mark. */
   min-height: var(--tap);
@@ -1765,10 +1809,12 @@
      changes. */
   .masthead__nav {
     position: fixed;
-    inset: 3.25rem 0 0;
+    inset: var(--masthead-h) 0 0;
     z-index: var(--z-menu);
+    display: block;
     background-color: var(--bg);
-    border-top: 1px solid var(--line);
+    /* No border-top: the masthead already draws its own bottom rule, and two
+       1px lines one pixel apart read as a seam. */
     padding: var(--sp-5) var(--gutter) var(--sp-8);
     overflow-y: auto;
     opacity: 0;
@@ -1780,7 +1826,6 @@
       visibility var(--dur-2) step-end;
   }
   .masthead__nav[data-open='true'] {
-    display: block;
     opacity: 1;
     visibility: visible;
     transform: none;
@@ -1788,6 +1833,12 @@
       opacity var(--dur-2) var(--ease),
       transform var(--dur-2) var(--ease),
       visibility 0s;
+  }
+
+  /* Lock the page behind the sheet. `:has` keeps the scroll position intact;
+     the sheet itself still scrolls because it is a fixed layer. */
+  html:has(body[data-nav-open='true']) {
+    overflow: hidden;
   }
   .masthead__list {
     flex-direction: column;
@@ -1904,6 +1955,16 @@
   margin-bottom: var(--sp-5);
 }
 
+/* Primary action first, the quieter route beside it. Wraps rather than
+   overflowing at 320px, and the gap is the only spacing rule needed. */
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
 .hero__meta {
   margin-top: 0;
   padding-top: var(--sp-3);
@@ -1913,6 +1974,24 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--sp-3) var(--sp-6);
+}
+
+/* Mono label over a plain-language value: the label is the only uppercase
+   text, so the value stays readable at a glance. */
+.hero__meta-label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.hero__meta-value {
+  margin-top: var(--sp-1);
+  font-size: var(--step-0);
+  line-height: 1.4;
+  color: var(--ink-body);
+  text-wrap: pretty;
 }
 
 @media (min-width: 30rem) {
@@ -2049,177 +2128,12 @@
    ---------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------
-   F3 · Tabular spec sheet  (replaces an icon-above-heading feature grid —
-   gate 3 — with something that reads as engineering rather than marketing)
+   The .spec and .metrics families were removed with the SpecSheet and Metrics
+   components, which no page imported. The published price range renders as
+   .price__* below, which is the same idea without the dead code.
    ---------------------------------------------------------------------- */
 
-.spec {
-  border-top: 1px solid var(--line);
-}
 
-.spec__row {
-  display: grid;
-  gap: var(--sp-2);
-  padding-block: var(--sp-5);
-  border-bottom: 1px solid var(--line);
-  align-items: start;
-}
-
-@media (min-width: 48rem) {
-  .spec__row {
-    grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 2fr);
-    gap: var(--sp-6);
-  }
-}
-
-.spec__label {
-  font-family: var(--font-mono);
-  font-size: var(--step-0);
-  color: var(--accent-deep);
-  line-height: 1.4;
-}
-
-.spec__body {
-  color: var(--ink-body);
-  max-width: 58ch;
-  text-wrap: pretty;
-}
-
-/* -------------------------------------------------------------------------
-   Price treatment. A published range, deliberately set as a spec line rather
-   than a currency badge — it is information, not a promotion.
-   ---------------------------------------------------------------------- */
-
-.service__price {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2) var(--sp-3);
-  margin-top: var(--sp-3);
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--line);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-}
-
-.service__price-amount {
-  color: var(--ink);
-  font-size: var(--step-0);
-}
-
-.service__price-note {
-  color: var(--ink-faint);
-}
-
-.service__engagement {
-  margin-left: auto;
-  color: var(--ink-muted);
-}
-
-.service__signature .service__name {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
-}
-
-/* -------------------------------------------------------------------------
-   Metric. Distinct from the services list, which previously borrowed the
-   `.service` component and made a "3x conversion" figure look like a
-   service name.
-   ---------------------------------------------------------------------- */
-
-.metrics {
-  display: grid;
-  gap: var(--sp-5);
-}
-
-@media (min-width: 40rem) {
-  .metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.metric {
-  border-top: 2px solid var(--accent);
-  padding-top: var(--sp-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-.metric__value {
-  font-family: var(--font-display);
-  font-size: var(--step-4);
-  line-height: 1;
-  color: var(--ink);
-}
-
-.metric__label {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--ink-muted);
-}
-
-.metric__note {
-  font-size: var(--step--1);
-  color: var(--ink-faint);
-}
-
-/* -------------------------------------------------------------------------
-   Annotated screenshot (F5) — used by case studies. A hairline callout
-   pointing at a region of a real capture. No redrawn device chrome (gate 47).
-   ---------------------------------------------------------------------- */
-
-.annotated {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background-color: var(--bg-raised);
-  overflow: hidden;
-}
-
-.annotated img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.annotated__notes {
-  display: grid;
-  border-top: 1px solid var(--line);
-}
-
-@media (min-width: 48rem) {
-  .annotated__notes {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.annotated__note {
-  padding: var(--sp-3) var(--sp-4);
-  font-size: var(--step--1);
-  color: var(--ink-muted);
-  display: flex;
-  gap: var(--sp-2);
-  align-items: baseline;
-}
-
-.annotated__note + .annotated__note {
-  border-top: 1px solid var(--line);
-}
-
-@media (min-width: 48rem) {
-  .annotated__note + .annotated__note {
-    border-top: 0;
-    border-left: 1px solid var(--line);
-  }
-}
-
-.annotated__note b {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  color: var(--accent-deep);
-  flex: none;
-}
 
 /* -------------------------------------------------------------------------
    Ft5 · Statement footer  (replaces the column-of-links footer — gate 43)
@@ -2372,6 +2286,14 @@ main:has(.closing) ~ .foot .foot__statement {
   color: var(--ink-muted);
   max-width: 68ch;
   text-wrap: pretty;
+}
+
+/* A footnote inside the panel: mono, small, and never louder than the body. */
+.pointer__note {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  max-width: 68ch;
 }
 
 /* Two paragraphs, side by side once there is room. Stacked they left the
@@ -2532,7 +2454,6 @@ main > section {
 .page-head__title {
   font-family: var(--font-display);
   font-size: var(--step-6);
-  font-weight: 300;
   line-height: 1.04;
   max-width: 22ch;
   margin-block: var(--sp-3) var(--sp-4);
@@ -3450,7 +3371,6 @@ main > section {
   /* Step-2, the h3 scale: at step-4 this list item matched the section h2
      and the row out-ranked the heading it sat under. */
   font-size: var(--step-2);
-  font-weight: 300;
   line-height: 1.05;
 }
 
@@ -3501,7 +3421,6 @@ main > section {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--step-4);
-  font-weight: 300;
   letter-spacing: -0.02em;
   color: var(--ink);
 }
@@ -3640,7 +3559,6 @@ main > section {
 .closing__line {
   font-family: var(--font-display);
   font-size: var(--step-5);
-  font-weight: 300;
   line-height: 1.08;
   max-width: 26ch;
   margin-bottom: var(--sp-4);
@@ -3784,6 +3702,8 @@ main > section {
 
 .about-prose p {
   max-width: 66ch;
-  font-size: var(--step-1);
-  line-height: 1.6;
+  /* Body size, not lede size: four paragraphs at step-1 read as a shouted
+     statement rather than a continuous argument. */
+  font-size: var(--step-0);
+  line-height: 1.65;
 }

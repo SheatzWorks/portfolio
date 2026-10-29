@@ -179,6 +179,14 @@ export function initMotion(): void {
       tl.from(words, { yPercent: 65, opacity: 0, duration: 0.9, stagger: 0.035 }, 0);
     }
 
+    /* The title container carries `data-intro`: hidden from first byte so it
+       never flashes visible before the word split. Revealed here in sync with
+       the words, not separately, so the container never shows an empty frame. */
+    const titleIntro = hero.querySelector('[data-intro]');
+    if (titleIntro) {
+      tl.from(titleIntro, { opacity: 0, y: 12, duration: 0.7 }, 0);
+    }
+
     for (const [i, block] of blocks.entries()) {
       if (block.classList.contains('hero__title')) continue;
       tl.from(
@@ -236,6 +244,15 @@ export function initMotion(): void {
     abort.abort();
     window.clearTimeout(timer);
     gsap.killTweensOf(reveals);
+    // Clean any leftover inline styles from the word-split and hero intro.
+    document.querySelectorAll('.word').forEach((el) => {
+      (el as HTMLElement).style.opacity = '';
+      (el as HTMLElement).style.transform = '';
+    });
+    document.querySelectorAll('.hero__title[data-intro]').forEach((el) => {
+      (el as HTMLElement).style.opacity = '';
+      (el as HTMLElement).style.transform = '';
+    });
   };
 }
 

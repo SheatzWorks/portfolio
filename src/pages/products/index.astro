@@ -50,18 +50,21 @@ const liveCount = products.filter((p) => p.productStatus === 'live' || p.product
     </div>
   </section>
 
-  <section class="section" aria-labelledby="products-grid">
+  <section class="section" aria-labelledby="products-grid-title">
     <div class="shell">
       <header class="section-head" data-reveal>
-        <p class="eyebrow eyebrow--plain">
-          {
-            products.length === 0
-              ? 'Nothing published yet'
-              : `${products.length} ${products.length === 1 ? 'product' : 'products'}${
-                  liveCount > 0 ? ` · ${liveCount} live` : ''
-                }`
-          }
-        </p>
+        <div class="section-head__kicker">
+          <p class="section-head__index" aria-hidden="true"></p>
+          <p class="eyebrow eyebrow--plain">
+            {
+              products.length === 0
+                ? 'Nothing published yet'
+                : `${products.length} ${products.length === 1 ? 'product' : 'products'}${
+                    liveCount > 0 ? ` · ${liveCount} live` : ''
+                  }`
+            }
+          </p>
+        </div>
         <div class="section-head__row">
           <h2 class="section-head__title" id="products-grid-title">Currently in the build</h2>
         </div>
@@ -112,7 +115,7 @@ const liveCount = products.filter((p) => p.productStatus === 'live' || p.product
   }
 
   <Section eyebrow="Next" title="Something else in mind?">
-    <p class="lede-para">
+    <p class="lede">
       Products are what we build for ourselves. If you have a problem of your own, that is what
       <a href="/services">Services</a> is for.
     </p>

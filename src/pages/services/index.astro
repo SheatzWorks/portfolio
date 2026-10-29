@@ -74,7 +74,10 @@ function priceRange(service: Service): string | null {
       <section class="section" aria-labelledby="signature-services">
         <div class="shell">
           <header class="section-head" data-reveal>
-            <p class="eyebrow eyebrow--plain">Signature</p>
+            <div class="section-head__kicker">
+              <p class="section-head__index" aria-hidden="true"></p>
+              <p class="eyebrow eyebrow--plain">Signature</p>
+            </div>
             <div class="section-head__row">
               <h2 class="section-head__title" id="signature-services">
                 What we would like to be hired for.
@@ -107,9 +110,12 @@ function priceRange(service: Service): string | null {
                           {service.priceTo}
                         </span>
                       </>
-                    ) : (
-                      <span class="price__custom">Monthly</span>
-                    )}
+                    ) : service.engagement ? (
+                      /* No published range. The engagement label is the real
+                         record; without it there is nothing truthful to print
+                         and the row is left out rather than guessed. */
+                      <span class="price__custom">{service.engagement}</span>
+                    ) : null}
                   </p>
                   {service.priceNote && <p class="price__note">{service.priceNote}</p>}
                 </div>
@@ -198,7 +204,7 @@ function priceRange(service: Service): string | null {
   }
 
   <Section id="services-cta" eyebrow="Next" title="If the scope is bigger than a range">
-    <p class="lede-para">
+    <p class="lede">
       Ranges cover ordinary projects. Some work is genuinely unusual and does not fit one, and the
       honest answer then is a conversation rather than a number.
     </p>

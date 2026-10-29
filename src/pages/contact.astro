@@ -157,8 +157,7 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
               <div
                 class="cf-turnstile"
                 data-sitekey={turnstileSiteKey}
-                data-theme="dark"
-                data-callback="studioTurnstileCallback"
+                data-theme="light"
               />
             )
           }
@@ -183,10 +182,10 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
       </div>
 
       <aside class="contact__aside">
-        <h2 class="eyebrow eyebrow--plain">Or reach us directly</h2>
-        <a class="copy-email" href={`mailto:${studio.email}`} data-copy-email>
+        <h2 class="contact__aside-heading">Or reach us directly</h2>
+        <a class="copy-email" href={`mailto:${studio.email}`} data-copy-email title="Copy email address">
           <span>{studio.email}</span>
-          <span class="copy-email__state" data-copy-state aria-hidden="true"></span>
+          <span class="copy-email__state" data-copy-state aria-live="polite"></span>
         </a>
 
         {/*
@@ -196,7 +195,7 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
         */}
         {publishableSocial().length > 0 && (
           <>
-            <h2 class="eyebrow eyebrow--plain contact__aside-heading">Elsewhere</h2>
+            <h2 class="contact__aside-heading">Elsewhere</h2>
             <ul class="team__links contact__social">
               {
                 publishableSocial()
@@ -213,7 +212,7 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
           </>
         )}
 
-        <h2 class="eyebrow eyebrow--plain contact__aside-heading">What happens next</h2>
+        <h2 class="contact__aside-heading">What happens next</h2>
         <ol class="contact__next list-none">
           <li><span class="process__marker" aria-hidden="true"></span>We read it and reply, usually within a couple of days.</li>
           <li><span class="process__marker" aria-hidden="true"></span>If it looks like a fit we set up a short call.</li>
@@ -227,7 +226,8 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
 <script>
   function init() {
     const form = document.querySelector<HTMLFormElement>('[data-contact-form]');
-    if (!form) return;
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
 
     const status = form.querySelector<HTMLElement>('[data-form-status]');
     const submit = form.querySelector<HTMLButtonElement>('[data-submit]');
@@ -271,23 +271,46 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
     const turnstileEl = form.querySelector<HTMLElement>('.cf-turnstile');
 
     if (turnstileEl) {
-      const w = window as unknown as { studioTurnstileCallback?: () => void };
-      w.studioTurnstileCallback = () => w.studioTurnstileCallback?.();
+      type TurnstileApi = { render: (el: HTMLElement, opts: Record<string, unknown>) => void };
+      type TsWindow = Window & { __turnstileLoading?: Promise<TurnstileApi | null> };
 
-      const loaded = new Promise<void>((resolve) => {
-        const script = document.createElement('script');
-        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
-        script.async = true;
-        script.defer = true;
-        script.onload = () => resolve();
-        script.onerror = () => {
-          // The widget is unreachable. Continue with the other three layers
-          // rather than making the form permanently unusable.
-          resolve();
-        };
-        document.head.appendChild(script);
-        // Never block on the widget: if it has not loaded in 6s, proceed.
-        setTimeout(resolve, 6000);
+      /*
+       * Explicit render, loaded once per document.
+       *
+       * The old code injected the auto-render script and then assigned
+       * `studioTurnstileCallback` to a function that called itself — infinite
+       * recursion on the first successful challenge. There was also no guard
+       * on the script, so a client-side navigation re-created the widget div
+       * without anything to render it.
+       */
+      const w = window as TsWindow;
+      const loaded =
+        w.__turnstileLoading ??
+        (w.__turnstileLoading = new Promise<TurnstileApi | null>((resolve) => {
+          const script = document.createElement('script');
+          script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+          script.async = true;
+          script.defer = true;
+          script.onload = () =>
+            resolve((window as unknown as { turnstile?: TurnstileApi }).turnstile ?? null);
+          script.onerror = () => {
+            // The widget is unreachable. Continue with the other three layers
+            // rather than making the form permanently unusable.
+            resolve(null);
+          };
+          document.head.appendChild(script);
+          // Never block on the widget: if it has not loaded in 6s, proceed.
+          setTimeout(() => resolve(null), 6000);
+        }));
+
+      const sitekey = turnstileEl.dataset.sitekey ?? '';
+      void loaded.then((api) => {
+        if (!api || !sitekey || !turnstileEl.isConnected) return;
+        try {
+          api.render(turnstileEl, { sitekey, theme: 'light' });
+        } catch {
+          // Already rendered by an earlier pass on this element.
+        }
       });
 
       /** Resolves once Turnstile has written a token into the form, or on timeout. */
@@ -354,30 +377,13 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
       }
     });
 
-    // Click-to-copy on the direct email address.
-    for (const link of form.ownerDocument.querySelectorAll<HTMLAnchorElement>('[data-copy-email]')) {
-      const state = link.querySelector<HTMLElement>('[data-copy-state]');
-      const email = link.getAttribute('href')?.replace(/^mailto:/, '') ?? '';
-      if (!email) continue;
-      link.addEventListener('click', async (event) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-        event.preventDefault();
-        try {
-          await navigator.clipboard.writeText(email);
-          if (state) {
-            state.textContent = 'Copied';
-            setTimeout(() => (state.textContent = ''), 1800);
-          }
-        } catch {
-          window.location.href = `mailto:${email}`;
-        }
-      });
-    }
+    // Click-to-copy lives in SiteFooter, which is on every page. It used to be
+    // duplicated here, so one click copied twice and raced the two handlers.
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
-  }
+  /*
+   * `astro:page-load` fires on first load and after every ClientRouter swap;
+   * the form is a new node each time, so the pass has to run again.
+   */
+  document.addEventListener('astro:page-load', init);
 </script>

@@ -412,8 +412,8 @@ more useful to the next person than a list of what is.
 | `HeroFigure.astro` | The hero's right column and the site's signature moment: a file of ruled lines that answers the pointer (`@lucasmarkes/hairline`, `format`). The live figure loads as a separate chunk only on fine pointers with motion allowed; touch, reduced motion and no-JS get a static SVG of the same composition, so the box never shifts and the poster frame still works. Decorative by contract; the library supplies its own accessible label. Replaced the hand-drawn studio scene. |
 | `ProductCard.astro` | Publishes `product_status`. Its plate carries "no public build to capture yet" rather than repeating the product name beside its own heading. |
 | `WorkGrid.astro` | Irregular fractional rows on a 12-column grid, ratio-aware. |
-| `SpecSheet.astro` | Label/body rows, not tiles. |
-| `Metrics.astro` | Renders only real figures; has no placeholder slot. |
+| `NotFound.astro` | Shared 404 content for the framework route and for a slug that resolves to nothing (a product, a commission or a service). Offers real onward links — the products on a project 404, the services on a service 404 — because a 404 that suggests somewhere useful beats one that apologises. |
+| `SpecSheet.astro`, `Metrics.astro` | **Removed.** No page imported either one; the CSS budget went to the hero instead. |
 
 ### Typography
 

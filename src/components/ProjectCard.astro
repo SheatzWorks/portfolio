@@ -35,18 +35,24 @@ const href = project.hasCaseStudy ? `/work/${project.slug}` : project.url;
 const isExternal = href === project.url;
 const title = project.title;
 const accessibleName = `${project.title} — ${project.blurb ?? project.url}`;
+
+/*
+ * `sizes` has to describe the slot the card actually occupies, or the browser
+ * picks the wrong candidate: a 4-column card asking for 46vw downloads an
+ * image twice the size it can display. These mirror the spans in
+ * components.css — 7/5 above 40rem, then 8/4 at 64rem.
+ */
+const SIZES: Record<NonNullable<Props['span']>, string> = {
+  full: '100vw',
+  a: '(min-width: 40rem) 58vw, 100vw',
+  b: '(min-width: 40rem) 42vw, 100vw',
+  c: '(min-width: 64rem) 67vw, (min-width: 40rem) 58vw, 100vw',
+  d: '(min-width: 64rem) 33vw, (min-width: 40rem) 42vw, 100vw',
+};
+const sizes = SIZES[span];
 ---
 
 <article class="work-grid__item" data-span={span} data-project={project.slug}>
-  {/*
-    The dominant colour is genuinely per-project, so it cannot live in a
-    utility class. It goes in a scoped <style> block instead of a style
-    attribute: Astro collects and hashes page styles, so this is covered by
-    the CSP's style-src hash. The `is:global` escape is not needed because the
-    selector is scoped to this component instance.
-  */}
-  <style>{`[data-project="${project.slug}"] .project__media{background-color:${preview.background}}`}</style>
-
   <a
     class="project"
     href={href}
@@ -64,7 +70,7 @@ const accessibleName = `${project.title} — ${project.blurb ?? project.url}`;
             class="project__img"
             src={preview.imageUrl}
             srcset={preview.srcset}
-            sizes="(min-width: 1024px) 46vw, (min-width: 640px) 58vw, 100vw"
+            sizes={sizes}
             alt=""
             width={preview.width ?? 1440}
             height={preview.height ?? Math.round(1440 / ar)}
@@ -129,16 +135,21 @@ const accessibleName = `${project.title} — ${project.blurb ?? project.url}`;
     // Image error fallback first: an unreachable og: or favicon host must not
     // leave a broken-image glyph in the grid.
     for (const img of document.querySelectorAll<HTMLImageElement>('[data-img-fallback]')) {
+      if (img.dataset.fallbackBound === 'true') continue;
+      img.dataset.fallbackBound = 'true';
       const media = img.closest('.project__media');
       const plate = media?.querySelector<HTMLElement>('[data-plate]');
-      img.addEventListener(
-        'error',
-        () => {
-          img.remove();
-          if (plate) plate.hidden = false;
-        },
-        { once: true },
-      );
+      const fallback = () => {
+        img.remove();
+        if (plate) plate.hidden = false;
+      };
+      // An image that failed before this listener existed (a cached error, or
+      // a swap that finished first) never fires `error` again.
+      if (img.complete && img.naturalWidth === 0) {
+        fallback();
+        continue;
+      }
+      img.addEventListener('error', fallback, { once: true });
     }
 
     const canHover = window.matchMedia('(hover: hover) and (pointer: fine)');
@@ -148,6 +159,11 @@ const accessibleName = `${project.title} — ${project.blurb ?? project.url}`;
     const cards = document.querySelectorAll<HTMLElement>('[data-project-card][data-has-video="true"]');
 
     for (const card of cards) {
+      // ClientRouter replaces the body but keeps this module, so the same
+      // handler must not be attached twice to a node that survived a swap.
+      if (card.dataset.videoBound === 'true') continue;
+      card.dataset.videoBound = 'true';
+
       const video = card.querySelector<HTMLVideoElement>('[data-project-video]');
       if (!video) continue;
 
@@ -179,9 +195,10 @@ const accessibleName = `${project.title} — ${project.blurb ?? project.url}`;
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initVideo, { once: true });
-  } else {
-    initVideo();
-  }
+  /*
+   * `astro:page-load` fires on first load and after every ClientRouter swap,
+   * which is the only hook that survives client-side navigation. The module
+   * itself loads once.
+   */
+  document.addEventListener('astro:page-load', initVideo);
 </script>

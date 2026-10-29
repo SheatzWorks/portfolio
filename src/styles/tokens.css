@@ -271,9 +271,17 @@
   --z-sticky: 200;
   --z-sticky-nav: 300;
   --z-menu: 400;
-  /* Grain sits under everything interactive but over every surface, including
-     the nav: a texture that stops at a section boundary is a visible seam. */
-  --z-grain: 500;
+  --z-skip: 600;
+  /* Grain sits over every surface but under every control. It used to sit
+     above the nav and the mobile menu (500), which put a texture layer over
+     the one place text has to be perfectly crisp. The nav is opaque, so the
+     seam the old comment worried about is not visible at 3%. */
+  --z-grain: 150;
+
+  /* The masthead's real height: a 44px target plus its own vertical padding.
+     The mobile sheet starts exactly here instead of at a hard-coded 3.25rem
+     that was 16px short of the rendered header. */
+  --masthead-h: calc(var(--tap) + var(--sp-3) * 2);
 }
 
 /* Hallmark · macrostructure: Split-Diptych with Masthead · light · newsreader/plex · accent: acid */

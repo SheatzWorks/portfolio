@@ -9,7 +9,9 @@
  * route.
  *
  * A 404 that suggests somewhere useful is worth more than one that apologises,
- * so the products are offered rather than a bare "not found".
+ * so what the studio has actually built is offered rather than a bare "not
+ * found". A service 404 offers the services instead: the visitor was looking
+ * at the pricelist, so the pricelist is what they get.
  */
 import EmptyState from './EmptyState.astro';
 import ProductCard from './ProductCard.astro';
@@ -18,31 +20,63 @@ import type { Product } from '~/lib/types';
 interface Props {
   /** A few recent products, so the visitor has somewhere useful to go. */
   recent?: Product[];
+  /** Sibling services, rendered instead of products on a service 404. */
+  services?: { name: string; slug: string }[];
 }
 
-const { recent = [] } = Astro.props;
+const { recent = [], services = [] } = Astro.props;
+
+const heading = services.length > 0 ? 'There is no service by that name.' : 'There is nothing at this address.';
+const lede =
+  services.length > 0
+    ? 'The service may have been renamed, or the link may have been mistyped. These are the ones we actually offer.'
+    : 'The page may have moved, or the link may have been mistyped. What we have actually built is the most likely thing you were after.';
 ---
 
 <p class="eyebrow">Error 404</p>
 
-<h1 class="case__title">There is nothing at this address.</h1>
+<h1 class="case__title">{heading}</h1>
 
-<p class="lede mt-4">
-  The page may have moved, or the link may have been mistyped. What we have actually built is the
-  most likely thing you were after.
-</p>
+<p class="lede mt-4">{lede}</p>
 
 <div class="btn-row mt-6">
-  <a class="btn btn--primary" href="/products">
-    See the products
-    <span class="btn__arrow" aria-hidden="true">&rarr;</span>
-  </a>
-  <a class="btn btn--secondary" href="/">Back to the start</a>
+  {
+    services.length > 0 ? (
+      <>
+        <a class="btn btn--primary" href="/services">
+          See the services
+          <span class="btn__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="btn btn--secondary" href="/">Back to the start</a>
+      </>
+    ) : (
+      <>
+        <a class="btn btn--primary" href="/products">
+          See the products
+          <span class="btn__arrow" aria-hidden="true">&rarr;</span>
+        </a>
+        <a class="btn btn--secondary" href="/">Back to the start</a>
+      </>
+    )
+  }
 </div>
 
 {
-  recent.length > 0 ? (
-    <section class="section">
+  services.length > 0 ? (
+    <section class="notfound__more">
+      <h2 class="eyebrow eyebrow--plain">Services</h2>
+      <ul class="services-table">
+        {services.map((s) => (
+          <li class="services-table__row">
+            <h3 class="services-table__name">
+              <a href={`/services/${s.slug}`}>{s.name}</a>
+            </h3>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : recent.length > 0 ? (
+    <section class="notfound__more">
       <h2 class="eyebrow eyebrow--plain">Our products</h2>
       <div class="products">
         {recent.slice(0, 3).map((product) => (
@@ -51,7 +85,7 @@ const { recent = [] } = Astro.props;
       </div>
     </section>
   ) : (
-    <section class="section">
+    <section class="notfound__more">
       <EmptyState
         title="Nothing to suggest yet"
         body="No products are published, so there is nothing to link to from here."

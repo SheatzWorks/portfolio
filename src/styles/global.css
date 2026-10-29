@@ -17,8 +17,8 @@ html {
   font-size: clamp(0.95rem, 0.88rem + 0.3vw, 1.19rem);
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
-  /* Anchor targets clear the sticky header. */
-  scroll-padding-top: 5.5rem;
+  /* Anchor targets clear the sticky header, plus one beat of air. */
+  scroll-padding-top: calc(var(--masthead-h) + var(--sp-4));
   background-color: var(--bg);
   /*
    * Gate 34. `clip` rather than `hidden`, and on `html` as well as `body`:
@@ -92,7 +92,12 @@ body::before {
   opacity: var(--grain-opacity);
   pointer-events: none;
   z-index: var(--z-grain);
-  mix-blend-mode: overlay;
+  /*
+   * No `mix-blend-mode`. Overlay promoted the fixed layer to a full-page
+   * compositing pass and amplified the tile against the light ground, which
+   * made text edges shimmer at 1× on cheap panels. A plain alpha tile gives
+   * the same dithering without touching the text's own contrast.
+   */
 }
 
 /* Alternating section bands, counted across `main > section` so the hero and
@@ -121,23 +126,6 @@ main > section.page-head {
 
 main > section.closing {
   background-color: var(--bg-closing);
-}
-
-/* =========================================================================
-   Scroll progress.
-   `position: fixed`, not sticky: the masthead already owns the site's one
-   `sticky; top: 0` slot, and two of them stack and fight (gate 56).
-   ========================================================================= */
-
-.scroll-progress {
-  position: fixed;
-  inset: 0 0 auto;
-  height: 2px;
-  z-index: calc(var(--z-sticky-nav) + 1);
-  pointer-events: none;
-  transform-origin: 0 50%;
-  transform: scaleX(var(--progress, 0));
-  background: var(--progress-bar);
 }
 
 input,
@@ -289,7 +277,7 @@ hr {
   position: absolute;
   top: var(--sp-2);
   left: var(--sp-2);
-  z-index: 100;
+  z-index: var(--z-skip);
   transform: translateY(-150%);
   background: var(--accent);
   color: var(--accent-ink);
@@ -457,13 +445,32 @@ html.no-motion [data-reveal] {
   transform: none;
 }
 
+/* The hero title is hidden until motion is ready so the first-paint flash
+   (visible text → hidden → animated in) never happens. The same 3-second
+   failsafe applies: a dead bundle must reveal it, not blank it. */
+html:not(.motion-ready):not(.no-motion) .hero__title[data-intro] {
+  animation: motion-failsafe 1ms linear 3s forwards;
+}
+
+html [data-intro] {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+html [data-intro].is-revealed,
+html.no-motion [data-intro] {
+  opacity: 1;
+  transform: none;
+}
+
 /* The module blew up after reporting in: show everything, immediately. */
 html.no-motion [data-reveal] {
   transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html [data-reveal] {
+  html [data-reveal],
+  html [data-intro] {
     opacity: 1 !important;
     transform: none !important;
     animation: none !important;
@@ -482,7 +489,6 @@ html.no-motion [data-reveal] {
    extracted text are unchanged. */
 .word {
   display: inline-block;
-  will-change: transform;
 }
 
 /* =========================================================================

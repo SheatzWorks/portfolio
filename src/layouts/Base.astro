@@ -168,8 +168,6 @@ const jsonLdPayload = JSON.stringify(graph).replace(/</g, '\\u003c');
 
     {chrome && <SiteFooter />}
 
-    {chrome && <div class="scroll-progress" aria-hidden="true"></div>}
-
     {/*
       Not `is:inline`: Astro cannot hash an inline script, so it would be
       blocked by the CSP it generates. As a bundled module Astro emits the

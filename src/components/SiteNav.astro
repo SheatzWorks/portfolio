@@ -83,10 +83,23 @@ const isCurrent = (href: string) => currentPath === href || currentPath.startsWi
 </header>
 
 <script>
+  /**
+   * The masthead is on every page, so this module loads once and the router
+   * swaps the nodes underneath it. Every listener is scoped to one pass and
+   * dropped on `astro:before-swap`, or the second page would be driven by a
+   * toggle that no longer exists.
+   */
+  let abort: AbortController | null = null;
+
   function init() {
+    abort?.abort();
+    abort = new AbortController();
+    const { signal } = abort;
+
     const toggle = document.querySelector<HTMLButtonElement>('[data-nav-toggle]');
     const nav = document.querySelector<HTMLElement>('#masthead-nav');
     const label = document.querySelector<HTMLElement>('[data-nav-label]');
+    const main = document.querySelector<HTMLElement>('#main');
     if (!toggle || !nav) return;
 
     const setOpen = (open: boolean) => {
@@ -94,33 +107,72 @@ const isCurrent = (href: string) => currentPath === href || currentPath.startsWi
       nav.dataset.open = String(open);
       document.body.dataset.navOpen = String(open);
       if (label) label.textContent = open ? 'Close' : 'Menu';
+      /* The sheet covers the page, so the page behind it must not be
+         reachable by screen reader or Tab while it is open. */
+      if (main) main.inert = open;
     };
 
-    toggle.addEventListener('click', () => {
-      setOpen(toggle.getAttribute('aria-expanded') !== 'true');
-    });
+    toggle.addEventListener(
+      'click',
+      () => {
+        setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+      },
+      { signal },
+    );
 
-    nav.addEventListener('click', (event) => {
-      if ((event.target as HTMLElement).closest('a')) setOpen(false);
-    });
+    nav.addEventListener(
+      'click',
+      (event) => {
+        if ((event.target as HTMLElement).closest('a')) setOpen(false);
+      },
+      { signal },
+    );
 
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
-        setOpen(false);
-        toggle.focus();
-      }
-    });
+    document.addEventListener(
+      'keydown',
+      (event) => {
+        if (toggle.getAttribute('aria-expanded') !== 'true') return;
+
+        if (event.key === 'Escape') {
+          setOpen(false);
+          toggle.focus();
+          return;
+        }
+
+        /* Keep Tab inside the open sheet: toggle, then the destinations. */
+        if (event.key !== 'Tab') return;
+        const stops = [toggle, ...nav.querySelectorAll<HTMLElement>('a[href]')].filter(
+          (el) => el.offsetParent !== null,
+        );
+        if (stops.length === 0) return;
+        const first = stops[0];
+        const last = stops[stops.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      },
+      { signal },
+    );
 
     // Leaving the mobile breakpoint must not leave a locked body scroll.
     const mq = window.matchMedia('(min-width: 48rem)');
-    mq.addEventListener('change', (e) => {
-      if (e.matches) setOpen(false);
-    });
+    mq.addEventListener(
+      'change',
+      (e) => {
+        if (e.matches) setOpen(false);
+      },
+      { signal },
+    );
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
-  }
+  document.addEventListener('astro:before-swap', () => {
+    abort?.abort();
+    abort = null;
+    delete document.body.dataset.navOpen;
+  });
+  document.addEventListener('astro:page-load', init);
 </script>
