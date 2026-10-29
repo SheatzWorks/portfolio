@@ -8,7 +8,7 @@
 import type { APIRoute } from 'astro';
 import { studio } from '~/config/site';
 import { getEnv } from '~/lib/env';
-import { listPublishedProjects } from '~/lib/db';
+import { listPublishedProjects, readFallback } from '~/lib/db';
 
 export const prerender = false;
 
@@ -38,7 +38,9 @@ export const GET: APIRoute = async ({ locals }) => {
 
   let projects: Awaited<ReturnType<typeof listPublishedProjects>> = [];
   if (env.DB) {
-    projects = await listPublishedProjects(env.DB as never).catch(() => []);
+    projects = await listPublishedProjects(env.DB as never).catch(
+      readFallback('sitemap.projects', [] as typeof projects),
+    );
   }
 
   const entries: string[] = [];
@@ -55,9 +57,12 @@ export const GET: APIRoute = async ({ locals }) => {
    * Commissions live under /work and products under /products. Emitting both
    * under one prefix would put products on the client-work route, which is the
    * distinction the site is built around.
+   *
+   * Every published project is listed, with or without a written case study:
+   * the route renders a designed page either way, and a published project that
+   * is absent from the sitemap is a page a crawler may never find.
    */
   for (const project of projects) {
-    if (!project.hasCaseStudy) continue;
     const prefix = project.ownership === 'own' ? '/products' : '/work';
     entries.push(
       `  <url><loc>${escapeXml(`${base}${prefix}/${project.slug}`)}</loc>` +

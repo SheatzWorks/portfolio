@@ -4,7 +4,7 @@
  */
 import type { APIRoute } from 'astro';
 import { getEnv } from '~/lib/env';
-import { timingSafeEqualStr, sessionCookie } from '~/lib/admin-auth';
+import { timingSafeEqualStr, sessionCookie, clearCookie } from '~/lib/admin-auth';
 
 export const prerender = false;
 
@@ -83,6 +83,6 @@ export const DELETE: APIRoute = async () =>
     status: 302,
     headers: {
       location: '/admin/login',
-      'set-cookie': 'studio_admin=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0',
+      'set-cookie': clearCookie(),
     },
   });

@@ -51,7 +51,7 @@ if (!found) Astro.response.status = 404;
 const item = product as Project;
 
 const preview = found ? resolveProductPreview(item, { allowLive: false }) : null;
-const status = PRODUCT_STATUS_LABELS[item.productStatus ?? 'planning'];
+const status = found ? PRODUCT_STATUS_LABELS[item.productStatus ?? 'planning'] : '';
 
 /**
  * The narrative beats, in the order they read. Filtered to the ones that are
@@ -84,14 +84,16 @@ const facts: { label: string; value: string }[] = !found
     { label: 'Year', value: String(item.year) },
   ] as { label: string; value: string }[]).filter((f) => f.value.trim().length > 0);
 
+const siteUrl = (env.PUBLIC_SITE_URL || studio.siteUrl).replace(/\/+$/, '');
+
 const jsonLd = found
   ? [
       {
         '@type': 'SoftwareApplication',
-        '@id': `${studio.siteUrl.replace(/\/+$/, '')}/products/${item.slug}#product`,
+        '@id': `${siteUrl}/products/${item.slug}#product`,
         name: item.title,
         description: item.tagline ?? item.blurb ?? '',
-        url: `${studio.siteUrl.replace(/\/+$/, '')}/products/${item.slug}`,
+        url: `${siteUrl}/products/${item.slug}`,
         applicationCategory: item.category,
         ...(item.year ? { datePublished: String(item.year) } : {}),
         ...(item.technologies.length ? { keywords: item.technologies.join(', ') } : {}),
@@ -101,18 +103,18 @@ const jsonLd = found
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: studio.siteUrl.replace(/\/+$/, '') },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
           {
             '@type': 'ListItem',
             position: 2,
             name: 'Products',
-            item: `${studio.siteUrl.replace(/\/+$/, '')}/products`,
+            item: `${siteUrl}/products`,
           },
           {
             '@type': 'ListItem',
             position: 3,
             name: item.title,
-            item: `${studio.siteUrl.replace(/\/+$/, '')}/products/${item.slug}`,
+            item: `${siteUrl}/products/${item.slug}`,
           },
         ],
       },

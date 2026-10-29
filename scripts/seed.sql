@@ -199,7 +199,7 @@ INSERT INTO differentiators (label, body, sort_order, published) VALUES
 
 INSERT INTO site_content (id, faq, capabilities, process, services_intro, contact_blurb) VALUES (1,
 '[
- {"question":"What do you build?","answer":"Web applications, mobile apps and products that run AI on the device. The creations section shows real, running software; the products section shows what we build and operate ourselves."},
+ {"question":"What do you build?","answer":"Web applications, mobile apps and products that run AI on the device. The work section shows real, running software; the products section shows what we build and operate ourselves."},
  {"question":"Do you work with clients remotely?","answer":"Yes, entirely. We have never needed to be in the same room as a client to ship their software."},
  {"question":"How does a project start?","answer":"You describe the problem. We reply with questions, then a written scope and a fixed price. Nothing is billed until that document is agreed."},
  {"question":"How long does a project take?","answer":"It depends entirely on scope, and we will say so rather than guess. A marketing site is weeks. An application is months. You get a real range before you commit to anything."},

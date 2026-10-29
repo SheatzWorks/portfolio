@@ -9,7 +9,7 @@
 import Base from '~/layouts/Base.astro';
 import { studio } from '~/config/site';
 import { getEnv, hasDb } from '~/lib/env';
-import { listServices } from '~/lib/db';
+import { listServices, readFallback } from '~/lib/db';
 
 export const prerender = false;
 
@@ -17,7 +17,11 @@ const { slug = '' } = Astro.params;
 const env = await getEnv(Astro.locals);
 
 let services: Awaited<ReturnType<typeof listServices>> = [];
-if (hasDb(env)) services = await listServices(env.DB as never);
+if (hasDb(env)) {
+  services = await listServices(env.DB as never).catch(
+    readFallback('service.list', [] as typeof services),
+  );
+}
 
 const service = services.find((s) => s.slug === slug) ?? null;
 
@@ -53,8 +57,8 @@ const range =
           name: service.name,
           description: service.outcome,
           serviceType: service.name,
-          url: `${studio.siteUrl.replace(/\/+$/, '')}/services/${service.slug}`,
-          provider: { '@id': `${studio.siteUrl.replace(/\/+$/, '')}/#organization` },
+          url: `${(env.PUBLIC_SITE_URL || studio.siteUrl).replace(/\/+$/, '')}/services/${service.slug}`,
+          provider: { '@id': `${(env.PUBLIC_SITE_URL || studio.siteUrl).replace(/\/+$/, '')}/#organization` },
           areaServed: 'Worldwide',
           ...(range && service.priceFrom
             ? {

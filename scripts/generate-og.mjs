@@ -42,7 +42,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" v
   </g>
   <text x="80" y="352" font-family="Menlo, Consolas, monospace" font-size="26" fill="#4a5468">${esc(shortTag)}</text>
   <rect x="80" y="410" width="120" height="1" fill="#d3d9e6"/>
-  <text x="80" y="500" font-family="Menlo, Consolas, monospace" font-size="20" fill="#576176">creations · services · process · contact</text>
+  <text x="80" y="500" font-family="Menlo, Consolas, monospace" font-size="20" fill="#576176">work · products · services · contact</text>
 </svg>`;
 
 const out = new URL('../public/og-default.png', import.meta.url);

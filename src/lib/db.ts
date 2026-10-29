@@ -114,6 +114,21 @@ function rowToProject(r: Record<string, unknown>): Project {
   };
 }
 
+/**
+ * Turns a rejected read into a logged fallback.
+ *
+ * A failed query used to be swallowed by `.catch(() => [])`, so a broken table
+ * rendered the designed empty state and looked like a portfolio with nothing in
+ * it — with no trace in the logs. The fallback is still right (one section must
+ * not blank the page), but the failure is now visible to the operator.
+ */
+export function readFallback<T>(label: string, fallback: T): (error: unknown) => T {
+  return (error) => {
+    console.error(JSON.stringify({ event: 'db.read_failed', label, error: String(error) }));
+    return fallback;
+  };
+}
+
 const PROJECT_COLUMNS = `id, slug, title, url, blurb, summary, category, technologies,
   year, status, kind, featured, sort_order, published, has_case_study, body_md,
   ownership, product_status, availability_url, tagline,

@@ -7,7 +7,7 @@
  * admin's JavaScript trivial and means it works even if the bundle fails.
  */
 import { getEnv, getDb } from '~/lib/env';
-import { listAllProjects } from '~/lib/db';
+import { listAllProjects, readFallback } from '~/lib/db';
 import type { D1Database } from '@cloudflare/workers-types';
 
 export const prerender = false;
@@ -15,7 +15,9 @@ export const prerender = false;
 const env = await getEnv();
 const db: D1Database = getDb(env);
 
-const projects = await listAllProjects(db as never).catch(() => []);
+const projects = await listAllProjects(db as never).catch(
+  readFallback('admin.projects', [] as Awaited<ReturnType<typeof listAllProjects>>),
+);
 
 let jobCounts: { pending: number; failed: number } = { pending: 0, failed: 0 };
 try {

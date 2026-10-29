@@ -18,7 +18,7 @@ import Section from '~/components/Section.astro';
 import NotFound from '~/components/NotFound.astro';
 import { studio } from '~/config/site';
 import { getEnv } from '~/lib/env';
-import { getProjectBySlug, listClientWork, listOwnProducts } from '~/lib/db';
+import { getProjectBySlug, listClientWork, listOwnProducts, readFallback } from '~/lib/db';
 import { resolveProjectPreview, safeAspectRatio } from '~/lib/preview';
 import { renderCaseStudy } from '~/lib/markdown';
 import type { Project } from '~/lib/types';
@@ -35,7 +35,7 @@ let recent: Awaited<ReturnType<typeof listOwnProducts>> = [];
 
 if (db) {
   // A few recent projects, for the not-found view.
-  recent = await listOwnProducts(db).catch(() => []);
+  recent = await listOwnProducts(db).catch(readFallback('work.products', [] as typeof recent));
   project = await getProjectBySlug(db, slug);
   // Same visibility rule as the index: a private or archived project must
   // render a 404 rather than resolve.
@@ -135,7 +135,7 @@ const jsonLd: unknown[] = [];
 const externalLinks: { label: string; href: string; primary?: boolean }[] = [];
 
 if (item) {
-  const base = studio.siteUrl.replace(/\/+$/, '');
+  const base = (env.PUBLIC_SITE_URL || studio.siteUrl).replace(/\/+$/, '');
 
   jsonLd.push(
     {

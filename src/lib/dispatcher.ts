@@ -88,6 +88,37 @@ async function claimJobs(db: D1Database, limit: number): Promise<
   return claimed;
 }
 
+/**
+ * A job is marked `running` before the work starts, and only the same
+ * invocation clears it. If the Worker is evicted mid-capture (a deploy, a CPU
+ * or wall-clock limit, a provider timeout that never rejects) the row stays
+ * `running` forever: it is not pending, so nothing claims it again, and the
+ * project silently never gets a preview.
+ *
+ * Reclaim anything that has been running longer than a capture could plausibly
+ * take. The attempt counter was already incremented when it was claimed, so a
+ * repeatedly-killed job still exhausts max_attempts instead of looping.
+ */
+const STALE_RUNNING_MINUTES = 15;
+
+async function reclaimStaleJobs(db: D1Database): Promise<number> {
+  const result = await db
+    .prepare(
+      `UPDATE jobs
+          SET state = 'pending',
+              last_error = 'reclaimed: still running after ' || ?1 || ' minutes'
+        WHERE state = 'running'
+          AND updated_at <= datetime('now', '-' || ?1 || ' minutes')`,
+    )
+    .bind(STALE_RUNNING_MINUTES)
+    .run();
+  const reclaimed = result.meta?.changes ?? 0;
+  if (reclaimed > 0) {
+    console.warn(JSON.stringify({ event: 'dispatch.reclaimed', count: reclaimed }));
+  }
+  return reclaimed;
+}
+
 /** Exponential backoff: 5m, 20m, 80m, capped at a day. */
 function backoffSeconds(attempts: number): number {
   return Math.min(300 * 4 ** Math.max(0, attempts - 1), 86_400);
@@ -131,6 +162,7 @@ export async function dispatch(env: Env, db: D1Database, limit = 3): Promise<Dis
 
   let jobs: Awaited<ReturnType<typeof claimJobs>>;
   try {
+    await reclaimStaleJobs(db);
     jobs = await claimJobs(db, limit);
   } catch (err) {
     console.error(JSON.stringify({ event: 'dispatch.claim_failed', error: String(err) }));

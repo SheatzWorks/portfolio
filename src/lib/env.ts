@@ -72,9 +72,36 @@ async function loadRuntimeEnv(): Promise<Env> {
  * to it would raise. The Workers module is the supported path, and tests
  * inject a fake via `setTestEnv()`.
  */
+/**
+ * Values that must also be readable while the site is being built.
+ *
+ * Prerendered routes (/contact, /privacy, /terms, /404) call `getEnv()` during
+ * `astro build`, where `cloudflare:workers` does not exist and the runtime
+ * bindings are empty. Without a build-time fallback those pages shipped
+ * `https://example.com` canonicals and a contact form with no Turnstile widget,
+ * even on a correctly configured deployment.
+ *
+ * Only public values are read here: the Turnstile *site* key is public by
+ * design, and no secret is ever exposed to the build.
+ */
+function buildTimeValue(key: string): string | undefined {
+  const meta = (import.meta as { env?: Record<string, unknown> }).env;
+  const fromMeta = meta?.[key];
+  const fromProcess = typeof process !== 'undefined' ? process.env?.[key] : undefined;
+  const value = fromMeta ?? fromProcess;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 export async function getEnv(_locals?: unknown): Promise<Env> {
   if (testEnv) return testEnv;
-  return loadRuntimeEnv();
+
+  const runtime = await loadRuntimeEnv();
+  return {
+    ...runtime,
+    PUBLIC_SITE_URL: runtime.PUBLIC_SITE_URL ?? buildTimeValue('PUBLIC_SITE_URL'),
+    MEDIA_BASE_URL: runtime.MEDIA_BASE_URL ?? buildTimeValue('MEDIA_BASE_URL'),
+    TURNSTILE_SITE_KEY: runtime.TURNSTILE_SITE_KEY ?? buildTimeValue('TURNSTILE_SITE_KEY'),
+  };
 }
 
 export function getDb(env: Env): D1Database {

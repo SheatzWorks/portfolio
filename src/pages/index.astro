@@ -33,6 +33,7 @@ import {
   listServices,
   listDifferentiators,
   getSiteContent,
+  readFallback,
 } from '~/lib/db';
 import type { Product, Project, Service, Differentiator } from '~/lib/types';
 import type { SiteContent } from '~/lib/db';
@@ -59,11 +60,11 @@ if (hasDb(env)) {
   const db = env.DB as never;
   // Each read is independent: a failure in one must not blank the whole page.
   const [p, w, s, d, c] = await Promise.all([
-    listOwnProducts(db).catch(() => []),
-    listClientWork(db).catch(() => []),
-    listServices(db).catch(() => []),
-    listDifferentiators(db).catch(() => []),
-    getSiteContent(db).catch(() => EMPTY_CONTENT),
+    listOwnProducts(db).catch(readFallback('home.products', [] as Product[])),
+    listClientWork(db).catch(readFallback('home.work', [] as Project[])),
+    listServices(db).catch(readFallback('home.services', [] as Service[])),
+    listDifferentiators(db).catch(readFallback('home.differentiators', [] as Differentiator[])),
+    getSiteContent(db).catch(readFallback('home.content', EMPTY_CONTENT)),
   ]);
   products = p;
   clientWork = w;

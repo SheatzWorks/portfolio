@@ -3,14 +3,16 @@ import Base from '~/layouts/Base.astro';
 import NotFound from '~/components/NotFound.astro';
 import { studio } from '~/config/site';
 import { getEnv, hasDb } from '~/lib/env';
-import { listOwnProducts } from '~/lib/db';
+import { listOwnProducts, readFallback } from '~/lib/db';
 
 export const prerender = true;
 
 const env = await getEnv();
 let recent: Awaited<ReturnType<typeof listOwnProducts>> = [];
 if (hasDb(env)) {
-  recent = await listOwnProducts(env.DB as never).catch(() => []);
+  recent = await listOwnProducts(env.DB as never).catch(
+    readFallback('404.products', [] as typeof recent),
+  );
 }
 ---
 

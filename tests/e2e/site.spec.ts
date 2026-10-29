@@ -419,6 +419,13 @@ test.describe('admin', () => {
     });
     expect([401, 403, 503]).toContain(response.status());
   });
+
+  test('the cron dispatch endpoint refuses an unauthenticated call', async ({ request }) => {
+    // Dispatch is expensive: it claims jobs and spends capture-provider quota.
+    // It must never be triggerable by an anonymous request.
+    const response = await request.get('/api/cron/preview');
+    expect([401, 403, 503]).toContain(response.status());
+  });
 });
 
 test.describe('SEO', () => {
@@ -535,6 +542,13 @@ test.describe('products vs work', () => {
     const slug = href!.split('/').filter(Boolean).pop()!;
     const response = await request.get(`/work/${slug}`);
     expect(response.status(), `${slug} must not resolve under /work`).toBe(404);
+  });
+
+  test('an unknown product slug is a real 404, not a crash', async ({ request }) => {
+    // The route used to dereference the missing row before its not-found
+    // branch, so an unknown slug returned 500 instead of the designed 404.
+    const response = await request.get('/products/not-a-real-product');
+    expect(response.status()).toBe(404);
   });
 });
 
