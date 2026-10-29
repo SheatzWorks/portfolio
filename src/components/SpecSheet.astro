@@ -1,0 +1,27 @@
+---
+/**
+ * Spec sheet — a two-column label/body table.
+ *
+ * Used for the differentiators. Deliberately not an icon-above-heading
+ * feature grid: that three-column icon-tile arrangement is one of the most
+ * recognisable generated-UI patterns, and a spec sheet reads as engineering
+ * rather than marketing. It is also better on a phone, where an icon grid
+ * collapses to a single unlabelled column.
+ */
+interface Props {
+  items: { label: string; body: string }[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="spec">
+  {
+    items.map((item) => (
+      <div class="spec__row">
+        <h3 class="spec__label">{item.label}</h3>
+        <p class="spec__body">{item.body}</p>
+      </div>
+    ))
+  }
+</div>

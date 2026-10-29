@@ -51,7 +51,7 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
     <div class="shell">
       <div class="bar">
         <div>
-          <h1>Creations</h1>
+          <h1>Projects &amp; products</h1>
           <p class="bar__meta">
             {projects.length} total · {projects.filter((p) => p.published).length} published ·
             {jobCounts.pending} jobs queued · {jobCounts.failed} failed
@@ -97,6 +97,18 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
 
           <div class="form-grid form-grid--2">
             <div class="field">
+              <label for="add-ownership">Ownership</label>
+              {/*
+                This one field decides which page the item appears on, so it is
+                the first discriminator in the form rather than a detail.
+              */}
+              <select id="add-ownership" name="ownership">
+                <option value="client">Client work — someone commissioned it</option>
+                <option value="own">Own product — we built and run it</option>
+              </select>
+            </div>
+
+            <div class="field">
               <label for="add-kind">Type</label>
               <select id="add-kind" name="kind">
                 <option value="web">Website</option>
@@ -110,9 +122,40 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
               </select>
             </div>
             <div class="field">
+              <label for="add-product-status">Product state</label>
+              <select id="add-product-status" name="product_status">
+                <option value="">Not a product</option>
+                <option value="planning">Planned</option>
+                <option value="in-development">In development</option>
+                <option value="beta">Beta</option>
+                <option value="live">Live</option>
+                <option value="paused">Paused</option>
+                <option value="retired">Retired</option>
+              </select>
+              <p class="hint">Published as a stated fact. Only applies to own products.</p>
+            </div>
+
+            <div class="field">
+              <label for="add-tagline">Product one-liner</label>
+              <input id="add-tagline" name="tagline" type="text" placeholder="What it is, and what state it is in" />
+            </div>
+
+            <div class="field">
               <label for="add-year">Year</label>
               <input id="add-year" name="year" type="number" min="1990" max="2100" placeholder="2026" />
             </div>
+
+            <div class="field">
+              <label for="add-availability">Live link</label>
+              <input id="add-availability" name="availability_url" type="url" placeholder="https://app.example.com" />
+              <span class="hint">Where the card's Open button goes. Falls back to the URL above.</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="add-summary">Longer description</label>
+            <textarea id="add-summary" name="summary" placeholder="Two or three sentences: what it does, who it is for"></textarea>
+            <span class="hint">Expanded under the one-liner on the card. If the one-liner is blank, this becomes the card text.</span>
           </div>
 
           <div class="field">
@@ -163,7 +206,7 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
             <tr>
               <th>Order</th>
               <th>Title</th>
-              <th>Type</th>
+              <th>Route</th>
               <th>Preview</th>
               <th>Flags</th>
               <th>Actions</th>
@@ -179,6 +222,7 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
                 </tr>
               ) : (
                 projects.map((p) => (
+                  <>
                   <tr data-id={p.id} data-slug={p.slug}>
                     <td class="mono">{p.sortOrder}</td>
                     <td>
@@ -186,7 +230,19 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
                       <br />
                       <span class="mono">{p.url}</span>
                     </td>
-                    <td class="mono">{p.kind}</td>
+                    <td>
+                      <span class="badge" data-on={p.ownership === 'own' ? 'true' : undefined}>
+                        {p.ownership === 'own' ? 'own product' : 'client'}
+                      </span>
+                      <br />
+                      <span class="mono">{p.kind}</span>
+                      {p.productStatus && (
+                        <>
+                          <br />
+                          <span class="mono">{p.productStatus}</span>
+                        </>
+                      )}
+                    </td>
                     <td>
                       <span class="badge" data-state={p.previewState}>
                         {p.previewState}
@@ -216,6 +272,7 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
                       {p.hasCaseStudy && <span class="badge">case study</span>}
                     </td>
                     <td class="actions">
+                      <button class="btn btn--sm" data-action="edit" data-id={p.id}>Edit</button>
                       <button class="btn btn--sm" data-action="toggle-published" data-id={p.id}>
                         {p.published ? 'Unpublish' : 'Publish'}
                       </button>
@@ -225,12 +282,123 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
                       <button class="btn btn--sm" data-action="regenerate" data-id={p.id} data-run="1">
                         Re-capture
                       </button>
-                      <a class="btn btn--sm" href={`/creations/${p.slug}`} target="_blank" rel="noopener">
+                      <a
+                        class="btn btn--sm"
+                        href={`${p.ownership === 'own' ? '/products' : '/work'}/${p.slug}`}
+                        target="_blank"
+                        rel="noopener"
+                      >
                         View
                       </a>
                       <button class="btn btn--sm" data-action="delete" data-id={p.id}>Delete</button>
                     </td>
                   </tr>
+                  <tr data-edit-row hidden>
+                    <td colspan={6}>
+                      <div class="card">
+                        <form class="form-grid" data-edit-form data-id={p.id}>
+                          <div class="form-grid form-grid--2">
+                            <div class="field">
+                              <label for={`edit-${p.id}-title`}>Title</label>
+                              <input id={`edit-${p.id}-title`} name="title" type="text" value={p.title} />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-url`}>URL</label>
+                              <input id={`edit-${p.id}-url`} name="url" type="url" value={p.url} />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-blurb`}>One-line description</label>
+                              <input id={`edit-${p.id}-blurb`} name="blurb" type="text" value={p.blurb ?? ''} />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-tagline`}>Product one-liner</label>
+                              <input id={`edit-${p.id}-tagline`} name="tagline" type="text" value={p.tagline ?? ''} />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-availability`}>Live link</label>
+                              <input
+                                id={`edit-${p.id}-availability`}
+                                name="availability_url"
+                                type="url"
+                                value={p.availabilityUrl ?? ''}
+                                placeholder="Falls back to the URL above"
+                              />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-year`}>Year</label>
+                              <input
+                                id={`edit-${p.id}-year`}
+                                name="year"
+                                type="number"
+                                min="1990"
+                                max="2100"
+                                value={p.year ?? ''}
+                              />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-tech`}>Technologies</label>
+                              <input
+                                id={`edit-${p.id}-tech`}
+                                name="technologies"
+                                type="text"
+                                value={p.technologies.join(', ')}
+                              />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-github`}>Source repository</label>
+                              <input id={`edit-${p.id}-github`} name="github" type="url" value={p.links.github ?? ''} />
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-ownership`}>Ownership</label>
+                              <select id={`edit-${p.id}-ownership`} name="ownership">
+                                <option value="client" selected={p.ownership === 'client'}>
+                                  Client work — someone commissioned it
+                                </option>
+                                <option value="own" selected={p.ownership === 'own'}>
+                                  Own product — we built and run it
+                                </option>
+                              </select>
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-status`}>Product state</label>
+                              <select id={`edit-${p.id}-status`} name="product_status">
+                                <option value="" selected={!p.productStatus}>Not a product</option>
+                                <option value="planning" selected={p.productStatus === 'planning'}>Planned</option>
+                                <option value="in-development" selected={p.productStatus === 'in-development'}>
+                                  In development
+                                </option>
+                                <option value="beta" selected={p.productStatus === 'beta'}>Beta</option>
+                                <option value="live" selected={p.productStatus === 'live'}>Live</option>
+                                <option value="paused" selected={p.productStatus === 'paused'}>Paused</option>
+                                <option value="retired" selected={p.productStatus === 'retired'}>Retired</option>
+                              </select>
+                            </div>
+                            <div class="field">
+                              <label for={`edit-${p.id}-order`}>Order</label>
+                              <input id={`edit-${p.id}-order`} name="sort_order" type="number" step="1" value={p.sortOrder} />
+                            </div>
+                          </div>
+
+                          <div class="field">
+                            <label for={`edit-${p.id}-summary`}>Longer description</label>
+                            <textarea id={`edit-${p.id}-summary`} name="summary">{p.summary ?? ''}</textarea>
+                            <span class="hint">
+                              Expanded under the one-liner on the card. If the one-liner is blank, this becomes the
+                              card text.
+                            </span>
+                          </div>
+
+                          <div class="edit-actions">
+                            <button class="btn btn--primary" type="submit" data-save>Save changes</button>
+                            <button class="btn" type="button" data-action="cancel-edit">Cancel</button>
+                          </div>
+
+                          <p class="status" data-edit-status role="status" aria-live="polite" hidden></p>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  </>
                 ))
               )
             }
@@ -277,6 +445,11 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
             url: String(fd.get('url') ?? ''),
             title: String(fd.get('title') ?? ''),
             blurb: String(fd.get('blurb') ?? ''),
+            ownership: String(fd.get('ownership') ?? 'client'),
+            product_status: String(fd.get('product_status') ?? ''),
+            tagline: String(fd.get('tagline') ?? ''),
+            summary: String(fd.get('summary') ?? ''),
+            availability_url: String(fd.get('availability_url') ?? ''),
             kind: String(fd.get('kind') ?? 'web'),
             year: String(fd.get('year') ?? ''),
             technologies: String(fd.get('technologies') ?? ''),
@@ -316,6 +489,40 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
         const action = button.dataset.action!;
         const id = Number(button.dataset.id);
 
+        if (action === 'edit') {
+          const editRow = button.closest('tr')?.nextElementSibling;
+          if (editRow?.hasAttribute('data-edit-row')) {
+            const opening = editRow.hasAttribute('hidden');
+            if (opening) {
+              // Only one editor open at a time; the rows are siblings, so the
+              // trigger button of any other open row is two elements back.
+              document.querySelectorAll('[data-edit-row]').forEach((other) => {
+                if (other === editRow) return;
+                other.setAttribute('hidden', '');
+                const trigger = other.previousElementSibling?.querySelector('[data-action="edit"]');
+                if (trigger) trigger.textContent = 'Edit';
+              });
+              editRow.removeAttribute('hidden');
+              button.textContent = 'Close';
+              editRow.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+            } else {
+              editRow.setAttribute('hidden', '');
+              button.textContent = 'Edit';
+            }
+          }
+          return;
+        }
+
+        if (action === 'cancel-edit') {
+          const editRow = button.closest('[data-edit-row]');
+          if (editRow) {
+            editRow.setAttribute('hidden', '');
+            const trigger = editRow.previousElementSibling?.querySelector('[data-action="edit"]');
+            if (trigger) trigger.textContent = 'Edit';
+          }
+          return;
+        }
+
         if (action === 'delete') {
           const slug = button.closest('tr')?.dataset.slug ?? 'this project';
           if (!confirm(`Delete "${slug}"? This also removes its queued capture jobs.`)) return;
@@ -333,6 +540,57 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
           button.disabled = false;
           button.textContent = original;
         }
+      });
+
+      // ---- edit form ---------------------------------------------------
+      // Delegated rather than one listener per row: the rows come and go with
+      // every reload, and the edit forms are rendered server-side.
+      document.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement | null)?.closest<HTMLFormElement>('[data-edit-form]');
+        if (!form) return;
+        event.preventDefault();
+
+        const save = form.querySelector<HTMLButtonElement>('[data-save]');
+        const status = form.querySelector<HTMLElement>('[data-edit-status]');
+        const setStatus = (message: string, state: 'ok' | 'error') => {
+          if (!status) return;
+          status.textContent = message;
+          status.dataset.state = state;
+          status.hidden = false;
+        };
+
+        const fd = new FormData(form);
+        if (save) {
+          save.disabled = true;
+          save.textContent = 'Saving…';
+        }
+
+        call('update', {
+          id: Number(form.dataset.id),
+          title: String(fd.get('title') ?? ''),
+          url: String(fd.get('url') ?? ''),
+          blurb: String(fd.get('blurb') ?? ''),
+          tagline: String(fd.get('tagline') ?? ''),
+          summary: String(fd.get('summary') ?? ''),
+          ownership: String(fd.get('ownership') ?? 'client'),
+          product_status: String(fd.get('product_status') ?? ''),
+          availability_url: String(fd.get('availability_url') ?? ''),
+          year: String(fd.get('year') ?? ''),
+          technologies: String(fd.get('technologies') ?? ''),
+          github: String(fd.get('github') ?? ''),
+          sort_order: String(fd.get('sort_order') ?? ''),
+        })
+          .then(() => {
+            setStatus('Saved. Reloading…', 'ok');
+            setTimeout(() => location.reload(), 500);
+          })
+          .catch((err: unknown) => {
+            setStatus(err instanceof Error ? err.message : 'Could not save the changes.', 'error');
+            if (save) {
+              save.disabled = false;
+              save.textContent = 'Save changes';
+            }
+          });
       });
     </script>
   </body>

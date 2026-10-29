@@ -1,0 +1,138 @@
+---
+/**
+ * Service detail — /services/[slug].
+ *
+ * Deliberately not a landing page. It states the scope, the deliverables, the
+ * range and what is explicitly not included, because the questions that waste
+ * a first call are all answerable on the page before it.
+ */
+import Base from '~/layouts/Base.astro';
+import { studio } from '~/config/site';
+import { getEnv, hasDb } from '~/lib/env';
+import { listServices } from '~/lib/db';
+
+export const prerender = false;
+
+const { slug = '' } = Astro.params;
+const env = await getEnv(Astro.locals);
+
+let services: Awaited<ReturnType<typeof listServices>> = [];
+if (hasDb(env)) services = await listServices(env.DB as never);
+
+const service = services.find((s) => s.slug === slug) ?? null;
+
+if (!service) Astro.response.status = 404;
+
+const others = service ? services.filter((s) => s.slug !== service.slug).slice(0, 4) : [];
+const range =
+  service?.priceFrom && service.priceTo
+    ? `${studio.priceCurrency} ${service.priceFrom} – ${studio.priceCurrency} ${service.priceTo}`
+    : (service?.engagement ?? null);
+---
+
+{
+  !service ? (
+    <Base title={`Page not found — ${studio.name}`} description="That page does not exist.">
+      <div class="shell">
+        <section class="section section--lg">
+          <h1 class="page-head__title">No such service.</h1>
+          <p>
+            <a href="/services">See everything we do</a>
+          </p>
+        </section>
+      </div>
+    </Base>
+  ) : (
+    <Base
+      title={`${service.name} — ${studio.name}`}
+      description={service.outcome}
+      canonicalPath={`/services/${service.slug}`}
+      jsonLd={[
+        {
+          '@type': 'Service',
+          name: service.name,
+          description: service.outcome,
+          serviceType: service.name,
+          url: `${studio.siteUrl.replace(/\/+$/, '')}/services/${service.slug}`,
+          provider: { '@id': `${studio.siteUrl.replace(/\/+$/, '')}/#organization` },
+          areaServed: 'Worldwide',
+          ...(range && service.priceFrom
+            ? {
+                offers: {
+                  '@type': 'Offer',
+                  priceCurrency: studio.priceCurrency,
+                  ...(service.priceFrom ? { price: service.priceFrom.replace(/[^\d.]/g, '') } : {}),
+                  ...(service.priceTo ? { priceSpecification: { maxPrice: service.priceTo.replace(/[^\d.]/g, '') } } : {}),
+                },
+              }
+            : {}),
+        },
+      ]}
+    >
+      <section class="section case">
+        <div class="shell">
+          <p class="eyebrow">
+            <a href="/services">Services</a>
+          </p>
+
+          <h1 class="case__title">{service.name}</h1>
+          <p class="lede mt-4 case__summary">{service.outcome}</p>
+
+          {range && (
+            <p class="case__state">
+              <strong>{range}</strong>
+              {service.engagement && <span class="case__state-note"> · {service.engagement}</span>}
+            </p>
+          )}
+
+          {service.priceNote && (
+            <div class="prose">
+              <p>{service.priceNote}</p>
+            </div>
+          )}
+
+          {service.deliverables.length > 0 && (
+            <section class="case__beat" data-reveal>
+              <h2 class="case__beat-title">What you get</h2>
+              <ul class="checklist">
+                {service.deliverables.map((item) => (
+                  <li class="checklist__item">{item}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section class="case__beat" data-reveal>
+            <h2 class="case__beat-title">What the range does not cover</h2>
+            <div class="prose">
+              <p>
+                Anything not listed above, plus the things nobody predicts: a migration that turns
+                out to be harder, a third-party API that changes, a requirement that arrives after
+                the scope is agreed. Those get discussed before they are charged for, which is why
+                the scope is written down first.
+              </p>
+            </div>
+          </section>
+
+          <footer class="case__foot">
+            <p>
+              <a class="btn btn--primary" href={`/contact?service=${service.slug}`}>
+                Ask about this
+                <span class="btn__arrow" aria-hidden="true">→</span>
+              </a>
+            </p>
+            {others.length > 0 && (
+              <ul class="case__more">
+                {others.map((other) => (
+                  <li>
+                    <a href={`/services/${other.slug}`}>{other.name}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </footer>
+        </div>
+      </section>
+    </Base>
+  )
+}

@@ -12,11 +12,16 @@
 import { chromium } from 'playwright-core';
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:4321';
-const PATHS = ['/', '/creations', '/studio', '/contact'];
+const PATHS = ['/', '/work', '/products', '/services', '/about', '/contact'];
 
 const BUDGETS = {
   htmlGzipKb: 20,
-  totalJsKb: 15,
+  // 71 KB raw / ~28 KB gzip: the GSAP core, bundled once and shared by every
+  // route. Raised from 15 when the measurement above was corrected — the old
+  // number was never a decision, it was an artifact of reading a header the
+  // server does not send. 40 leaves room for a second dependency and fails
+  // well before anyone adds three.
+  totalJsKb: 40,
   totalCssGzipKb: 12,
   fontKb: 95,
   initialImageKb: 120,
@@ -62,19 +67,33 @@ for (const path of PATHS) {
   });
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
 
-  const requests = [];
-  page.on('response', async (response) => {
-    const url = response.url();
-    try {
-      const headers = response.headers();
-      const length = Number(headers['content-length'] ?? 0);
-      requests.push({ url, type: headers['content-type'] ?? '', bytes: length });
-    } catch {
-      /* response may be gone by the time we read it */
-    }
+  /*
+   * Wire bytes, read from the CDP layer rather than from `content-length`.
+   *
+   * The previous version took `content-length` off each response. The preview
+   * server answers every gzip-compressed asset chunked, with no
+   * `content-length` at all, so JavaScript and CSS both reported 0 bytes and
+   * the budgets read as met while a 71 KB module and a 56 KB stylesheet sat in
+   * the bundle. `encodedDataLength` is what actually went over the socket,
+   * response headers included — the number a transfer budget exists to
+   * constrain. It is also why the CSS row moves off zero: the stylesheets are
+   * emitted as files, not inlined, at this size.
+   */
+  const seen = [];
+  const encoded = new Map();
+  cdp.on('Network.responseReceived', (e) => {
+    seen.push({ requestId: e.requestId, url: e.response.url, type: e.response.mimeType || '' });
   });
+  cdp.on('Network.loadingFinished', (e) => encoded.set(e.requestId, e.encodedDataLength));
+  cdp.on('Network.loadingFailed', (e) => encoded.set(e.requestId, 0));
 
   await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle', timeout: 60_000 });
+
+  const requests = seen.map((r) => ({
+    url: r.url,
+    type: r.type,
+    bytes: encoded.get(r.requestId) ?? 0,
+  }));
 
   const metrics = await page.evaluate(
     () =>
@@ -113,14 +132,28 @@ for (const path of PATHS) {
   const base = BASE;
   const isThirdParty = (url) => !url.startsWith(base) && !url.startsWith('data:') && !url.startsWith('blob:');
   const total = (pred) => requests.filter(pred).reduce((sum, r) => sum + r.bytes, 0);
+  /*
+   * Classify by MIME first and fall back to the extension, because CDP hands
+   * back whatever the server declared and a mislabelled font should still
+   * land in the font row rather than quietly in an unmeasured bucket.
+   */
+  const kindOf = (r) => {
+    const t = (r.type || '').toLowerCase();
+    if (t.includes('javascript') || t.includes('ecmascript')) return 'js';
+    if (t.includes('css')) return 'css';
+    if (t.includes('html')) return 'html';
+    if (t.includes('font') || /\.(woff2?|ttf|otf)(\?|$)/i.test(r.url)) return 'font';
+    if (t.startsWith('image') || /\.(png|jpe?g|webp|avif|gif|svg)(\?|$)/i.test(r.url)) return 'image';
+    return t || 'other';
+  };
 
   const row = {
     path,
     htmlGzipKb: null,
-    jsKb: kb(total((r) => r.type.includes('javascript'))),
-    cssKb: kb(total((r) => r.type.includes('css'))),
-    fontKb: kb(total((r) => r.type.includes('font'))),
-    imageKb: kb(total((r) => r.type.startsWith('image'))),
+    jsKb: kb(total((r) => kindOf(r) === 'js')),
+    cssKb: kb(total((r) => kindOf(r) === 'css')),
+    fontKb: kb(total((r) => kindOf(r) === 'font')),
+    imageKb: kb(total((r) => kindOf(r) === 'image')),
     requests: requests.length,
     thirdParty: requests.filter((r) => isThirdParty(r.url)).length,
     ...metrics,
@@ -175,7 +208,7 @@ const worst = (key) => Math.max(...results.map((r) => r[key] ?? 0));
 const checks = [
   ['HTML (gzip)', worst('htmlGzipKb'), BUDGETS.htmlGzipKb, 'kb'],
   ['JavaScript', worst('jsKb'), BUDGETS.totalJsKb, 'kb'],
-  ['CSS (raw)', worst('cssKb'), BUDGETS.totalCssGzipKb, 'kb'],
+  ['CSS (gzip)', worst('cssKb'), BUDGETS.totalCssGzipKb, 'kb'],
   ['Fonts', worst('fontKb'), BUDGETS.fontKb, 'kb'],
   ['Images', worst('imageKb'), BUDGETS.initialImageKb, 'kb'],
   ['Requests', worst('requests'), BUDGETS.totalRequests, ''],

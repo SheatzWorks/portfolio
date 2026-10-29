@@ -1,52 +1,200 @@
 /* =========================================================================
-   Design tokens
-   -------------------------------------------------------------------------
-   Direction: near-black ground, hairline separators, ONE acid accent.
+   Design tokens.
 
-   Rules this file enforces, deliberately:
-   - 4 named surface values + 1 accent. No fifth hue.
-   - Hairlines are the only separator mechanism. No box-shadow anywhere.
-   - Radius is 0 by default. The 2px token exists only for form controls,
-     where a square input reads as unstyled rather than as a decision.
-   - Body ink is #D4D4DA, not a muted grey. Muted grey on near-black is the
-     single most common tell of machine-generated dark UI.
+   Direction: blue-cool paper ground, hairline separators, one acid accent.
+
+   The ground is light and every value below is measured against it, because
+   a light page inverts which pair is the risky one: on near-black the
+   question was always "is this light enough to read?", and here it is "is
+   this dark enough?". Measured on --bg (#f2f5fb) and, worst case, on
+   --bg-sunken (#dae0ee), the darkest surface any text sits on:
+
+     --ink          15.95:1 / 13.17:1
+     --ink-body     12.80:1 / 10.57:1
+     --ink-muted     6.97:1 /  5.75:1
+     --ink-faint     5.69:1 /  4.70:1   (body text needs 4.5:1)
+     --line-strong   3.77:1 /  3.12:1   (UI boundaries need 3:1, measured
+                                          against the darkest surface a
+                                          control sits on — so it clears
+                                          on every one of them)
+
+   --ink-faint is the one that was set by eye first. At 4.70:1 on sunken it
+   clears the threshold by two tenths of a stop, which is thin but honest;
+   the pair it is most often read against, --bg, gives it 5.69:1. The
+   bookends run bluer than either and still clear: --accent-deep takes
+   5.13:1 on the hero and 4.85:1 on the closing.
 
    Two type voices, three files:
-   - Newsreader (variable serif) ....... display only
-   - IBM Plex Sans (variable) ......... text + UI
-   - IBM Plex Mono 500 ................ meta, tags, indices
+     Newsreader (variable serif) ....... display only
+     IBM Plex Sans (variable) ......... text + UI
+     IBM Plex Mono 500 ................ meta, tags, indices
    Plex Sans and Plex Mono are one designed superfamily, so this reads as two
    voices rather than three.
    ========================================================================= */
 
 :root {
+  color-scheme: light;
+
   /* ---- surfaces ------------------------------------------------------- */
-  --bg: #0a0a0b;
-  --bg-raised: #101012;
-  --bg-sunken: #060607;
-  --bg-inset: #0d0d0f;
+  --bg: #f2f5fb;
+  /* Aliases of the ladder below, kept because the whole stylesheet already
+     uses them. `raised` is lift-1, `inset` sits between ground and lift-1. */
+  --bg-raised: #fbfcfe;
+  --bg-sunken: #dae0ee;
+  --bg-inset: #e7ebf5;
+
+  /*
+   * The ladder.
+   *
+   * On a dark ground, depth was made by *lightening* — a panel had to rise
+   * out of the void. On paper it works the other way round: the page is
+   * already the brightest thing there is, so depth is made by *pressing in*.
+   * The ladder is still ordered, it just runs toward the ink:
+   *
+   *   ground  #f2f5fb   the page, a blue-tinted paper that is not quite white
+   *   lift-1  #fbfcfe   a card — brighter than the page it sits on, so it
+   *                     reads as laid *on* the sheet
+   *   lift-2  #eef1f9   a surface you act on — hovered rows, plates, chips
+   *   lift-3  #e2e7f2   the bottom of a press: selected, active, note wells
+   *
+   * `--bg-band` deliberately no longer equals `--lift-1`. They shared a value
+   * when both were panels against a void; on paper a band has to go *down*
+   * (#e5eaf4) while a card goes *up* (#fbfcfe), and the two directions are
+   * what give a section its rhythm. Cards inside a banded section therefore
+   * read as white on grey; cards inside an un-banded one are held by their
+   * hairline alone, which is the quieter of the two and is meant to be.
+   *
+   * The tint is the point. This was a neutral grey ladder with one or two
+   * points of blue in it, which on a full page measured as *white* rather
+   * than as a colour. Every step now carries 8-26 points of blue (b minus r),
+   * so the paper reads cool and the whole ladder reads as one family rather
+   * than as a greyscale someone washed. The value steps are unchanged in
+   * size — only the hue moved.
+   */
+  --lift-1: #fbfcfe;
+  --lift-2: #eef1f9;
+  --lift-3: #e2e7f2;
+
+  --bg-band: #e5eaf4;
+  --bg-hover: #f4f6fc;
+
+  /* ---- bookends -------------------------------------------------------
+   * The two sections a visitor looks at longest — the one they arrive on
+   * and the one they leave from — sit deeper and bluer than the paper they
+   * are printed on. It is the same move a plate makes at the front and back
+   * of a printed book: the covers are not the same stock as the pages.
+   *
+   * Both the value and the chroma move, because at similar lightness a
+   * six-point difference in blue is a tint nobody sees. These carry 34 and 35
+   * points of blue against the band's 15 and the paper's 9, so the bookends
+   * read as a different stock rather than as the same one, printed badly.
+   * They are surfaces, not a second accent, so the acid still has the last
+   * word in the composition.
+   *   hero / page-head   #d9e5fb
+   *   closing            #d6e1f9   the deepest surface on the site
+   */
+  --bg-hero: #d9e5fb;
+  --bg-closing: #d6e1f9;
 
   /* ---- hairlines ------------------------------------------------------ */
-  --line: #1f1f23;
-  --line-strong: #2a2a30;
-  --line-focus: #4a4a52;
+  /* Composed hairline states. Gate 48 requires every colour declaration to
+     name a token, and these three states are colours whether they are written
+     as `color-mix(...)` in a rule or as a value here — so they live with the
+     rest of the palette rather than being re-derived at each use. */
+  --line-hover: color-mix(in srgb, var(--line-strong) 55%, transparent);
+  --line-accent: color-mix(in srgb, var(--accent-deep) 45%, transparent);
+  --line-soft: color-mix(in srgb, var(--line-strong) 70%, transparent);
+  --line-ghost: color-mix(in srgb, var(--line-strong) 34%, transparent);
+  --ink-faint-70: color-mix(in srgb, var(--ink-faint) 70%, transparent);
+  --ink-faint-65: color-mix(in srgb, var(--ink-faint) 65%, transparent);
+  --plate-note-bg: color-mix(in srgb, var(--lift-3) 78%, transparent);
+  --ticks: linear-gradient(var(--line-strong), var(--line-strong)) top left / 14px 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) top left / 1px 14px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) top right / 14px 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) top right / 1px 14px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) bottom left / 14px 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) bottom left / 1px 14px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) bottom right / 14px 1px no-repeat,
+    linear-gradient(var(--line-strong), var(--line-strong)) bottom right / 1px 14px no-repeat;
+  --rule-steps: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--line-strong) 70%, transparent) 12%,
+    color-mix(in srgb, var(--line-strong) 70%, transparent) 88%,
+    transparent
+  );
+  --progress-bar: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  --rule-kicker: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 70%, transparent),
+    color-mix(in srgb, var(--line) 90%, transparent) 45%,
+    transparent 88%
+  );
+  --line: #d3d9e6;
+  /* >=3:1 against all four surfaces (paper 3.77, band 3.42, sunken 3.12,
+     lift-3 3.30). Carries every interactive boundary: input borders,
+     secondary buttons, focus-adjacent outlines. A hairline at `--line`
+     is intentionally *below* this — it is decoration, not a boundary. */
+  --line-strong: #737d95;
+  /* Focus is a boundary too, so it takes the accent at full contrast
+     rather than the acid at 1.29:1. */
+  --line-focus: var(--accent-deep);
 
   /* ---- ink ------------------------------------------------------------ */
-  --ink: #ededf0;
-  --ink-body: #d4d4da;
-  --ink-muted: #9a9aa4;
-  --ink-faint: #6e6e78;
-  --ink-inverse: #0a0a0b;
+  --ink: #141a26;        /* 16.0:1 on paper, 13.2:1 on sunken */
+  --ink-body: #242c3d;   /* 12.8:1 / 10.6:1 */
+  --ink-muted: #4a5468;  /*  7.0:1 /  5.8:1 */
+  --ink-faint: #576176;  /*  5.7:1 /  4.7:1 — the previous #636975 cleared
+                            4.5:1 on the neutral paper and then failed it
+                            once the ground went blue, because blue paper
+                            darkens the well it was measured on */
 
-  /* ---- accent: exactly one. Interactive and selected, nothing else. --- */
-  --accent: #b8f14a;
-  --accent-dim: #8fbb36;
-  --accent-ink: #0a0a0b;
+  /* ---- accent: exactly one hue, two values by role ------------------- */
+  /* On paper the acid measures 1.29:1 against the ground. It is therefore a
+     *fill* colour and never a letter: buttons, bars, chips, rules, the
+     pointer edge. Every green word — links, indices, labels, badges — uses
+     --accent-deep, which is the same hue (80°) taken down to a lightness
+     that clears 4.5:1 on the darkest surface. Two tints of one hue is a
+     palette decision; two greens would not have been. */
+  --accent: #b8f14a;      /* fill only */
+  --accent-deep: #4d6d0d; /* 5.5:1 on paper, 4.5:1 on sunken */
+  --accent-dim: #93c73a;
+  /* Hover fill for --accent surfaces. Was hard-coded as #c8ff5e in one rule. */
+  --accent-bright: #c8ff5e;
+  --accent-ink: #101215;  /* 14:1 on the accent fill */
+  /* A translucent page-background wash, for a label floating over media. */
+  --bg-scrim: color-mix(in srgb, #f2f5fb 78%, transparent);
+
+  /* ---- light ----------------------------------------------------------
+     On the near-black ground this section held three broad washes: a dark
+     page needs a light source or it reads as an unlit room, and at 5-9% alpha
+     the first attempt measured as unlit anyway. Paper does not have that
+     problem — the ground is already at 0.97 luminance, and a wash over it is
+     a tint, not a light. The three tokens are gone rather than inverted,
+     because a pale gradient behind a pale page is the other half of the same
+     tell: a background that was generated rather than designed.
+
+     What is left carrying the "there is light here" job is two things. The
+     acid, which has a fill and a letter to spend instead of a glow. And
+     --bg-hero / --bg-closing: two flat, deliberately placed surfaces that
+     bookend the composition. A gradient would be decoration; a plate is a
+     decision. */
+
+  /* Film grain. An inline SVG turbulence tile — no request, no dependency.
+     On paper it does something slightly different from what it did on the
+     void: it is not dithering a gradient's 8-bit steps away, it is giving
+     a flat fill a fibre. Kept under the threshold where it reads as texture
+     rather than noise. */
+  --grain-opacity: 0.035;
+  --grain-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* ---- semantic (derived, never new hues) ----------------------------- */
-  --ok: #7ee787;
-  --warn: #e3b341;
-  --err: #ff7b72;
+  /* All three are set by the contrast they need as *text*, which is what
+     they are used for — a tint light enough to sit as a fill behind dark
+     ink fails 4.5:1 the moment it becomes a status word. */
+  --ok: #157035;
+  --warn: #7f5400;
+  --err: #b42318;
 
   /* ---- type ----------------------------------------------------------- */
   --font-display: 'Newsreader', 'Newsreader Fallback', 'Iowan Old Style',
@@ -57,8 +205,7 @@
     monospace;
 
   /* Fluid root scale. Every spacing value below is a rem multiple, so the
-     type scale and the spacing scale move together across viewports.
-     ~16px at 390px wide, ~19px at 1600px wide. */
+     type scale and the spacing scale move together across viewports. */
   --step--1: clamp(0.78rem, 0.75rem + 0.12vw, 0.84rem);
   --step-0: clamp(0.95rem, 0.92rem + 0.15vw, 1.03rem);
   --step-1: clamp(1.13rem, 1.06rem + 0.32vw, 1.31rem);
@@ -66,7 +213,7 @@
   --step-3: clamp(1.62rem, 1.36rem + 1.14vw, 2.28rem);
   --step-4: clamp(1.94rem, 1.5rem + 1.94vw, 3.02rem);
   --step-5: clamp(2.33rem, 1.62rem + 3.12vw, 4rem);
-  --step-6: clamp(2.8rem, 1.68rem + 4.85vw, 5.3rem);
+  --step-6: clamp(2.6rem, 1.5rem + 4.6vw, 4.9rem);
 
   /* ---- spacing (rem, tracks the root scale) --------------------------- */
   --sp-1: 0.25rem;
@@ -80,16 +227,15 @@
   --sp-9: 6rem;
   --sp-10: 8rem;
 
-  /* Section rhythm. Deliberately restrained: research on the current premium
-     studios found generosity in the *type* scale, not in empty vertical space.
-     These were tightened after a full-page screenshot at 1440px read as
-     sparse rather than composed. */
+  /* Section rhythm. Generosity belongs in the type scale, not in empty
+     vertical space — these were tightened after a full-page screenshot read
+     as sparse rather than composed. */
   --section-y: clamp(3rem, 1.6rem + 4.4vw, 5.5rem);
   --section-y-lg: clamp(3.5rem, 1.8rem + 5.6vw, 7rem);
 
   /* ---- layout --------------------------------------------------------- */
   --gutter: clamp(1.15rem, 0.55rem + 2.4vw, 3.25rem);
-  --measure: 68ch;
+  --measure: 66ch;
   --measure-narrow: 46ch;
   --max-w: 84rem;
 
@@ -100,22 +246,34 @@
   /* Minimum touch target, in px on purpose.
      The root font-size is fluid (0.95rem at a 390px viewport ≈ 15.2px), so a
      rem-based `min-height: 2.75rem` resolves to 42px on a phone — just under
-     the 44px guideline. Interactive controls reference this token instead. */
+     the guideline. Interactive controls reference this token instead. */
   --tap: 44px;
 
-  /* ---- motion --------------------------------------------------------- */
+  /* ---- motion ---------------------------------------------------------
+     Durations follow the same 1.5x ladder as spacing. `--ease` is a
+     fast-start/slow-settle curve (out-expo family) — the shape that reads as
+     confident rather than springy. `--ease-in-out` is reserved for the two
+     moments that both leave and arrive (hero entrance, FAQ expansion). */
   --dur-1: 120ms;
   --dur-2: 180ms;
   --dur-3: 240ms;
+  --dur-4: 520ms;
+  --dur-5: 800ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --reveal-shift: 8px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --reveal-shift: 14px;
+  --reveal-stagger: 55ms;
+
+  /* ---- stacking ------------------------------------------------------- */
+  /* Nav sits above anything sticky inside the page, so a sticky element can
+     never paint over it. */
+  --z-sticky: 200;
+  --z-sticky-nav: 300;
+  --z-menu: 400;
+  /* Grain sits under everything interactive but over every surface, including
+     the nav: a texture that stops at a section boundary is a visible seam. */
+  --z-grain: 500;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --dur-1: 1ms;
-    --dur-2: 1ms;
-    --dur-3: 1ms;
-    --reveal-shift: 0px;
-  }
-}
+/* Hallmark · macrostructure: Split-Diptych with Masthead · light · newsreader/plex · accent: acid */

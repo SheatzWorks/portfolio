@@ -20,6 +20,13 @@ html {
   /* Anchor targets clear the sticky header. */
   scroll-padding-top: 5.5rem;
   background-color: var(--bg);
+  /*
+   * Gate 34. `clip` rather than `hidden`, and on `html` as well as `body`:
+   * `overflow: hidden` on either element creates a scroll container that
+   * silently breaks `position: sticky` for descendants — including the site
+   * header. `clip` does not create a scroll container.
+   */
+  overflow-x: clip;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -39,8 +46,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
-  /* Prevents horizontal scroll from any wide child. */
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 img,
@@ -55,6 +61,83 @@ svg {
 img,
 video {
   height: auto;
+}
+
+/* =========================================================================
+   Light, grain and rhythm.
+
+   Before this pass a full-page capture measured 97-98% of pixels below
+   luminance 24 with mean saturation 0.055: the ground was one flat unlit
+   surface for 9000px of scroll. Three corrections, in order of how much each
+   moves the number:
+
+     1. Grain — an inline SVG turbulence tile at 3.5%. Flat fills this dark
+        band into visible steps the moment a gradient sits on them; grain
+        dithers those steps and is what separates "dark design" from
+        "unfinished background".
+     2. Rhythm — alternating section bands lift the ground 4 luminance
+        points, so the page has a beat instead of a continuous fall.
+     3. Light — broad washes anchored to real viewport edges (tokens.css).
+        Capped in alpha so no wash ever reads as a floating orb.
+
+   The grain layer is `position: fixed` and `pointer-events: none`, so it
+   never sits between a finger and a control and never scrolls.
+   ========================================================================= */
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: var(--grain-url);
+  opacity: var(--grain-opacity);
+  pointer-events: none;
+  z-index: var(--z-grain);
+  mix-blend-mode: overlay;
+}
+
+/* Alternating section bands, counted across `main > section` so the hero and
+   the closing statement always land on the un-banded value and the two
+   bookends read as one surface. The hairline is what stops the value step
+   looking like a rendering artefact rather than a decision. */
+main > section:nth-of-type(even) {
+  background-color: var(--bg-band);
+  border-block: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+}
+
+/* The hero and the closing line are un-banded on purpose: one is the entry,
+   the other the exit, and a beat through the middle of either would read as
+   machinery. Un-banded is not unstyled, though — they take the two deepest,
+   bluest surfaces on the site (--bg-hero / --bg-closing), so the page opens
+   and closes on a plate and runs on paper in between. No wash over either:
+   a flat fill is a decision, a gradient would be decoration (see the `light`
+   block in tokens.css).
+
+   Written at the same specificity as the band rule above and after it, so a
+   `.closing` that happens to land on an even index still wins the tie. */
+main > section.hero,
+main > section.page-head {
+  background-color: var(--bg-hero);
+}
+
+main > section.closing {
+  background-color: var(--bg-closing);
+}
+
+/* =========================================================================
+   Scroll progress.
+   `position: fixed`, not sticky: the masthead already owns the site's one
+   `sticky; top: 0` slot, and two of them stack and fight (gate 56).
+   ========================================================================= */
+
+.scroll-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 2px;
+  z-index: calc(var(--z-sticky-nav) + 1);
+  pointer-events: none;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--progress, 0));
+  background: var(--progress-bar);
 }
 
 input,
@@ -90,11 +173,20 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
+  /* Gate 38a: headings are roman. Emphasis is carried by weight or accent
+     colour, never by an italicised word inside an upright headline — that
+     single construction is one of the most reliable AI tells. */
+  font-style: normal;
   font-weight: 400;
   color: var(--ink);
   line-height: 1.08;
   letter-spacing: -0.015em;
   text-wrap: balance;
+  /* Gate 51: a long hyphenated word overflows at 320px because the hyphen is
+     the only break opportunity. `anywhere` lets the engine break inside the
+     word as a last resort. */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 h1 {
@@ -124,8 +216,8 @@ a {
 }
 
 a:hover {
-  color: var(--accent);
-  text-decoration-color: var(--accent);
+  color: var(--accent-deep);
+  text-decoration-color: var(--accent-deep);
 }
 
 strong,
@@ -152,7 +244,7 @@ hr {
    ---------------------------------------------------------------------- */
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-deep);
   outline-offset: 3px;
   border-radius: 1px;
 }
@@ -307,31 +399,88 @@ hr {
 
 /* -------------------------------------------------------------------------
    Scroll reveal
-   One 8px translate + fade, per section, once. Transform and opacity only so
-   it stays on the compositor. Disabled entirely under reduced-motion.
+
+   One translate + fade, sequenced per section by GSAP
+   (src/scripts/motion.ts). Transform and opacity only, so the whole thing
+   stays off the layout path.
+
+   ---
+   THE BLANK-PAGE BUG, AND WHY THIS IS SHAPED THIS WAY
+
+   This used to be `[data-reveal] { opacity: 0 }` with a `html.no-js`
+   override, and `Base.astro` removed `no-js` at the end of the body. Nothing
+   ever added `.is-revealed`, so 84 elements across five pages — every section
+   head, service row, process step, practice statement, stack group and FAQ —
+   sat at opacity 0 forever. The one test covering it ran under
+   `prefers-reduced-motion: reduce`, where a media query forces them visible,
+   so it passed while the site shipped blank.
+
+   Three properties this shape has to have, in priority order:
+
+     1. No first-paint flicker. The class used to flip on at the *end* of
+        body, so content could paint visible, then vanish, then fade in.
+        Hiding from the first byte removes that window entirely.
+     2. A dead bundle cannot blank the page. `html:not(.motion-ready)` runs a
+        3s failsafe that reveals everything if the motion module never
+        reports in. The module cancels it by taking `.motion-ready` as soon
+        as it has an IntersectionObserver actually wired up — so a bundle
+        that 404s costs three seconds, not the content.
+     3. JavaScript-off still works. `/no-js.css` is a real file rather than a
+        `<style>` block, because Astro cannot hash inline styles and the CSP
+        would eat it.
    ---------------------------------------------------------------------- */
 
-[data-reveal] {
-  opacity: 0;
-  transform: translateY(var(--reveal-shift));
-  transition: opacity var(--dur-3) var(--ease),
-    transform var(--dur-3) var(--ease);
+/* Runs only while the module has not reported in. `animation-name` is dropped
+   the moment `.motion-ready` lands, which is what cancels it — a cancelled
+   animation leaves the base (hidden) style, and reveals are then driven by
+   `.is-revealed`. */
+html:not(.motion-ready):not(.no-motion) [data-reveal] {
+  animation: motion-failsafe 1ms linear 3s forwards;
 }
 
-[data-reveal].is-revealed {
-  opacity: 1;
-  transform: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-reveal] {
+@keyframes motion-failsafe {
+  to {
     opacity: 1;
     transform: none;
   }
 }
 
-/* If JS never runs, content must still be visible. */
-html.no-js [data-reveal] {
+/* Base: hidden. Lowest specificity of the three, so the overrides below win. */
+html [data-reveal] {
+  opacity: 0;
+  transform: translateY(var(--reveal-shift));
+}
+
+html [data-reveal].is-revealed,
+html.no-motion [data-reveal] {
   opacity: 1;
   transform: none;
+}
+
+/* The module blew up after reporting in: show everything, immediately. */
+html.no-motion [data-reveal] {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .word {
+    display: inline;
+    will-change: auto;
+  }
+  .scroll-progress {
+    display: none;
+  }
+}
+
+/* Words the hero timeline staggers. `inline-block` so a transform applies at
+   all; the whitespace between them stays as text nodes, so line breaking and
+   extracted text are unchanged. */
+.word {
+  display: inline-block;
+  will-change: transform;
 }

@@ -1,5 +1,27 @@
 /** Shared domain types. Mirrors the D1 schema; nothing in the app casts. */
 
+/**
+ * Who owns the work.
+ *
+ * 'own' means sheatz designed, built and operates it. 'client' means it was
+ * commissioned. This is the only honest way to present the difference between
+ * a product and a piece of client work, and it drives the /products and /work
+ * split.
+ */
+export type Ownership = 'client' | 'own';
+
+/**
+ * Product lifecycle. 'planning' exists so unfinished work can be listed
+ * honestly — better than hiding it or claiming more than is true.
+ */
+export type ProductStatus =
+  | 'planning'
+  | 'in-development'
+  | 'beta'
+  | 'live'
+  | 'paused'
+  | 'retired';
+
 export type ProjectKind =
   | 'web'
   | 'webapp'
@@ -101,10 +123,23 @@ export interface Project {
   sortOrder: number;
   published: boolean;
   hasCaseStudy: boolean;
+  /** Discriminator for /work vs /products. */
+  ownership: Ownership;
+  productStatus: ProductStatus | null;
+  availabilityUrl: string | null;
+  tagline: string | null;
   bodyMd: string | null;
+  /* The narrative arc. Every field is rendered by the case study and writable
+     from the admin — the previous migration shipped these columns with no code
+     path able to write them, which made the strongest template unreachable. */
+  objectiveMd: string | null;
   challengeMd: string | null;
   approachMd: string | null;
+  designMd: string | null;
+  engineeringMd: string | null;
   outcomeMd: string | null;
+  challengesMd: string | null;
+  lessonsMd: string | null;
   credits: Credit[];
   links: ProjectLinkSet;
   metrics: Metric[] | null;
@@ -174,6 +209,24 @@ export interface Service {
   name: string;
   outcome: string;
   deliverables: string[];
+  /** Published price range. A filter for both sides, not a promotion. */
+  priceFrom: string | null;
+  priceTo: string | null;
+  priceNote: string | null;
+  /** e.g. "Fixed scope" or "Ongoing". */
+  engagement: string | null;
+  /** Signature services are listed first on /services. */
+  isSignature: boolean;
+}
+
+/** A project sheatz owns and operates, as rendered on /products. */
+export type Product = Project & { ownership: 'own' };
+
+export interface Differentiator {
+  id: number;
+  label: string;
+  body: string;
+  sortOrder: number;
 }
 
 export interface FaqEntry {

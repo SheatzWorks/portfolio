@@ -84,15 +84,58 @@ there is promoted to a paired slot instead.
 
 ---
 
-## Team
+## People
 
-`team` table. Takes precedence over `studio.people` when rows exist, so you can
-edit bios without a rebuild. Columns: `slug`, `name`, `role`, `bio`, `focus`
-(JSON), `links` (JSON), `sort_order`, `published`.
+**There are no people on this site, and that is a decision rather than a gap.**
 
-The section is an editorial spread with a hairline between the two people, not
-circular-avatar profile cards. Bios should say what they do and what a client can
-expect, not what they are proud of.
+The `team` table and `studio.people` both still exist in the schema, and nothing
+renders them. This was deliberate: a biography is the one thing a portfolio
+cannot verify, a two-card "meet the team" strip is the single most templated
+section on any studio site, and the studio asked not to publish personal
+identity. `/about` carries what the studio *does* instead, and `/products` is the
+evidence — software that exists and is openable.
+
+If that ever changes, the section has to earn itself: an editorial spread with a
+hairline, not circular-avatar profile cards, and bios that say what a client can
+expect rather than what someone is proud of.
+
+## Ownership and lifecycle
+
+`projects.ownership` is the discriminator between `/work` and `/products`:
+
+| `ownership` | Route | Meaning |
+|---|---|---|
+| `client` | `/work` | Commissioned. Published with the client's permission. |
+| `own` | `/products` | Built and operated by the studio. |
+
+`projects.product_status` is `NULL` for a commission, and one of `planning`,
+`in-development`, `beta`, `live`, `paused`, `retired` for a product. The label is
+rendered on the card and on the case study, so an unfinished product says so.
+
+`availability_url` is where someone can try it — a waitlist, a store, a beta
+invite. Leave it NULL until there is somewhere to send them.
+
+## The narrative arc
+
+Migration `0002` added six case-study columns. All six are writable from the
+admin and all six render, and there is a test asserting that every column the
+schema declares is writable through the API — because the previous migration
+shipped case-study columns that no code path could ever write, which made the
+strongest template in the repo unreachable.
+
+| Column | Renders as |
+|---|---|
+| `objective_md` | What it had to do |
+| `challenge_md` | The problem |
+| `design_md` | Design decisions |
+| `approach_md` | How it was built |
+| `engineering_md` | Engineering notes |
+| `outcome_md` | Where it landed |
+| `challenges_md` | What was genuinely hard |
+| `lessons_md` | What we would do differently |
+
+Only the beats that are actually written render. A product with three of the
+eight does not get five empty headings.
 
 ---
 
@@ -157,9 +200,16 @@ Skip anything you would have to hedge.
 `testimonials` table: `quote`, `author`, `role`, `company`, `source_url`,
 `sort_order`, `published`.
 
-**Never invent these.** The section is hidden when the table is empty, and it
-stays hidden until there is a real quote from a real person. When one arrives, it
-appears automatically on the home page.
+**Never invent these.** The table is empty, the section renders nowhere, and it
+stays that way until there is a real quote from a real person.
+
+This is also asserted by a test, not just by convention:
+`the site makes no claims it cannot support` walks every public page and fails if
+it finds "trusted by", "clients include", "happy clients", "award-winning",
+"testimonial", "10+ clients", "years of experience" or an unsourced percentage
+claim. Those phrases are exactly the ones an LLM reaches for to fill a
+stat-shaped layout, so the failure mode is automated rather than a matter of
+remembering not to.
 
 ---
 
@@ -195,6 +245,23 @@ npx wrangler d1 execute studio --remote \
   --command "UPDATE projects SET featured = 0 WHERE id = 42"
 ```
 
-Editing a *prerendered* page's source (`site.ts`, and therefore `/`, `/studio`,
-`/contact`) requires a rebuild and redeploy. Editing a project does not:
-`/creations` and case studies read D1 per request.
+Editing a page's source (`site.ts`, and therefore `/`, `/contact`, `/about`)
+requires a rebuild and redeploy — a source change ships with a deploy whether
+the route is server-rendered or not. Editing a project, a service price or a
+differentiator does not: `/`, `/work`, `/products`, `/services` and their case
+studies read D1 per request.
+
+## Price ranges
+
+Services carry `price_from`, `price_to`, `price_note` and `engagement`. A range
+with no note is a promise nobody can keep, so the qualifier travels with the
+number.
+
+The currency is **one value**, `studio.priceCurrency`, and it is currently set to
+`GBP` as an assumption. A bare `30,000 – 75,000` cannot be compared between two
+services, so it is rendered with its currency attached at every call site. Change
+the one value and every range and every JSON-LD `Offer` follows.
+
+`price_from` and `price_to` are strings, not numbers, because they are written
+for humans — `"25,000"` rather than `25000`. An ongoing service leaves both NULL
+and shows `engagement` instead; the tests assert it can never render as `£0`. 

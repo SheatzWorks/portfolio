@@ -1,11 +1,11 @@
 # Headers for assets Cloudflare serves directly from the Workers Static Assets
 # binding, WITHOUT invoking the Worker.
 #
-# This matters: the prerendered pages (/, /studio, /contact, /privacy, /terms,
-# /404) are static files, so src/middleware.ts never runs for them. Without
-# this file they would ship with none of the hardening headers. The dynamic
-# routes (/creations, /api/*, /admin) are handled by the Worker and get the
-# same set from the middleware — one set, two delivery paths, no gap.
+# This matters: the prerendered pages (/contact, /privacy, /terms, /404) are
+# static files, so src/middleware.ts never runs for them. Without this file
+# they would ship with none of the hardening headers. The dynamic routes (/,
+# /work, /products, /services, /api/*, /admin) are handled by the Worker and
+# get the same set from the middleware — one set, two delivery paths, no gap.
 #
 # NOTE ON COMMENT SYNTAX: this file uses `#`, not C-style `/* */`. A leading
 # `/*` is parsed as a PATH PATTERN, not a comment, which is why the previous

@@ -4,11 +4,12 @@
  * Every row is converted to a typed object here and nowhere else, so a schema
  * change has exactly one blast radius. All JSON columns are parsed through
  * `parseJson`, which fails soft to a safe default rather than throwing — a
- * single malformed row must never take down the whole creations index.
+ * single malformed row must never take down the whole work index.
  */
 
 import type {
   CapabilityGroup,
+  Differentiator,
   FaqEntry,
   GalleryImage,
   InstagramPost,
@@ -16,6 +17,9 @@ import type {
   Preview,
   ProcessPhase,
   Project,
+  Ownership,
+  Product,
+  ProductStatus,
   ProjectKind,
   ProjectLinkSet,
   ProjectStatus,
@@ -96,6 +100,15 @@ function rowToProject(r: Record<string, unknown>): Project {
     aspectRatio: Number(r.aspect_ratio ?? 1.6),
     preview: parseJson<Preview>(r.preview, {}),
     previewState: String(r.preview_state ?? 'queued') as PreviewState,
+    ownership: (r.ownership === 'own' ? 'own' : 'client') as Ownership,
+    productStatus: (r.product_status as ProductStatus | null) ?? null,
+    availabilityUrl: r.availability_url == null ? null : String(r.availability_url),
+    tagline: r.tagline == null ? null : String(r.tagline),
+    objectiveMd: r.objective_md == null ? null : String(r.objective_md),
+    designMd: r.design_md == null ? null : String(r.design_md),
+    engineeringMd: r.engineering_md == null ? null : String(r.engineering_md),
+    challengesMd: r.challenges_md == null ? null : String(r.challenges_md),
+    lessonsMd: r.lessons_md == null ? null : String(r.lessons_md),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -103,28 +116,96 @@ function rowToProject(r: Record<string, unknown>): Project {
 
 const PROJECT_COLUMNS = `id, slug, title, url, blurb, summary, category, technologies,
   year, status, kind, featured, sort_order, published, has_case_study, body_md,
-  challenge_md, approach_md, outcome_md, credits, links, metrics, gallery,
+  ownership, product_status, availability_url, tagline,
+  objective_md, challenge_md, approach_md, design_md, engineering_md,
+  outcome_md, challenges_md, lessons_md,
+  credits, links, metrics, gallery,
   aspect_ratio, preview, preview_state, created_at, updated_at`;
 
 /**
- * Projects visible to the public.
+ * Visibility, applied in SQL rather than in the template.
  *
- * `status` is part of this filter, not decoration: a project marked `private`
- * or `archived` must not appear in the index, resolve at its slug, or reach the
- * sitemap. It is listed here alongside `published` because both are visibility
- * decisions and it is easy to set one and forget the other.
+ * `published` and `status` are both visibility decisions and it is easy to set
+ * one and forget the other — a project marked private was previously listed,
+ * resolvable at its slug, and present in the sitemap.
  */
-const PUBLIC_WHERE = `published = 1 AND status NOT IN ('private', 'archived')`;
+const VISIBLE_WHERE = `published = 1 AND status NOT IN ('private', 'archived')`;
 
 export async function listPublishedProjects(db: D1Like): Promise<Project[]> {
   const { results } = await db
     .prepare(
-      `SELECT ${PROJECT_COLUMNS} FROM projects WHERE ${PUBLIC_WHERE}
+      `SELECT ${PROJECT_COLUMNS} FROM projects WHERE ${VISIBLE_WHERE}
         ORDER BY sort_order ASC, year DESC, id DESC`,
     )
     .bind()
     .all<Record<string, unknown>>();
   return results.map(rowToProject);
+}
+
+/**
+ * Projects sheatz owns and operates. The /products source.
+ *
+ * A product may be listed before it is shippable — `product_status` records
+ * how far along it is, so an unfinished product can appear honestly instead of
+ * being hidden until launch day or over-claimed beforehand.
+ */
+export async function listOwnProducts(db: D1Like): Promise<Product[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${PROJECT_COLUMNS} FROM projects
+        WHERE ownership = 'own' AND published = 1 AND status != 'archived'
+        ORDER BY
+          CASE product_status
+            WHEN 'live' THEN 0 WHEN 'beta' THEN 1
+            WHEN 'in-development' THEN 2 WHEN 'planning' THEN 3
+            WHEN 'paused' THEN 4 ELSE 5 END,
+          sort_order ASC`,
+    )
+    .bind()
+    .all<Record<string, unknown>>();
+  return results.map(rowToProject) as Product[];
+}
+
+/**
+ * Commissioned work. The /work source.
+ *
+ * `featured` is a presentation flag, not a visibility one: an unfeatured
+ * project is still published and still reachable by URL.
+ */
+export async function listClientWork(db: D1Like): Promise<Project[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${PROJECT_COLUMNS} FROM projects
+        WHERE ownership = 'client' AND ${VISIBLE_WHERE}
+        ORDER BY featured DESC, sort_order ASC, year DESC, id DESC`,
+    )
+    .bind()
+    .all<Record<string, unknown>>();
+  return results.map(rowToProject);
+}
+
+/** Counts per ownership, so the UI can decide whether a section earns space. */
+export async function countByOwnership(
+  db: D1Like,
+): Promise<{ client: number; own: number }> {
+  const { results } = await db
+    .prepare(
+      `SELECT ownership, COUNT(*) AS n FROM projects
+        WHERE published = 1 AND status NOT IN ('private','archived')
+        GROUP BY ownership`,
+    )
+    .bind()
+    .all<{ ownership: string; n: number }>();
+  // Counted explicitly rather than by an else-branch defaulting to 'client'.
+  // The CHECK constraint makes an unknown value impossible today, but a
+  // defaulting `else` silently turns any future value into client work — which
+  // is the wrong direction to be wrong in.
+  const out = { client: 0, own: 0 };
+  for (const row of results) {
+    if (row.ownership === 'own') out.own = Number(row.n);
+    else if (row.ownership === 'client') out.client = Number(row.n);
+  }
+  return out;
 }
 
 /** Every project including drafts, for the admin surface. */
@@ -174,6 +255,27 @@ export async function listTeam(db: D1Like): Promise<TeamMember[]> {
     focus: toStrArray(r.focus),
     links: parseJson<{ label: string; href: string }[]>(r.links, []),
     sortOrder: Number(r.sort_order ?? 0),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Differentiators — ordered and individually editable, which a JSON blob in
+// site_content made impossible.
+// ---------------------------------------------------------------------------
+
+export async function listDifferentiators(db: D1Like): Promise<Differentiator[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, label, body FROM differentiators
+        WHERE published = 1 ORDER BY sort_order ASC`,
+    )
+    .bind()
+    .all<Record<string, unknown>>();
+  return results.map((r) => ({
+    id: Number(r.id),
+    label: String(r.label),
+    body: String(r.body),
+    sortOrder: 0,
   }));
 }
 
@@ -233,8 +335,11 @@ export async function listInstagramPosts(db: D1Like): Promise<InstagramPost[]> {
 export async function listServices(db: D1Like): Promise<Service[]> {
   const { results } = await db
     .prepare(
-      `SELECT id, slug, name, outcome, deliverables FROM services
-       WHERE published = 1 ORDER BY sort_order ASC`,
+      `SELECT id, slug, name, outcome, deliverables,
+              price_from, price_to, price_note, engagement, is_signature
+         FROM services
+        WHERE published = 1
+        ORDER BY is_signature DESC, sort_order ASC`,
     )
     .bind()
     .all<Record<string, unknown>>();
@@ -245,6 +350,11 @@ export async function listServices(db: D1Like): Promise<Service[]> {
     name: String(r.name),
     outcome: String(r.outcome),
     deliverables: toStrArray(r.deliverables),
+    priceFrom: r.price_from == null ? null : String(r.price_from),
+    priceTo: r.price_to == null ? null : String(r.price_to),
+    priceNote: r.price_note == null ? null : String(r.price_note),
+    engagement: r.engagement == null ? null : String(r.engagement),
+    isSignature: toBool(r.is_signature),
   }));
 }
 

@@ -34,14 +34,15 @@ const { name, tagline } = readStudioConfig();
 const shortTag = tagline.length > 72 ? `${tagline.slice(0, 70)}…` : tagline;
 
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#0a0a0b"/>
+  <rect width="1200" height="630" fill="#f2f5fb"/>
   <rect x="0" y="0" width="1200" height="8" fill="#b8f14a"/>
+  <rect x="0.5" y="0.5" width="1199" height="629" fill="none" stroke="#d3d9e6"/>
   <g font-family="Georgia, 'Times New Roman', serif">
-    <text x="80" y="286" font-size="92" fill="#ededf0">${esc(name)}</text>
+    <text x="80" y="286" font-size="92" fill="#141a26">${esc(name)}</text>
   </g>
-  <text x="80" y="352" font-family="Menlo, Consolas, monospace" font-size="26" fill="#9a9aa4">${esc(shortTag)}</text>
-  <rect x="80" y="410" width="120" height="1" fill="#2a2a30"/>
-  <text x="80" y="500" font-family="Menlo, Consolas, monospace" font-size="20" fill="#6e6e78">creations · services · process · contact</text>
+  <text x="80" y="352" font-family="Menlo, Consolas, monospace" font-size="26" fill="#4a5468">${esc(shortTag)}</text>
+  <rect x="80" y="410" width="120" height="1" fill="#d3d9e6"/>
+  <text x="80" y="500" font-family="Menlo, Consolas, monospace" font-size="20" fill="#576176">creations · services · process · contact</text>
 </svg>`;
 
 const out = new URL('../public/og-default.png', import.meta.url);

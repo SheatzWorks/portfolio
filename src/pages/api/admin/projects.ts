@@ -17,6 +17,31 @@ export const prerender = false;
 
 const KINDS = new Set(['web', 'webapp', 'mobile', 'saas', 'ai', 'experiment', 'client', 'internal']);
 const STATUSES = new Set(['live', 'in-progress', 'archived', 'private', 'experiment']);
+const OWNERSHIPS = new Set(['client', 'own']);
+const PRODUCT_STATUSES = new Set(['planning', 'in-development', 'beta', 'live', 'paused', 'retired']);
+
+/**
+ * The narrative beats, longest first.
+ *
+ * Written out rather than iterated so the API surface is enumerable and a new
+ * column cannot be added to the schema without appearing here too — which is
+ * how the previous migration ended up shipping six case-study columns that no
+ * code path could write.
+ */
+const CASE_STUDY_FIELDS = [
+  // body_md is the general narrative; the rest are the structured beats. It
+  // belongs in this list because the code below indexes it here, and omitting
+  // it bound `undefined` straight into D1.
+  ['body_md', 100_000],
+  ['objective_md', 20_000],
+  ['design_md', 20_000],
+  ['engineering_md', 20_000],
+  ['challenge_md', 20_000],
+  ['approach_md', 20_000],
+  ['outcome_md', 20_000],
+  ['challenges_md', 20_000],
+  ['lessons_md', 20_000],
+] as const;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -68,6 +93,20 @@ function parseJsonArray<T>(value: unknown, maxLen = 40): T[] {
   return [];
 }
 
+/** An object stored as JSON text in a column, or `{}` if there is none. */
+function parseJsonRecord(value: unknown): Record<string, unknown> {
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 export const POST: APIRoute = async ({ request, locals }) => {
   const env = await getEnv();
   const db = getDb(env);
@@ -117,6 +156,39 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
       const arBucket = arBucketFor(ratio);
 
+      /*
+       * Ownership decides which route the item appears on, so it is a create-
+       * time decision and is validated rather than coerced: silently writing
+       * 'client' for a product would put it on the wrong page with no signal.
+       */
+      const ownership = OWNERSHIPS.has(str(body.ownership, 20)) ? str(body.ownership, 20) : 'client';
+
+      // A lifecycle only means anything for an own product; for a commission
+      // it stays NULL rather than inventing one.
+      const productStatus =
+        ownership === 'own' && PRODUCT_STATUSES.has(str(body.product_status, 20))
+          ? str(body.product_status, 20)
+          : null;
+
+      // null, never '' or undefined: an empty string would print an empty
+      // "Ask for access" link, and D1 rejects an undefined bind outright.
+      const availability =
+        body.availability_url !== undefined
+          ? validateOptionalLink(str(body.availability_url, 300)) || null
+          : null;
+
+      const caseStudy = Object.fromEntries(
+        CASE_STUDY_FIELDS.map(([column, max]) => [column, str(body[column], max) || null]),
+      );
+      const hasCaseStudy =
+        body.has_case_study !== undefined
+          ? body.has_case_study
+            ? 1
+            : 0
+          : caseStudy.body_md || Object.values(caseStudy).some(Boolean)
+            ? 1
+            : 0;
+
       const maxOrder = await db
         .prepare('SELECT COALESCE(MAX(sort_order), 0) AS m FROM projects')
         .bind()
@@ -125,15 +197,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
       const result = await db
         .prepare(
           `INSERT INTO projects
-             (slug, title, url, blurb, kind, status, technologies, year, links,
-              aspect_ratio, featured, published, has_case_study, sort_order, preview_state)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 0, ?13, 'queued')`,
+             (slug, title, url, blurb, tagline, kind, status, technologies, year, links,
+              aspect_ratio, featured, published, has_case_study, sort_order, preview_state,
+              ownership, product_status, availability_url,
+              body_md, objective_md, design_md, engineering_md,
+              challenge_md, approach_md, outcome_md, challenges_md, lessons_md, summary)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, 'queued',
+                   ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)`,
         )
         .bind(
           slug,
           title,
           url,
           str(body.blurb, 300),
+          str(body.tagline, 200) || null,
           KINDS.has(kind) ? kind : 'web',
           STATUSES.has(status) ? status : 'live',
           technologies,
@@ -142,7 +219,21 @@ export const POST: APIRoute = async ({ request, locals }) => {
           arBucket.value,
           body.featured ? 1 : 0,
           body.published ? 1 : 0,
+          hasCaseStudy,
           (maxOrder?.m ?? 0) + 10,
+          ownership,
+          productStatus,
+          availability,
+          caseStudy.body_md,
+          caseStudy.objective_md,
+          caseStudy.design_md,
+          caseStudy.engineering_md,
+          caseStudy.challenge_md,
+          caseStudy.approach_md,
+          caseStudy.outcome_md,
+          caseStudy.challenges_md,
+          caseStudy.lessons_md,
+          str(body.summary, 2000) || null,
         )
         .run();
 
@@ -211,21 +302,64 @@ export const POST: APIRoute = async ({ request, locals }) => {
             )
           : String(existing.technologies);
 
-      const caseStudy = str(body.body_md, 100_000);
-      const hasCaseStudy = body.has_case_study !== undefined
-        ? body.has_case_study
-          ? 1
-          : 0
-        : caseStudy
-          ? 1
-          : Number(existing.has_case_study ?? 0);
+      const links =
+        body.github !== undefined
+          ? JSON.stringify(
+              Object.fromEntries(
+                Object.entries({
+                  ...parseJsonRecord(existing.links),
+                  github: validateOptionalLink(str(body.github, 300)),
+                }).filter(([, value]) => value),
+              ),
+            )
+          : String(existing.links ?? '{}');
+
+      const caseStudy = Object.fromEntries(
+        CASE_STUDY_FIELDS.map(([column, max]) => [
+          column,
+          body[column] !== undefined
+            ? str(body[column], max) || null
+            : ((existing[column] as string | null) ?? null),
+        ]),
+      );
+
+      const ownership =
+        body.ownership !== undefined && OWNERSHIPS.has(str(body.ownership, 20))
+          ? str(body.ownership, 20)
+          : String(existing.ownership ?? 'client');
+
+      // Demoting a product to a commission clears the lifecycle: leaving it set
+      // would print a product status on a client-work case study, where it
+      // means nothing.
+      const productStatus =
+        ownership !== 'own'
+          ? null
+          : body.product_status !== undefined
+            ? PRODUCT_STATUSES.has(str(body.product_status, 20))
+              ? str(body.product_status, 20)
+              : null
+            : ((existing.product_status as string | null) ?? null);
+
+      const hasCaseStudy =
+        body.has_case_study !== undefined
+          ? body.has_case_study
+            ? 1
+            : 0
+          : caseStudy.body_md || Object.values(caseStudy).some(Boolean)
+            ? 1
+            : Number(existing.has_case_study ?? 0);
 
       await db
         .prepare(
           `UPDATE projects SET
              title = ?2, url = ?3, blurb = ?4, kind = ?5, status = ?6,
              technologies = ?7, year = ?8, aspect_ratio = ?9, featured = ?10,
-             published = ?11, has_case_study = ?12, body_md = ?13, summary = ?14
+             published = ?11, has_case_study = ?12, body_md = ?13, summary = ?14,
+             tagline = ?15, ownership = ?16, product_status = ?17,
+             availability_url = ?18, objective_md = ?19, design_md = ?20,
+             engineering_md = ?21, challenge_md = ?22, approach_md = ?23,
+             outcome_md = ?24, challenges_md = ?25, lessons_md = ?26,
+             sort_order = ?27, links = ?28
            WHERE id = ?1`,
         )
         .bind(
@@ -245,8 +379,26 @@ export const POST: APIRoute = async ({ request, locals }) => {
           body.featured !== undefined ? (body.featured ? 1 : 0) : Number(existing.featured ?? 0),
           body.published !== undefined ? (body.published ? 1 : 0) : Number(existing.published ?? 0),
           hasCaseStudy,
-          body.body_md !== undefined ? caseStudy || null : (existing.body_md as string | null),
+          caseStudy.body_md,
           body.summary !== undefined ? str(body.summary, 2000) || null : (existing.summary as string | null),
+          body.tagline !== undefined ? str(body.tagline, 200) || null : ((existing.tagline as string | null) ?? null),
+          ownership,
+          productStatus,
+          body.availability_url !== undefined
+            ? validateOptionalLink(str(body.availability_url, 300)) || null
+            : ((existing.availability_url as string | null) ?? null),
+          caseStudy.objective_md,
+          caseStudy.design_md,
+          caseStudy.engineering_md,
+          caseStudy.challenge_md,
+          caseStudy.approach_md,
+          caseStudy.outcome_md,
+          caseStudy.challenges_md,
+          caseStudy.lessons_md,
+          body.sort_order !== undefined && Number.isFinite(Number(body.sort_order))
+            ? Number(body.sort_order)
+            : Number(existing.sort_order ?? 0),
+          links,
         )
         .run();
 

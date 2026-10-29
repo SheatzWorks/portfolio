@@ -24,7 +24,7 @@ const VIEWPORTS = [
   { name: 'ultrawide', width: 2560, height: 1080, mobile: false },
 ];
 
-const PATHS = ['/', '/creations', '/studio', '/contact'];
+const PATHS = ['/', '/work', '/products', '/services', '/about', '/contact'];
 
 mkdirSync(OUT, { recursive: true });
 
@@ -92,7 +92,10 @@ for (const vp of VIEWPORTS) {
                 if (r.width === 0 || r.height === 0) return false;
                 if (s.visibility === 'hidden' || s.display === 'none') return false;
                 if (el.closest('.hp') || el.classList.contains('skip-link')) return false;
-                if (el.tagName === 'A' && s.display.includes('inline') && el.closest('p, li, figcaption, .prose')) return false;
+                // Exactly `inline`, not `includes`: an inline-flex control
+                // (a nav row, a heading link) is a discrete target, and
+                // exempting it hid three undersized links behind this line.
+                if (el.tagName === 'A' && s.display === 'inline' && el.closest('p, .prose, figcaption')) return false;
                 return r.height < 44 || r.width < 44;
               })
               .map((el) => `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}`)

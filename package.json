@@ -24,27 +24,29 @@
     "test:e2e:ui": "playwright test --ui",
     "perf": "node scripts/perf.mjs",
     "qa": "node scripts/qa-matrix.mjs",
-    "verify": "npm run typecheck && npm test && npm run build && npm run test:e2e && npm run perf && npm run qa",
+    "gates": "node scripts/gates.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run test:e2e && npm run perf && npm run qa && npm run gates",
     "db:clear:remote": "wrangler d1 execute studio --remote --file=./scripts/clear-demo.sql",
     "typecheck": "tsc --noEmit -p tsconfig.check.json"
   },
   "dependencies": {
-    "astro": "7.3.5",
     "@astrojs/cloudflare": "14.3.3",
+    "@aws-sdk/client-s3": "3.712.0",
+    "astro": "7.3.5",
     "cheerio": "1.2.0",
+    "gsap": "^3.13.0",
     "ipaddr.js": "2.5.0",
     "resend": "6.31.0",
-    "sharp": "0.35.5",
-    "@aws-sdk/client-s3": "3.712.0"
+    "sharp": "0.35.5"
   },
   "devDependencies": {
+    "@astrojs/check": "0.9.6",
+    "@cloudflare/workers-types": "5.20260926.1",
     "@playwright/test": "1.63.0",
     "@types/node": "22.20.0",
+    "playwright-core": "1.63.0",
     "typescript": "5.9.3",
     "vitest": "3.2.4",
-    "wrangler": "4.144.0",
-    "playwright-core": "1.63.0",
-    "@astrojs/check": "0.9.6",
-    "@cloudflare/workers-types": "5.20260926.1"
+    "wrangler": "4.144.0"
   }
 }

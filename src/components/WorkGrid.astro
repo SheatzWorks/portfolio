@@ -1,6 +1,6 @@
 ---
 /**
- * The creations grid.
+ * The work grid.
  *
  * Column spans follow a repeating composition rather than a uniform 2x2. The
  * pattern is a pure function of index, so the layout is deterministic (and
@@ -50,7 +50,7 @@ function spanFor(index: number, ratio: number): Span {
 }
 ---
 
-<div class="creations">
+<div class="work-grid">
   {
     projects.map((project, i) => (
       <ProjectCard

@@ -235,7 +235,10 @@ three variables above.
 - [ ] `/terms` — same
 - [ ] `npm test && npm run test:e2e && npm run perf && npm run qa` all green
       against the deployed URL
-- [ ] A real project added, so the creations section is not empty
+- [ ] `studio.priceCurrency` confirmed (currently `GBP`, an assumption)
+- [ ] `studio.email`, `studio.siteUrl` and the social links replaced with real values
+- [ ] A real commission added, or `/work`'s empty state left as-is deliberately
+- [ ] `npm run gates` — answer the `manual` gates, not just the automated ones
 
 ---
 

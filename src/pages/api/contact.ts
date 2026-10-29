@@ -136,7 +136,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       const resend = new Resend(env.RESEND_API_KEY);
 
       const rowOf = (label: string, value: string) =>
-        value ? `<tr><td style="padding:4px 12px 4px 0;color:#6e6e78;font:12px monospace">${label}</td><td style="padding:4px 0;color:#ededf0;font:14px sans-serif">${escapeHtml(value)}</td></tr>` : '';
+        value ? `<tr><td style="padding:4px 12px 4px 0;color:#576176;font:12px monospace">${label}</td><td style="padding:4px 0;color:#141a26;font:14px sans-serif">${escapeHtml(value)}</td></tr>` : '';
 
       await resend.emails.send({
         from: env.CONTACT_FROM_EMAIL,
@@ -158,8 +158,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
         ]
           .filter(Boolean)
           .join('\n'),
-        html: `<div style="font:14px/1.6 system-ui,sans-serif;color:#ededf0;background:#0a0a0b;padding:24px;border:1px solid #2a2a30">
-  <p style="margin:0 0 16px;font-size:18px">New enquiry from ${escapeHtml(name)}</p>
+        html: `<div style="font:14px/1.6 system-ui,sans-serif;color:#242c3d;background:#f2f5fb;padding:24px;border:1px solid #d3d9e6">
+  <p style="margin:0 0 16px;font-size:18px;color:#141a26">New enquiry from ${escapeHtml(name)}</p>
   <table style="border-collapse:collapse;margin-bottom:16px">
     ${rowOf('Email', email)}
     ${rowOf('Company', company)}

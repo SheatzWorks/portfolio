@@ -8,7 +8,7 @@ import '../styles/fonts.css';
 import '../styles/global.css';
 import '../styles/components.css';
 
-import { studio } from '~/config/site';
+import { studio, publishableSocial } from '~/config/site';
 import SiteNav from '~/components/SiteNav.astro';
 import SiteFooter from '~/components/SiteFooter.astro';
 import { getEnv } from '~/lib/env';
@@ -16,7 +16,7 @@ import { getEnv } from '~/lib/env';
 interface Props {
   title: string;
   description: string;
-  /** Path-only canonical, e.g. '/creations'. */
+  /** Path-only canonical, e.g. '/work'. */
   canonicalPath?: string;
   /** Absolute or media-relative image for social cards. */
   ogImage?: string;
@@ -60,17 +60,10 @@ const graph = {
       description: studio.description,
       email: studio.email,
       ...(studio.location ? { address: { '@type': 'PostalAddress', addressLocality: studio.location } } : {}),
-      ...(studio.social.length
-        ? { sameAs: studio.social.filter((s) => s.href.startsWith('http')).map((s) => s.href) }
-        : {}),
-      ...(studio.people.length
-        ? {
-            member: studio.people.map((p) => ({
-              '@type': 'Person',
-              name: p.name,
-              jobTitle: p.role,
-            })),
-          }
+      // Filtered, not raw: an unresolved placeholder must not reach
+      // sameAs, where it would be indexed as a real profile.
+      ...(publishableSocial().length
+        ? { sameAs: publishableSocial().map((s) => s.href) }
         : {}),
     },
     {
@@ -92,7 +85,7 @@ const jsonLdPayload = JSON.stringify(graph).replace(/</g, '\\u003c');
 ---
 
 <!doctype html>
-<html lang="en" class="no-js">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -102,13 +95,24 @@ const jsonLdPayload = JSON.stringify(graph).replace(/</g, '\\u003c');
     <link rel="canonical" href={canonical} />
 
     <meta name="generator" content={Astro.generator} />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0a0a0b" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#f2f5fb" />
     <meta name="format-detection" content="telephone=no" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+
+    {/*
+      Scroll-revealed content is hidden from the first byte — that is what
+      stops it painting visible and then vanishing when the class flips. With
+      no JS nothing ever flips it back, so this override is the only thing
+      standing between a JS-off visitor and a blank page. A real file, because
+      an inline <style> would not survive the CSP.
+    */}
+    <noscript>
+      <link rel="stylesheet" href="/no-js.css" />
+    </noscript>
 
     <meta property="og:type" content={ogType} />
     <meta property="og:site_name" content={studio.name} />
@@ -134,6 +138,13 @@ const jsonLdPayload = JSON.stringify(graph).replace(/</g, '\\u003c');
       crossorigin
     />
     <link rel="preload" href="/fonts/plexsans-var.woff2" as="font" type="font/woff2" crossorigin />
+    {/*
+      The mono face is small (6.4KB) but appears in 60 rules — every eyebrow,
+      label, price and index on the site. It was the only face not preloaded,
+      which left a late swap window that intermittently reflowed the mono
+      labels on the text-heaviest pages. Preloading it closes that window.
+    */}
+    <link rel="preload" href="/fonts/plexmono-500.woff2" as="font" type="font/woff2" crossorigin />
   </head>
 
   <body class={bodyClass}>
@@ -147,14 +158,19 @@ const jsonLdPayload = JSON.stringify(graph).replace(/</g, '\\u003c');
 
     {chrome && <SiteFooter />}
 
+    {chrome && <div class="scroll-progress" aria-hidden="true"></div>}
+
     {/*
       Not `is:inline`: Astro cannot hash an inline script, so it would be
       blocked by the CSP it generates. As a bundled module Astro emits the
-      hash itself. It runs on DOMContentLoaded, which is early enough — the
-      reveal styles only matter once content is on screen.
+      hash itself.
+
+      This module carries the reveal system, so `[data-reveal]` stays hidden
+      only while it is missing — see src/scripts/motion.ts for why the
+      `no-js` class is removed from inside the module rather than from here.
     */}
     <script>
-      document.documentElement.classList.remove('no-js');
+      import '~/scripts/motion';
     </script>
   </body>
 </html>

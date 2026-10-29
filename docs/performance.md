@@ -12,28 +12,54 @@ viewport at 1.75x DPR.
 
 | Metric | Budget | Measured | Headroom |
 |---|---|---|---|
-| HTML (gzip) | 20 KB | **6.6 KB** | 3x |
-| JavaScript | 15 KB | **0 KB** | total |
-| CSS | 12 KB | **0 KB** (inlined) | total |
-| Fonts | 95 KB | **71.2 KB** | 1.3x |
+| HTML (gzip) | 20 KB | **6.3 KB** | 3.2x |
+| JavaScript | 40 KB | **28 KB** | 1.4x |
+| CSS | 12 KB | **10.7 KB** | 1.1x |
+| Fonts | 95 KB | **72.9 KB** | 1.3x |
 | Images | 120 KB | **0 KB** | total |
-| Requests | 25 | **6** | 4x |
+| Requests | 25 | **7** | 3.6x |
 | Third-party requests | 0 | **0** | — |
-| LCP | 2500 ms | **728 ms** | 3.4x |
+| LCP | 2500 ms | **952 ms** | 2.6x |
 | CLS | 0.05 | **0.0000** | total |
-| TTFB | 300 ms | **161 ms** | 1.9x |
+| TTFB | 300 ms | **160 ms** | 1.9x |
 
 All ten budgets met, on every route.
 
-### The 0 KB JavaScript and 0 KB CSS readings
+### How these are counted
 
-These are real, not a measurement failure. Astro ships components as static HTML
-and inlines the small progressive-enhancement scripts directly into the page,
-where Astro hashes them into the CSP. There is no external JavaScript file, and
-the CSS is inlined into `<head>` by `build.inlineStylesheets: 'auto'`.
+Every row above is **wire bytes**: the size of what crossed the socket,
+response headers included, read from `Network.loadingFinished.encodedDataLength`
+at the CDP layer.
 
-Six requests for a full page: the document, the CSS (inline, so not counted), and
+That was not always how it worked, and the previous numbers were wrong. The old
+script read `content-length` off each response; the preview server answers every
+gzip-compressed asset chunked and sends no `content-length` at all, so JavaScript
+and CSS both reported **0 bytes**. The budget table said "0 KB JavaScript, 0 KB
+CSS, total headroom" for as long as that was true — which is a good illustration
+of why a measurement needs a source you can defend rather than a header you
+happen to find.
+
+Seven requests for a full page: the document, the stylesheet, the module, and
 three font files. **No third-party request of any kind.**
+
+### The 28 KB of JavaScript
+
+It is the GSAP core — `gsap.min.js`, 72 KB raw and 28 KB gzip, bundled once and
+shared by every route. It drives the hero entrance, the scroll reveals and the
+scroll-progress rule in `src/scripts/motion.ts`.
+
+The budget is 40 KB rather than the 15 KB it used to be. 15 KB was never a
+decision: it was set when the measurement returned zero, and a budget no
+dependency can ever meet is not a budget. 40 KB is a number GSAP sits under with
+room for one more small dependency, and it fails well before three.
+
+### The 10.7 KB of CSS
+
+The stylesheet is emitted as a file, not inlined. `build.inlineStylesheets: 'auto'`
+inlines only under a size threshold, and at 56 KB raw this stylesheet is well
+over it, so `<head>` links the hashed stylesheet and the row is its gzip transfer
+size. The earlier claim that CSS was inlined and therefore free was the same
+measurement bug wearing a different hat.
 
 ## Where the weight went
 
@@ -83,17 +109,19 @@ cheaper and better answer at this scale.
 ## Deliberate performance decisions
 
 **No client framework.** The whole interactive surface is a mobile menu, a
-filterless grid, a copy-to-clipboard button, a scroll reveal, and a contact
-form. Adding React to do that would cost more than the site.
+filterless grid, a copy-to-clipboard button, the reveal/entrance choreography,
+and a contact form. Adding React to do that would cost more than the site. What
+is there is GSAP core and the Web Animations API — no ScrollTrigger, no
+component runtime, no hydration boundary.
 
 **The contact form works without JavaScript.** It posts normally and the endpoint
 returns JSON; the script is an enhancement that shows inline field errors. If the
 bundle fails, the form still submits.
 
 **No analytics tag manager.** If analytics is added, it is Cloudflare Web
-Analytics: no cookies, no cross-site tracking, 11 KB, and it can be served
-zdelivered from the site's own origin so it adds no DNS lookup or TLS handshake
-to the critical path.
+Analytics: no cookies, no cross-site tracking, 11 KB, and it can be delivered
+from the site's own origin so it adds no DNS lookup or TLS handshake to the
+critical path.
 
 **No third-party embeds anywhere.** The Instagram section shows images the studio
 hosts itself and links out. It does not load Meta's embed code, so visiting the
@@ -112,7 +140,8 @@ main document's cache is never polluted by a regenerated screenshot.
 **Zero layout shift from media**, and no content is ever inserted above
 already-painted content.
 
-**Server rendering is scoped.** Only `/creations`, `/creations/[slug]`, `/api/*`
+**Server rendering is scoped.** Only `/work`, `/products`, `/services`, their
+detail routes, `/about`, `/api/*`
 and `/admin` are dynamic. Everything else is a static file served from the edge,
 which keeps the Workers Free 10 ms CPU budget irrelevant for the common case.
 
@@ -126,8 +155,8 @@ npx wrangler dev --port 4321 &
 
 npm run perf          # budgets table, exits non-zero on failure
 npm run qa            # 7 viewports x 4 routes
-npm test              # 94 unit tests
-npm run test:e2e      # 68 end-to-end tests, desktop + mobile
+npm test              # 127 unit tests
+npm run test:e2e      # 116 end-to-end tests, desktop + mobile
 ```
 
 `scripts/perf.mjs` reads Core Web Vitals from the same `PerformanceObserver` the
@@ -135,7 +164,7 @@ browser uses for field data, and applies the throttle at the CDP layer so the
 numbers reflect a constrained device rather than a fast local one.
 
 `scripts/qa-matrix.mjs` checks 360, 390, 412, 834, 1280, 1440 and 2560px against
-`/`, `/creations`, `/studio` and `/contact`, asserting no horizontal scroll, no
+`/`, `/work`, `/products`, `/services`, `/about` and `/contact`, asserting no horizontal scroll, no
 element outside the viewport, no console errors, and — on touch viewports — no
 tap target under 44px. Screenshots land in `/tmp/qa-matrix`.
 
@@ -149,15 +178,19 @@ Analytics, which reports Core Web Vitals from real visits via
 
 ## When the numbers change
 
-The two most likely reasons the JavaScript figure stops being zero:
+The three most likely reasons a row here moves:
 
-1. **A real interactive component is added** — a live-iframe preview switcher, a
-   drag-reorder list in the admin, a filter that operates on the client. Each one
-   should be an Astro island, scoped to the route that needs it, never loaded on
-   the home page.
-2. **A third-party dependency is added** — an icon set, a carousel, a charting
-   library. Each should have to justify itself against the 0 KB figure, which is
-   a high bar and is meant to be one.
+1. **A second runtime dependency is added** — an icon set, a carousel, a charting
+   library. Each has to justify itself against the 40 KB figure and lose to it
+   first.
+2. **An interactive component grows past the entrance choreography** — a
+   live-iframe preview switcher, a drag-reorder list in the admin, a client-side
+   filter. Each should be scoped to the route that needs it, never loaded on the
+   home page.
+3. **The stylesheet is edited without watching the row.** CSS is the tightest
+   budget on this list at 10.7 of 12 KB. It is the one most likely to fail next,
+   and it would fail for the honest reason: too much was written.
 
-If the total goes above 15 KB, `npm run perf` fails. That is the point of having
-a number rather than an intention.
+If any row exceeds its budget, `npm run perf` exits non-zero. That is the point
+of having a number rather than an intention — and of reading the number from
+the network rather than from a header the server may not send.

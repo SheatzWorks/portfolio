@@ -1,71 +1,83 @@
 ---
-import { studio } from '~/config/site';
-import { getEnv } from '~/lib/env';
-import { listServices } from '~/lib/db';
-
-const env = await getEnv(Astro.locals);
+/**
+ * Ft5 · Statement footer.
+ *
+ * A closing line, the email, and the destinations. The previous footer was
+ * three link columns over a hairline — the shape every template ships. This
+ * one leads with a statement, which is what a two-person studio can actually
+ * say and an agency cannot.
+ */
+import { studio, publishableSocial } from '~/config/site';
 const year = new Date().getFullYear();
 
-// Services in the footer, when there are real ones. Falls back to a short list
-// so the column is never empty or padded with placeholder text.
-let services: { name: string; slug: string }[] = [];
-if (env.DB) {
-  try {
-    services = (await listServices(env.DB as never)).map((s) => ({ name: s.name, slug: s.slug }));
-  } catch {
-    services = [];
-  }
-}
-const footerServices = services.length
-  ? services
-  : [
-      { name: 'Websites', slug: 'websites' },
-      { name: 'Web applications', slug: 'web-applications' },
-      { name: 'Product & SaaS', slug: 'product' },
-    ];
+const nav = [
+  { href: '/work', label: 'Work' },
+  { href: '/products', label: 'Products' },
+  { href: '/services', label: 'Services' },
+  { href: '/about', label: 'Studio' },
+  { href: '/contact', label: 'Contact' },
+  { href: '/privacy', label: 'Privacy' },
+  { href: '/terms', label: 'Terms' },
+];
 ---
 
-<footer class="site-footer">
+<footer class="foot">
   <div class="shell">
-    <div class="site-footer__grid">
-      <div>
-        <p class="site-footer__brand">{studio.name}</p>
-        <p class="site-footer__blurb">{studio.tagline}</p>
-      </div>
+    <p class="foot__statement">{studio.closing}</p>
 
-      <nav aria-labelledby="footer-nav">
-        <h2 class="site-footer__heading" id="footer-nav">Site</h2>
-        <ul class="site-footer__list">
-          <li><a href="/">Home</a></li>
-          <li><a href="/creations">Creations</a></li>
-          <li><a href="/studio">Studio</a></li>
-          <li><a href="/contact">Contact</a></li>
-        </ul>
-      </nav>
+    <a class="foot__email" href={`mailto:${studio.email}`} data-copy-email>
+      <span>{studio.email}</span>
+      <span class="copy-email__state" data-copy-state aria-hidden="true"></span>
+    </a>
 
-      <nav aria-labelledby="footer-services">
-        <h2 class="site-footer__heading" id="footer-services">Work</h2>
-        <ul class="site-footer__list">
-          {
-            footerServices.map((s) => (
-              <li>
-                <a href={`/#services`}>{s.name}</a>
-              </li>
-            ))
-          }
-          <li><a href="/contact">Start a project</a></li>
-        </ul>
-      </nav>
-    </div>
+    <ul class="foot__nav">
+      {
+        nav.map((item) => (
+          <li>
+            <a href={item.href}>{item.label}</a>
+          </li>
+        ))
+      }
+    </ul>
 
-    <div class="site-footer__base">
+    <div class="foot__base">
       <span>© {year} {studio.name}</span>
-      <span>
-        <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
-      </span>
-      <span class="site-footer__status">
-        <span class="status-dot" aria-hidden="true"></span> Available for new work
+      {
+        publishableSocial()
+          .map((s) => (
+            <a href={s.href} target="_blank" rel="noopener noreferrer">
+              {s.label}
+            </a>
+          ))
+      }
+      <span class="foot__status">
+        <span class="status-dot" aria-hidden="true"></span>
+        Available for new work
       </span>
     </div>
   </div>
 </footer>
+
+<script>
+  // Click-to-copy on the email address. Falls back to opening the mail client
+  // when the clipboard is unavailable (insecure context, denied permission).
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-copy-email]')) {
+    const state = link.querySelector<HTMLElement>('[data-copy-state]');
+    const email = link.getAttribute('href')?.replace(/^mailto:/, '') ?? '';
+    if (!email) continue;
+
+    link.addEventListener('click', async (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      try {
+        await navigator.clipboard.writeText(email);
+        if (state) {
+          state.textContent = 'Copied';
+          setTimeout(() => (state.textContent = ''), 1800);
+        }
+      } catch {
+        window.location.href = `mailto:${email}`;
+      }
+    });
+  }
+</script>

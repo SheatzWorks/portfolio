@@ -6,6 +6,10 @@
    ========================================================================= */
 
 :root {
+  /* The public site is light; the admin is deliberately not. Declaring it
+     here keeps the browser's own chrome — scrollbars, control defaults —
+     on the same side of the line as the page. */
+  color-scheme: dark;
   --bg: #0a0a0b;
   --bg-raised: #101012;
   --bg-inset: #0d0d0f;
@@ -148,3 +152,5 @@ td.actions .btn { margin-right: 0.3rem; }
 }
 .field label.check input { width: 1.05rem; height: 1.05rem; accent-color: var(--accent); }
 .row-title { color: var(--ink); }
+.edit-row td { padding: 0.9rem; }
+.edit-actions { display: flex; gap: 0.5rem; }

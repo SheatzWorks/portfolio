@@ -104,27 +104,36 @@ thirty lines of `meta[property^="og:"]` reading).
 
 ## Content Security Policy
 
-Astro generates a **hash-based CSP per page** and emits it in `<meta>`. It is
-not hand-written, because hand-written policies drift from the content they
-protect.
+Astro generates a **hash-based CSP per page**. Prerendered routes emit it in
+`<meta>`; server-rendered routes deliver the same generated policy as an HTTP
+response header — Astro picks the destination per route, so `/` (server-rendered
+since the admin gained product editing) is header-delivered while `/contact`
+stays in the page. It is not hand-written, because hand-written policies drift
+from the content they protect.
 
 ```
-script-src 'self' 'sha256-…' × 9 'strict-dynamic'
-style-src  'self' 'sha256-…'
+script-src 'self' https://challenges.cloudflare.com 'sha256-…' × 11
+style-src  'self' 'sha256-…' × 2
 default-src 'self'
 img-src    'self' data: https:
 media-src  'self' https:
-frame-src  'self' https:
+frame-src  'self' https: https://challenges.cloudflare.com
+connect-src 'self' https://challenges.cloudflare.com
 font-src   'self'
-connect-src 'self'
 object-src 'none'
 base-uri   'self'
 form-action 'self'
 upgrade-insecure-requests
 ```
 
-`script-src` contains no `'unsafe-inline'` and no `'unsafe-eval'`. A test
-asserts both absences.
+`script-src` contains no `'unsafe-inline'` and no `'unsafe-eval'`, and no
+`'strict-dynamic'`. That last one was removed deliberately: with
+`strict-dynamic` in the directive, Astro drops `'self'` along with it, and the
+bundled module loaded from `/_astro/…` was then blocked by its own policy. The
+violation was visible in the console during this rebuild and the reveal
+choreography silently fell back to its three-second failsafe — the page looked
+fine, just inert. The hashes alone are the enforcement now, and a test asserts
+both `unsafe-*` absences.
 
 ### Two things this forced, worth knowing
 
@@ -146,14 +155,19 @@ The browser console caught this immediately; it would have shipped broken.
 - **No Shiki syntax highlighting.** It emits inline styles. `syntaxHighlight:
   false` is set in `astro.config.mjs`; if code highlighting is ever wanted, use
   Prism rather than weakening the policy.
-- **No `is:inline` scripts.** Astro cannot hash them. The `no-js` class removal
-  in `Base.astro` is a normal bundled script for this reason.
+- **No `is:inline` scripts.** Astro cannot hash them, so everything that has to
+  run goes through the bundler — `src/scripts/motion.ts` included.
+- **No inline `<style>` for the no-JS case, either.** The fallback that keeps
+  content visible when JavaScript is off would have needed one, and it cannot be
+  hashed. It ships as a real file instead: `public/no-js.css`, linked from a
+  `<noscript>` in `Base.astro`. A file the browser can request beats a policy it
+  has to be excused from.
 
 ---
 
 ## Headers, and the gap that was nearly shipped
 
-The prerendered pages (`/`, `/studio`, `/contact`, `/privacy`, `/terms`,
+The prerendered pages (`/contact`, `/privacy`, `/terms`,
 `/404`) are static files served by the Workers Static Assets binding. **The
 Worker never runs for them, so `src/middleware.ts` never applies to them.**
 

@@ -27,8 +27,8 @@ sets `imageService: 'compile'` to avoid it.
 
 | Concern | Runs on | Why |
 |---|---|---|
-| Static pages (`/`, `/studio`, `/contact`, `/privacy`, `/terms`, `/404`) | Prerendered to files | Zero runtime cost, served straight from the CDN |
-| `/creations`, `/creations/[slug]`, `/api/*`, `/admin` | Cloudflare Worker | Must reflect a newly added project immediately |
+| Static pages (`/`, `/contact`, `/privacy`, `/terms`, `/404`) | Prerendered to files | Zero runtime cost, served straight from the CDN |
+| `/work`, `/work/[slug]`, `/products`, `/products/[slug]`, `/services`, `/services/[slug]`, `/about`, `/api/*`, `/admin` | Cloudflare Worker | Must reflect a newly added project or price change immediately |
 | Metadata extraction, SSRF filtering, job dispatch | Worker | Cheap, and Workers' egress cannot reach a tenant's private network |
 | Browser capture, video recording, image processing | A separate Node process | `sharp` is a native module and cannot load in a Worker isolate; there is no Chromium in one either |
 
@@ -45,17 +45,38 @@ They meet at the `preview` JSON column on each project row. See
 
 ## Static and dynamic routes
 
-The home page is prerendered because it is the LCP-critical route and the one
-most people land on. The creations index and case studies are server-rendered
-because the brief requires a project to appear **immediately** after its URL is
-pasted, and a static build would need a rebuild.
+Every content route is server-rendered because the brief requires a project or
+a price change to appear **immediately** after it is saved, and a static build
+would need a rebuild — a published price range that only appears at the next
+deploy is worse than no price at all.
 
-The cost of that split is that a new project appears on `/creations` at once but
-on the home page at the next build. That is the right trade: the index is where
-people go looking for work, and it is already fast.
+The home page was the one exception, kept static because it is the
+LCP-critical route. It moved to `export const prerender = false` when the admin
+gained product editing: the index renders products and prices from D1, and copy
+that only refreshes at the next build contradicts the rule above. The cost is
+measured — TTFB against a 300 ms budget in `scripts/perf.mjs` on every verify
+run — and each of its five reads carries its own `.catch`, so a failed query
+degrades one section rather than the page.
 
-**Upgrade path:** switch the home page to `export const prerender = false` when
-project churn justifies it. One line, no refactor.
+Still prerendered to static HTML: `/contact`, `/privacy`, `/terms` and `/404`,
+whose content changes only when their source does, so a build costs them
+nothing.
+
+## Products and work are one table, two routes
+
+`projects` holds both commissions and the studio's own products, discriminated
+by `ownership` (`'client'` | `'own'`). A separate products table would have
+duplicated the entire preview pipeline, the admin surface and the case-study
+machinery to store seven extra columns.
+
+`/work` lists `ownership = 'client'`; `/products` lists `ownership = 'own'` and
+orders by lifecycle. The split is enforced in the SQL, not in the template — a
+product slug returns 404 on `/work/[slug]`, and there is an E2E test asserting
+exactly that, because a route split enforced only in markup is cosmetic.
+
+`product_status` (`planning` → `retired`) is published rather than hidden. An
+unfinished product listed as *In development* with the reason written out is
+more credible than either hiding it until launch or over-claiming it.
 
 ## Why D1 jobs and not Cloudflare Queues
 
@@ -182,9 +203,11 @@ src/
     rate-limit.ts      Honeypot, token bucket, Turnstile verification
     admin-auth.ts      Constant-time token comparison, session cookies
   pages/
-    index.astro        Home (prerendered)
-    creations/         Index and case studies (SSR)
-    studio.astro       Team, process, capabilities, FAQ (prerendered)
+    index.astro        Home (SSR)
+    work/              Commissioned work: index + case studies (SSR)
+    products/          Own products: index + case studies (SSR)
+    services/          Services with published ranges + detail (SSR)
+    about.astro        How the studio works, no team section (SSR)
     contact.astro      Lead form (prerendered shell, /api/contact handles POST)
     admin/             Sign-in and dashboard
     api/               contact, admin, cron

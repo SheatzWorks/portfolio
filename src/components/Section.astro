@@ -1,22 +1,24 @@
 ---
 /**
- * Section shell. One place that owns the eyebrow + heading + optional aside
- * pattern, so no page has to re-derive the spacing.
+ * Section shell.
+ *
+ * One place that owns the eyebrow + heading + note pattern. The head is
+ * single-column by construction: an eyebrow beside a heading in a
+ * multi-column track is a templated editorial tell, and this component is
+ * structured so it cannot happen even if a caller passes an unusual set of
+ * props.
+ *
+ * `headingLevel` exists because exactly one <h1> per page is a hard
+ * requirement, and every top-level route needs to opt into it explicitly.
  */
 interface Props {
   id?: string;
   eyebrow?: string;
   title?: string;
   note?: string;
-  /** `lg` for the biggest rhythm, e.g. the creations section. */
   size?: 'default' | 'lg';
   as?: 'section' | 'div';
   class?: string;
-  /**
-   * Render the title as the page's <h1> instead of an <h2>. Exactly one per
-   * page: the index and any standalone top-level route should opt in, nested
-   * sections should not.
-   */
   headingLevel?: 1 | 2;
 }
 
@@ -42,27 +44,35 @@ const headingId = title && id ? `${id}-title` : undefined;
   <div class="shell">
     {
       (eyebrow || title || note) && (
-        <div class="section-head" data-reveal>
-          {eyebrow && <p class="eyebrow eyebrow--plain">{eyebrow}</p>}
+        <header class="section-head" data-reveal>
+          {/*
+            The index is CSS-generated (a counter on `main > section`) rather
+            than a prop: a number that can silently drift out of order because
+            a caller forgot to increment it is worse than no number. It sits in
+            the same row as the eyebrow, with a rule carrying the eye across to
+            the heading — which is what stops the head reading as a floating
+            label with a lot of air under it.
+          */}
+          <div class="section-head__kicker">
+            <p class="section-head__index" aria-hidden="true"></p>
+            {eyebrow && <p class="eyebrow eyebrow--plain">{eyebrow}</p>}
+          </div>
           <div class="section-head__row">
-            {title && (
-              <>
-                {/* Written out rather than as a dynamic tag name: Astro renders
-                    a string-valued component as a custom element, not an <h1>. */}
-                {headingLevel === 1 ? (
-                  <h1 class="section-head__title" id={headingId}>
-                    {title}
-                  </h1>
-                ) : (
-                  <h2 class="section-head__title" id={headingId}>
-                    {title}
-                  </h2>
-                )}
-              </>
-            )}
+            {title &&
+              /* Written out rather than as a dynamic tag name: Astro renders a
+                 string-valued component as a custom element, not an <h1>. */
+              (headingLevel === 1 ? (
+                <h1 class="section-head__title" id={headingId}>
+                  {title}
+                </h1>
+              ) : (
+                <h2 class="section-head__title" id={headingId}>
+                  {title}
+                </h2>
+              ))}
             {note && <p class="section-head__note">{note}</p>}
           </div>
-        </div>
+        </header>
       )
     }
     <slot />

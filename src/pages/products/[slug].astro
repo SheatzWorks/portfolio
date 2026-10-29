@@ -1,0 +1,233 @@
+---
+/**
+ * Product case study — /products/[slug].
+ *
+ * Products get their own route rather than reusing the project template,
+ * because the narrative that works for a commission is not the narrative that
+ * works for something you built to answer your own problem. There is no
+ * client, no brief and no deadline to describe — there is a constraint, a set
+ * of trade-offs and a result.
+ *
+ * A product that is not `ownership = 'own'` is a commission, and it is not
+ * reachable here. Likewise an unpublished, private or archived product
+ * resolves to the same 404 as an unknown slug, so its existence is not
+ * discoverable from its URL.
+ */
+import Base from '~/layouts/Base.astro';
+import NotFound from '~/components/NotFound.astro';
+import { studio } from '~/config/site';
+import { renderMarkdown } from '~/lib/markdown';
+import { getEnv, hasDb } from '~/lib/env';
+import { getProjectBySlug, listOwnProducts } from '~/lib/db';
+import { resolveProductPreview, PRODUCT_STATUS_LABELS } from '~/lib/preview';
+import type { Project } from '~/lib/types';
+
+export const prerender = false;
+
+const { slug = '' } = Astro.params;
+const env = await getEnv(Astro.locals);
+
+let product: Project | null = null;
+let siblings: Project[] = [];
+
+if (hasDb(env)) {
+  const db = env.DB as never;
+  const candidate = await getProjectBySlug(db, slug);
+  const visible =
+    candidate?.published === true &&
+    candidate.status !== 'private' &&
+    candidate.status !== 'archived' &&
+    candidate.ownership === 'own';
+
+  if (visible) {
+    product = candidate;
+    siblings = (await listOwnProducts(db)).filter((p) => p.slug !== slug);
+  }
+}
+
+const found = product !== null;
+if (!found) Astro.response.status = 404;
+
+const item = product as Project;
+
+const preview = found ? resolveProductPreview(item, { allowLive: false }) : null;
+const status = PRODUCT_STATUS_LABELS[item.productStatus ?? 'planning'];
+
+/**
+ * The narrative beats, in the order they read. Filtered to the ones that are
+ * actually written, so a product with three of the five does not render two
+ * empty headings.
+ */
+const BEATS: { key: keyof Project; label: string }[] = [
+  { key: 'objectiveMd', label: 'What it had to do' },
+  { key: 'engineeringMd', label: 'How it works' },
+  { key: 'designMd', label: 'Design decisions' },
+  { key: 'challengesMd', label: 'What was genuinely hard' },
+  { key: 'lessonsMd', label: 'What we would do differently' },
+];
+
+const beats = found
+  ? BEATS.filter((b) => {
+      const value = item[b.key];
+      return typeof value === 'string' && value.trim().length > 0;
+    }).map((b) => ({ ...b, html: renderMarkdown(item[b.key] as string) }))
+  : [];
+
+const narrative = found && item.bodyMd ? renderMarkdown(item.bodyMd) : null;
+
+const facts: { label: string; value: string }[] = !found
+  ? []
+  : ([
+    { label: 'State', value: status },
+    { label: 'Platform', value: 'Mobile' },
+    { label: 'Built with', value: item.technologies.slice(0, 4).join(' · ') },
+    { label: 'Year', value: String(item.year) },
+  ] as { label: string; value: string }[]).filter((f) => f.value.trim().length > 0);
+
+const jsonLd = found
+  ? [
+      {
+        '@type': 'SoftwareApplication',
+        '@id': `${studio.siteUrl.replace(/\/+$/, '')}/products/${item.slug}#product`,
+        name: item.title,
+        description: item.tagline ?? item.blurb ?? '',
+        url: `${studio.siteUrl.replace(/\/+$/, '')}/products/${item.slug}`,
+        applicationCategory: item.category,
+        ...(item.year ? { datePublished: String(item.year) } : {}),
+        ...(item.technologies.length ? { keywords: item.technologies.join(', ') } : {}),
+        ...(preview?.imageUrl ? { screenshot: preview.imageUrl } : {}),
+        ...(item.availabilityUrl ? { offers: { '@type': 'Offer', url: item.availabilityUrl } } : {}),
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: studio.siteUrl.replace(/\/+$/, '') },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Products',
+            item: `${studio.siteUrl.replace(/\/+$/, '')}/products`,
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: item.title,
+            item: `${studio.siteUrl.replace(/\/+$/, '')}/products/${item.slug}`,
+          },
+        ],
+      },
+    ]
+  : [];
+---
+
+{
+  !found ? (
+    <Base title={`Page not found — ${studio.name}`} description="That page does not exist.">
+      <div class="shell">
+        <section class="section section--lg">
+          <NotFound />
+        </section>
+      </div>
+    </Base>
+  ) : (
+    <Base
+      title={`${item.title} — ${studio.name}`}
+      description={item.tagline ?? item.blurb ?? `${item.title}, built by ${studio.name}.`}
+      canonicalPath={`/products/${item.slug}`}
+      ogImage={preview?.imageUrl || undefined}
+      ogType="article"
+      jsonLd={jsonLd}
+    >
+      <article class="section case">
+        <div class="shell">
+          <p class="eyebrow">
+            <a href="/products">Products</a>
+          </p>
+
+          <h1 class="case__title">{item.title}</h1>
+
+          {item.tagline && <p class="lede mt-4 case__summary">{item.tagline}</p>}
+
+          {/* The lifecycle state, stated plainly. A product listed as
+              in-development with a written explanation of why is more credible
+              than one listed as "coming soon". */}
+          <p class="case__state" data-status={item.productStatus ?? 'planning'}>
+            <span class="product__dot" data-status={item.productStatus ?? 'planning'} aria-hidden="true" />
+            {status}
+            {item.availabilityUrl && (
+              <>
+                {' · '}
+                <a href={item.availabilityUrl} target="_blank" rel="noopener noreferrer">
+                  {item.productStatus === 'live' ? 'Open it' : 'Ask for access'}
+                </a>
+              </>
+            )}
+          </p>
+
+          <dl class="case__meta">
+            {facts.map((fact) => (
+              <div class="case__meta-item">
+                <dt class="case__meta-label">{fact.label}</dt>
+                <dd class="case__meta-value">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {/* Falls back to a designed plate rather than an empty frame, which
+              would read as a failed embed. */}
+          <figure class="case__media">
+            {preview?.imageUrl ? (
+              <img
+                src={preview.imageUrl}
+                srcset={preview.srcset}
+                sizes="(min-width: 1100px) 1100px, 100vw"
+                alt={`An interface from ${item.title}`}
+                width={preview.width ?? 1440}
+                height={preview.height ?? 900}
+                loading="eager"
+                decoding="sync"
+                fetchpriority="high"
+              />
+            ) : (
+              <div class="project__placeholder case__placeholder">
+                <span class="case__placeholder-title">{item.title}</span>
+                <span class="case__placeholder-note">No public build to capture yet</span>
+              </div>
+            )}
+          </figure>
+
+          {narrative && <div class="prose" set:html={narrative} />}
+
+          {beats.length > 0 && (
+            <div class="case__beats">
+              {beats.map((beat) => (
+                <section class="case__beat" data-reveal>
+                  <h2 class="case__beat-title">{beat.label}</h2>
+                  <div class="prose" set:html={beat.html} />
+                </section>
+              ))}
+            </div>
+          )}
+
+          <footer class="case__foot">
+            <p>
+              <a class="btn btn--quiet" href="/products">
+                <span class="btn__arrow btn__arrow--back" aria-hidden="true">←</span>
+                All products
+              </a>
+            </p>
+            {siblings.length > 0 && (
+              <ul class="case__more">
+                {siblings.map((sibling) => (
+                  <li>
+                    <a href={`/products/${sibling.slug}`}>{sibling.title}</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </footer>
+        </div>
+      </article>
+    </Base>
+  )
+}

@@ -137,7 +137,11 @@ describe('session cookie flags', () => {
     const plain = sessionCookie(TOKEN, false);
     expect(plain).toContain('HttpOnly');
     expect(plain).toContain('SameSite=Strict');
-    expect(plain).toContain('Path=/admin');
+    // Path=/ rather than Path=/admin: the admin API is at /api/admin/*, which
+    // is not under /admin, so the narrower path meant the session never
+    // reached it and every admin mutation failed. See tests/unit/admin-session.test.ts.
+    expect(plain).toContain('Path=/;');
+    expect(plain).not.toContain('Path=/admin');
     expect(plain).not.toContain('Secure');
 
     expect(sessionCookie(TOKEN, true)).toContain('Secure');

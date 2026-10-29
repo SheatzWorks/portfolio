@@ -1,0 +1,153 @@
+---
+/**
+ * /about — how the studio works, without a team section.
+ *
+ * The previous version of this page was a biography: two portraits, two job
+ * titles and two paragraphs of self-description. It was the least credible
+ * page on the site, because self-description is the one thing a portfolio
+ * cannot verify.
+ *
+ * So there is no team here. What replaces it is what the studio actually does,
+ * stated as practice, and the products it has built — which are the evidence a
+ * biography is trying to substitute for.
+ */
+import Base from '~/layouts/Base.astro';
+import Section from '~/components/Section.astro';
+import ProductCard from '~/components/ProductCard.astro';
+import ProductsMore from '~/components/ProductsMore.astro';
+import { getEnv, hasDb } from '~/lib/env';
+import { listOwnProducts, listDifferentiators, getSiteContent } from '~/lib/db';
+import type { Product, Differentiator, FaqEntry } from '~/lib/types';
+
+export const prerender = false;
+
+const env = await getEnv(Astro.locals);
+
+let products: Product[] = [];
+let differentiators: Differentiator[] = [];
+let faq: FaqEntry[] = [];
+
+if (hasDb(env)) {
+  const db = env.DB as never;
+  const content = await getSiteContent(db);
+  [products, differentiators, faq] = [await listOwnProducts(db), await listDifferentiators(db), content.faq];
+}
+---
+
+<Base
+  title="Studio"
+  description="How sheatz works: fixed scope and price in writing, working software every week, and code you own from the first commit. No sales team and no handover."
+  canonicalPath="/about"
+>
+  <section class="page-head">
+    <div class="shell">
+      <p class="eyebrow eyebrow--plain">Studio</p>
+      <h1 class="page-head__title">A studio small enough that you get the person building it.</h1>
+      <p class="page-head__lede">
+        There is no account layer between you and the work. No salesperson, no account manager, no
+        team photo. The arguments happen directly, and so do the replies.
+      </p>
+    </div>
+  </section>
+
+  <Section eyebrow="Working" title="What it is actually like to work with us.">
+    <div class="prose about-prose">
+      <p>
+        This is a small studio. It is small because that is what it is, and pretending otherwise
+        would mean a sales team, a pitch process and an account layer — which is money taken out of
+        the build to produce a document about the build.
+      </p>
+      <p>
+        So the practical consequence is that you talk to whoever writes the code. A question about
+        an architectural decision gets answered by the person who made it, usually the same day, and
+        usually with the reasoning attached rather than a summary of it.
+      </p>
+      <p>
+        It also means the scope is fixed in writing before the build, because there is nobody to
+        absorb a change in requirements. That constraint produces better briefs than process does.
+      </p>
+      <p>
+        And it means we run what we build. Monitoring and fixes after launch are part of the job
+        rather than an upsell, because software we have never operated is software we cannot tell
+        you anything useful about.
+      </p>
+    </div>
+  </Section>
+
+  {
+    differentiators.length > 0 && (
+      <Section
+        id="differentiators"
+        eyebrow="Practices"
+        title="Six things that are true here."
+        note="Statements of practice rather than claims of quality."
+      >
+        <dl class="statements">
+          {differentiators.map((item) => (
+            <div class="statement" data-reveal>
+              <dt class="statement__label">{item.label}</dt>
+              <dd class="statement__body">{item.body}</dd>
+            </div>
+          ))}
+        </dl>
+      </Section>
+    )
+  }
+
+  {
+    products.length > 0 && (
+      <Section
+        id="own-products"
+        eyebrow="Evidence"
+        title="What we have built for ourselves."
+        note="Published with their real state, including what is not finished."
+      >
+        <div class="products">
+          {products.map((product) => (
+            <ProductCard product={product} />
+          ))}
+          {/*
+            The section note above already says what this list publishes, so
+            the closing cell carries only the way out of it.
+          */}
+          {products.length % 3 !== 0 && <ProductsMore href="/products" label="All products" />}
+        </div>
+      </Section>
+    )
+  }
+
+  {
+    faq.length > 0 && (
+      <Section id="faq" eyebrow="Questions" title="Answered before you have to ask.">
+        <!--
+          Open by default. The section promises answers before you have to ask, and a
+          collapsed answer is an answer you still have to ask for. The marker stays as
+          an optional collapse for someone scanning — not as the mechanism that
+          delivers the content.
+        -->
+        <div class="faq">
+          {faq.map((entry) => (
+            <details class="faq__item" open data-reveal>
+              <summary class="faq__q">{entry.question}</summary>
+              <div class="faq__a prose">
+                <p>{entry.answer}</p>
+              </div>
+            </details>
+          ))}
+        </div>
+      </Section>
+    )
+  }
+
+  <Section eyebrow="Next" title="Something to build?">
+    <p class="lede-para">
+      The fastest way to find out whether this works is to describe a problem.
+    </p>
+    <p>
+      <a class="btn btn--primary" href="/contact">
+        Get in touch
+        <span class="btn__arrow" aria-hidden="true">→</span>
+      </a>
+    </p>
+  </Section>
+</Base>

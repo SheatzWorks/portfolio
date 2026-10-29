@@ -31,13 +31,13 @@ const ar = safeAspectRatio(project.aspectRatio);
 // A data attribute rather than an inline style: the CSP does not allow style
 // attributes, and hashing every possible ratio is not worth 400 bytes of CSS.
 const arBucket = arBucketFor(ar);
-const href = project.hasCaseStudy ? `/creations/${project.slug}` : project.url;
+const href = project.hasCaseStudy ? `/work/${project.slug}` : project.url;
 const isExternal = href === project.url;
 const title = project.title;
 const accessibleName = `${project.title} — ${project.blurb ?? project.url}`;
 ---
 
-<article class="creations__item" data-span={span} data-project={project.slug}>
+<article class="work-grid__item" data-span={span} data-project={project.slug}>
   {/*
     The dominant colour is genuinely per-project, so it cannot live in a
     utility class. It goes in a scoped <style> block instead of a style

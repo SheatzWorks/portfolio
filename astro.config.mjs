@@ -44,16 +44,23 @@ export default defineConfig({
     checkOrigin: true,
     csp: {
       scriptDirective: {
-        // We ship no third-party scripts and no inline event handlers, so the
-        // hash-based script-src Astro generates is sufficient on its own.
-        strictDynamic: true,
         /*
-         * Cloudflare Turnstile is the one third-party script this site may load,
-         * and only when a Turnstile site key is configured. It must be declared
-         * here rather than as a raw `script-src-elem` string in `directives`:
-         * Astro rejects script-src and style-src (and their -elem/-attr
-         * variants) in that array, and the config fails to load when it sees
-         * one — which fails the whole build, silently, leaving a stale dist.
+         * `strict-dynamic` is deliberately OFF, and that is a change.
+         *
+         * It was on while the site shipped zero external JavaScript: hashes
+         * covered every inline script and there was nothing else to allow.
+         * `strict-dynamic` also disables allow-list expressions — including
+         * `'self'` — so the moment the site bundled a real module (the motion
+         * layer in src/scripts/motion.ts) the browser refused to load it and
+         * every scroll reveal silently fell back to the 3s failsafe.
+         *
+         * The property we were actually buying with it was "no script from a
+         * host we did not choose". That still holds here: scripts are `'self'`
+         * plus hashes, there is no user-supplied markup rendered as HTML (the
+         * contact form writes to D1 as text), and R2 holds images rather than
+         * anything executable. Third-party script is still a named exception
+         * rather than an accident — Turnstile is the only entry in resources,
+         * and it is inert until a site key is configured.
          */
         resources: ["'self'", 'https://challenges.cloudflare.com'],
       },

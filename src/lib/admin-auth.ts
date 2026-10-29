@@ -1,7 +1,7 @@
 /**
  * Admin authentication.
  *
- * The site is prerendered except for /creations, /admin and /api. Everything
+ * The site is prerendered except for /work, /products, /admin and /api. Everything
  * under /admin and /api/admin is gated by a bearer token or a signed cookie.
  *
  * Token comparison is constant-time. A naive `===` leaks the token a byte at a
@@ -105,7 +105,21 @@ export function sessionCookie(token: string, secure: boolean): string {
   const value = `${token}.${expires}`;
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(`${value}.${sign(value, token)}`)}`,
-    'Path=/admin',
+    /*
+     * Path must be `/`, not `/admin`.
+     *
+     * The admin API lives at `/api/admin/*`, which is NOT under `/admin`, so a
+     * cookie scoped to `/admin` was never sent with the admin UI's own fetches
+     * and every mutation failed with "Sign in to continue." The admin looked
+     * fine and did nothing.
+     *
+     * Widening the path does not widen access: the session is only ever read
+     * for `/admin` and `/api/admin` (see src/middleware.ts), the cookie is
+     * HttpOnly so script cannot read it, and SameSite=Strict stops it riding
+     * along on cross-site requests. The browser holding it on other paths is
+     * harmless because nothing else checks for it.
+     */
+    'Path=/',
     'HttpOnly',
     'SameSite=Strict',
     `Max-Age=${SESSION_SECONDS}`,
@@ -115,7 +129,9 @@ export function sessionCookie(token: string, secure: boolean): string {
 }
 
 export function clearCookie(): string {
-  return `${COOKIE_NAME}=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0`;
+  // The clearing cookie must match the path of the cookie it replaces, or the
+  // browser keeps the original.
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
 }
 
 export function unauthorized(reason: AdminSession['reason']): Response {

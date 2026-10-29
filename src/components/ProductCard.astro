@@ -1,0 +1,203 @@
+---
+/**
+ * F6 · Product card.
+ *
+ * A product is not a commissioned project and must not be rendered as one.
+ * A product has a lifecycle (planning → live → retired) and often an
+ * availability link, and the status is a fact about the software rather than
+ * a label. The card states it plainly and never dresses up unfinished work.
+ *
+ * The card is compact by contract: a 2:1 media strip, a description clamped
+ * to two lines that opens through a native <details> (works without JS), and
+ * an always-visible "Open ↗" to the thing itself — a visitor should be able
+ * to leave for the product without reading a case study first.
+ */
+import type { Product } from '~/lib/types';
+import { resolveProductPreview, PRODUCT_STATUS_LABELS } from '~/lib/preview';
+
+interface Props {
+  product: Product;
+  /** Eagerly load the first row's media. */
+  priority?: boolean;
+  /**
+   * Heading level for the product name.
+   *
+   * Not cosmetic: in the hero the card sits directly under the page h1, so a
+   * hard-coded h3 skips a level and breaks the document outline. Section
+   * listings wrap it in an h2 and default correctly; the hero does not.
+   */
+  headingLevel?: 2 | 3;
+}
+
+const { product, priority = false, headingLevel = 3 } = Astro.props;
+const preview = resolveProductPreview(product);
+const href = product.hasCaseStudy ? `/products/${product.slug}` : (product.availabilityUrl ?? product.url);
+const external = href === product.url || href === product.availabilityUrl;
+const openHref = product.availabilityUrl ?? product.url;
+
+const tagline = product.tagline?.trim() || null;
+const summary = product.summary?.trim() || null;
+const detail = tagline && summary && summary !== tagline ? summary : null;
+
+/*
+ * Three shapes, decided here rather than in CSS: the pair opens from two
+ * lines into the full paragraph; a summary with no tagline still clamps
+ * (the More/Less control owns the clamp); a tagline on its own is a
+ * one-liner by design and is shown whole, with nothing to disclose.
+ */
+const desc = tagline ?? summary;
+const opens = detail !== null || (summary !== null && tagline === null);
+---
+
+<article class="product">
+  <div class="product__figure">
+    {
+      preview.imageUrl ? (
+        <>
+          <img
+            src={preview.imageUrl}
+            srcset={preview.srcset}
+            sizes="(min-width: 1152px) 30vw, (min-width: 768px) 46vw, 100vw"
+            alt=""
+            width={preview.width ?? 1200}
+            height={preview.height ?? 750}
+            loading={priority ? 'eager' : 'lazy'}
+            decoding={priority ? 'sync' : 'async'}
+            fetchpriority={priority ? 'high' : 'auto'}
+            data-img-fallback
+          />
+          {/*
+            Always rendered, `hidden` when there is media. The error handler
+            below looks for this node — previously the plate only existed on
+            the no-media path, so the handler could never find it and an
+            unreachable host left a broken image in the grid instead.
+          */}
+          <div class="product__plate" hidden>
+            <span class="product__plate-grid" aria-hidden="true"></span>
+            <span class="product__plate-ticks" aria-hidden="true"></span>
+            <span class="product__plate-ghost" aria-hidden="true">
+              {product.title.trim().slice(0, 1).toUpperCase()}
+            </span>
+            <span class="product__plate-note">No public build to capture yet</span>
+          </div>
+        </>
+      ) : (
+        /* A designed plate rather than a grey box.
+
+           It used to print the product name beside the heading that already
+           says it — two identical strings in one card — so it now carries the
+           one fact the figure would otherwise withhold: that there is no
+           public build to photograph yet. Everything else on it is
+           registration furniture: a grid, corner ticks and a monogram, which
+           is what an empty frame looks like when it was drawn rather than
+           left. */
+        <div class="product__plate" hidden={Boolean(preview.imageUrl)}>
+          <span class="product__plate-grid" aria-hidden="true"></span>
+          <span class="product__plate-ticks" aria-hidden="true"></span>
+          <span class="product__plate-ghost" aria-hidden="true">
+            {product.title.trim().slice(0, 1).toUpperCase()}
+          </span>
+          <span class="product__plate-note">
+            No public build to capture yet
+          </span>
+        </div>
+      )
+    }
+  </div>
+
+  <div class="product__body">
+    <p class="product__status" data-status={product.productStatus ?? 'planning'}>
+      <span class="product__dot" aria-hidden="true"></span>
+      {PRODUCT_STATUS_LABELS[product.productStatus ?? 'planning']}
+    </p>
+
+    {headingLevel === 2 ? (
+      <h2 class="product__name">
+        {external ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            {product.title}
+          </a>
+        ) : (
+          <a href={href}>{product.title}</a>
+        )}
+      </h2>
+    ) : (
+      <h3 class="product__name">
+        {external ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            {product.title}
+          </a>
+        ) : (
+          <a href={href}>{product.title}</a>
+        )}
+      </h3>
+    )}
+
+    {
+      desc && opens ? (
+        <details class="product__copy">
+          <summary class="product__summary">
+            <span class="product__desc">{desc}</span>
+          </summary>
+          {detail && <div class="product__detail">{detail}</div>}
+        </details>
+      ) : (
+        desc && <p class="product__desc">{desc}</p>
+      )
+    }
+
+    <div class="product__foot">
+      {
+        product.technologies.length > 0 && (
+          <ul class="product__stack">
+            {product.technologies.slice(0, 3).map((tech) => (
+              <li>{tech}</li>
+            ))}
+          </ul>
+        )
+      }
+      <span class="product__actions">
+        <a
+          class="btn btn--secondary"
+          href={openHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open ${product.title} in a new tab`}
+        >
+          Open
+          <span class="btn__arrow" aria-hidden="true">
+            ↗
+          </span>
+        </a>
+        {
+          product.hasCaseStudy && (
+            <a class="btn btn--quiet" href={`/products/${product.slug}`}>
+              Read more
+              <span class="btn__arrow" aria-hidden="true">
+                →
+              </span>
+            </a>
+          )
+        }
+      </span>
+    </div>
+  </div>
+</article>
+
+<script>
+  // Same guarantee as the project card: an unreachable media host degrades to
+  // the plate rather than leaving a broken image in the grid.
+  for (const img of document.querySelectorAll<HTMLImageElement>('[data-img-fallback]')) {
+    img.addEventListener(
+      'error',
+      () => {
+        const plate = img.parentElement?.querySelector<HTMLElement>('.product__plate');
+        if (plate) {
+          img.remove();
+          plate.hidden = false;
+        }
+      },
+      { once: true },
+    );
+  }
+</script>

@@ -15,12 +15,26 @@
  */
 
 import { media, studio } from '~/config/site';
-import type { Preview, Project, ResolvedPreview } from './types';
+import type { Preview, Product, Project, ResolvedPreview } from './types';
+
+/**
+ * Product lifecycle labels. Written out rather than derived, because the whole
+ * point is that the status is a plain statement of fact — "In development"
+ * reads as a deliberate disclosure, "WIP" or a progress bar does not.
+ */
+export const PRODUCT_STATUS_LABELS: Record<string, string> = {
+  planning: 'Planned',
+  'in-development': 'In development',
+  beta: 'Beta',
+  live: 'Live',
+  paused: 'Paused',
+  retired: 'Retired',
+};
 
 /** Card media widths we generate. AVIF only from 768 up; see lib/images. */
 export const CARD_WIDTHS = [480, 768, 1200, 1600] as const;
 
-const FALLBACK_BG = '#141418';
+const FALLBACK_BG = '#e4e9f4';
 
 /** True when this host is allowed to be iframed by the site. */
 export function isFramableHost(url: string, allowlist: readonly string[] = media.framableHosts): boolean {
@@ -38,7 +52,7 @@ export function isFramableHost(url: string, allowlist: readonly string[] = media
 }
 
 /**
- * Chooses a surface that is neutral and dark enough that any screenshot reads
+ * Chooses a surface that is neutral and light enough that any screenshot reads
  * well on it, but tinted enough to avoid a dead grey void before paint.
  */
 function safeBackground(candidate: string | undefined): string {
@@ -155,12 +169,26 @@ export function resolvePreview(
   };
 }
 
-/** Convenience for the card component. */
+/** Convenience for the project card. */
 export function resolveProjectPreview(
   project: Pick<Project, 'url' | 'preview'>,
   options: ResolveOptions = {},
 ): ResolvedPreview {
   return resolvePreview(project.preview, project.url, options);
+}
+
+/**
+ * Convenience for the product card.
+ *
+ * A product may have an availability link (a waitlist, a store, a beta invite)
+ * that differs from its canonical URL. Framing and hot-linking always resolve
+ * against the canonical URL, never the availability link.
+ */
+export function resolveProductPreview(
+  product: Pick<Product, 'url' | 'preview'>,
+  options: ResolveOptions = {},
+): ResolvedPreview {
+  return resolvePreview(product.preview, product.url, { allowLive: false, ...options });
 }
 
 /** Aspect ratio clamped to something that cannot break the grid. */

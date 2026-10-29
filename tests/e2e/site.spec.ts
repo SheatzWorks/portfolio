@@ -23,21 +23,21 @@ test.describe('home', () => {
     await page.goto('/');
     const h1 = page.getByRole('heading', { level: 1 });
     await expect(h1).toBeVisible();
-    await expect(page.getByRole('link', { name: /see the creations/i }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /see the work/i }).first()).toBeVisible();
   });
 
-  test('the creations section is present and points at the index', async ({ page }) => {
+  test('the work section is present and points at the index', async ({ page }) => {
     await page.goto('/');
-    const heading = page.getByRole('heading', { name: /what we have built/i });
+    const heading = page.getByRole('heading', { name: /built for someone else/i });
     await expect(heading).toBeVisible();
-    await page.getByRole('link', { name: /see the creations/i }).first().click();
-    await expect(page).toHaveURL(/\/creations/);
+    await page.getByRole('link', { name: /see the work/i }).first().click();
+    await expect(page).toHaveURL(/\/work/);
   });
 
   test('has a non-degenerate empty state when there is no content', async ({ page }) => {
     // With no projects the section must still look designed, not broken: it
     // explains what belongs there and how to add it.
-    await page.goto('/creations');
+    await page.goto('/work');
     const empty = page.locator('.empty');
     if ((await empty.count()) > 0) {
       await expect(empty.first()).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('home', () => {
   });
 
   test('never scrolls horizontally', async ({ page }) => {
-    for (const path of ['/', '/creations', '/studio', '/contact']) {
+    for (const path of ['/', '/work', '/about', '/contact']) {
       await page.goto(path);
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
@@ -68,13 +68,13 @@ test.describe('navigation', () => {
   });
 
   test('marks the current page for assistive technology', async ({ page }) => {
-    await page.goto('/creations');
+    await page.goto('/work');
     const current = page.locator('nav a[aria-current="page"]');
-    await expect(current.first()).toHaveText(/creations/i);
+    await expect(current.first()).toHaveText(/work/i);
   });
 
   test('has exactly one h1 per page', async ({ page }) => {
-    for (const path of ['/', '/creations', '/studio', '/contact', '/privacy', '/terms']) {
+    for (const path of ['/', '/work', '/about', '/contact', '/privacy', '/terms']) {
       await page.goto(path);
       const count = await page.getByRole('heading', { level: 1 }).count();
       expect(count, `h1 count on ${path}`).toBe(1);
@@ -86,7 +86,7 @@ test.describe('navigation', () => {
     await page.goto('/');
 
     const toggle = page.locator('[data-nav-toggle]');
-    const nav = page.locator('#site-nav');
+    const nav = page.locator('#masthead-nav');
 
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await toggle.tap();
@@ -110,9 +110,9 @@ test.describe('navigation', () => {
   });
 });
 
-test.describe('creations', () => {
+test.describe('work', () => {
   test('renders project cards that are single, well-named links', async ({ page }) => {
-    await page.goto('/creations');
+    await page.goto('/work');
     const cards = page.locator('.project');
     const count = await cards.count();
     test.skip(count === 0, 'no projects in the local database');
@@ -127,14 +127,14 @@ test.describe('creations', () => {
   });
 
   test('filtering by an unknown kind degrades to the full index', async ({ page }) => {
-    await page.goto('/creations?kind=not-a-real-kind');
+    await page.goto('/work?kind=not-a-real-kind');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     // No crash, and no error state.
     await expect(page.locator('.form__status[data-state="error"]')).toHaveCount(0);
   });
 
   test('a case study renders its meta, prose and links', async ({ page }) => {
-    await page.goto('/creations');
+    await page.goto('/work');
     const card = page.locator('.project').first();
     test.skip((await card.count()) === 0, 'no projects');
 
@@ -144,7 +144,7 @@ test.describe('creations', () => {
   });
 
   test('an unknown slug returns a real 404 with the not-found page', async ({ page }) => {
-    const response = await page.goto('/creations/this-does-not-exist');
+    const response = await page.goto('/work/this-does-not-exist');
     // Not a redirect: a 200 here would tell a crawler the URL is fine and hide
     // broken links from the analytics.
     expect(response?.status()).toBe(404);
@@ -154,14 +154,14 @@ test.describe('creations', () => {
   test('an unpublished or private project is not reachable by URL', async ({ page, request }) => {
     // Visibility is enforced in the query, not in the template. This asserts
     // the outcome that matters: it is not listed and it does not resolve.
-    const index = await request.get('/creations');
+    const index = await request.get('/work');
     expect(index.status()).toBe(200);
   });
 });
 
 test.describe('preview fallbacks', () => {
   test('a card always has media or a designed plate — never a broken image', async ({ page }) => {
-    await page.goto('/creations');
+    await page.goto('/work');
     const cards = page.locator('.project');
     const count = await cards.count();
     test.skip(count === 0, 'no projects');
@@ -191,7 +191,7 @@ test.describe('preview fallbacks', () => {
   });
 
   test('project media reserves space to avoid layout shift', async ({ page }) => {
-    await page.goto('/creations');
+    await page.goto('/work');
     const imgs = page.locator('.project__img');
     const count = await imgs.count();
     test.skip(count === 0, 'no projects');
@@ -239,7 +239,7 @@ test.describe('contact form', () => {
 
 test.describe('accessibility', () => {
   test('every page has a landmark structure and a main heading', async ({ page }) => {
-    for (const path of ['/', '/creations', '/studio', '/contact']) {
+    for (const path of ['/', '/work', '/about', '/contact']) {
       await page.goto(path);
       await expect(page.locator('main'), `main on ${path}`).toHaveCount(1);
       await expect(page.locator('h1'), `h1 on ${path}`).toHaveCount(1);
@@ -270,7 +270,9 @@ test.describe('accessibility', () => {
 
         // WCAG 2.5.8 exempts links rendered inline within a block of text.
         // Those are sentence-flow links, not discrete controls.
-        if (el.tagName === 'A' && style.display.includes('inline') && el.closest('p, li, figcaption, figcaption, .prose')) {
+        // Exactly `inline`. `includes('inline')` also matched inline-flex,
+        // which exempted discrete controls that were genuinely undersized.
+        if (el.tagName === 'A' && style.display === 'inline' && el.closest('p, .prose, figcaption')) {
           continue;
         }
 
@@ -288,7 +290,7 @@ test.describe('accessibility', () => {
   });
 
   test('images carry dimensions and decorative ones are hidden from AT', async ({ page }) => {
-    await page.goto('/creations');
+    await page.goto('/work');
     const imgs = page.locator('img');
     const count = await imgs.count();
     for (let i = 0; i < count; i++) {
@@ -334,12 +336,20 @@ test.describe('security headers', () => {
     expect(headers['permissions-policy']).toBeTruthy();
   });
 
-  test('the in-page CSP carries per-script hashes, not unsafe-inline', async ({ page }) => {
-    await page.goto('/');
-    const csp = await page
-      .locator('meta[http-equiv="content-security-policy"]')
-      .getAttribute('content');
-    expect(csp).toMatch(/script-src[^;]*sha256-/);
+  test('the page CSP carries per-script hashes, not unsafe-inline', async ({ page }) => {
+    // Astro delivers the policy as a <meta> element on prerendered routes and
+    // as a response header on server-rendered ones; home moved to SSR, so the
+    // assertion has to accept either destination.
+    const response = await page.goto('/');
+    const meta = page.locator('meta[http-equiv="content-security-policy"]');
+    const metaCsp = (await meta.count()) > 0 ? await meta.getAttribute('content') : null;
+    const headerCsp =
+      (await response?.headersArray())
+        ?.filter((h) => h.name.toLowerCase() === 'content-security-policy')
+        .map((h) => h.value)
+        .find((v) => v.includes('script-src')) ?? '';
+    const csp = metaCsp || headerCsp;
+    expect(csp, 'no CSP anywhere on the home page').toMatch(/script-src[^;]*sha256-/);
     expect(csp).not.toContain("'unsafe-inline'");
     expect(csp).not.toContain("'unsafe-eval'");
   });
@@ -347,10 +357,17 @@ test.describe('security headers', () => {
   test('the CSP names each directive at most once', async ({ page }) => {
     // A duplicate frame-src or connect-src silently drops the first, and Astro
     // warns at build time. Either way the policy is not what it looks like.
-    await page.goto('/');
-    const csp = (await page
-      .locator('meta[http-equiv="content-security-policy"]')
-      .getAttribute('content'))!;
+    const response = await page.goto('/');
+    const meta = page.locator('meta[http-equiv="content-security-policy"]');
+    const metaCsp = (await meta.count()) > 0 ? await meta.getAttribute('content') : null;
+    // Middleware appends frame-ancestors as a second header line; the parse
+    // below is for Astro's policy, so take the line that carries script-src.
+    const headerCsp =
+      (await response?.headersArray())
+        ?.filter((h) => h.name.toLowerCase() === 'content-security-policy')
+        .map((h) => h.value)
+        .find((v) => v.includes('script-src')) ?? '';
+    const csp = metaCsp || headerCsp;
 
     const names = csp
       .split(';')
@@ -366,7 +383,7 @@ test.describe('security headers', () => {
   test('error responses carry the hardening headers too', async ({ request }) => {
     // These used to return before the header loop ran, so a 404 shipped with
     // no HSTS, no CSP and no frame protection.
-    for (const path of ['/creations/definitely-not-here', '/admin']) {
+    for (const path of ['/work/definitely-not-here', '/admin']) {
       const response = await request.get(path, { maxRedirects: 0 });
       const headers = response.headers();
       expect(headers['x-content-type-options'], `${path} nosniff`).toBe('nosniff');
@@ -407,7 +424,7 @@ test.describe('admin', () => {
 test.describe('SEO', () => {
   test('every page has a unique title and description', async ({ page }) => {
     const seen = new Set<string>();
-    for (const path of ['/', '/creations', '/studio', '/contact', '/privacy', '/terms']) {
+    for (const path of ['/', '/work', '/about', '/contact', '/privacy', '/terms']) {
       await page.goto(path);
       const title = await page.title();
       const description = await page.locator('meta[name="description"]').getAttribute('content');
@@ -450,5 +467,316 @@ test.describe('SEO', () => {
     const body = await response.body();
     // PNG magic number.
     expect([...body.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+  });
+});
+
+/**
+ * Rebuild coverage.
+ *
+ * The rebuild split one route into three and added pricing, a product
+ * lifecycle and an anonymous about page. Each of those is a claim the site now
+ * makes, so each has a test that would fail if the claim stopped being true.
+ */
+test.describe('products vs work', () => {
+  test('a product is listed on /products and never on /work', async ({ page }) => {
+    await page.goto('/products');
+    const cards = page.locator('.product');
+    const count = await cards.count();
+    test.skip(count === 0, 'no products in the local database');
+
+    const titles = await cards.locator('.product__name').allTextContents();
+    expect(titles.length).toBeGreaterThan(0);
+
+    await page.goto('/work');
+    // /work renders commissions. With none published it shows the composed
+    // panel, and under no circumstances a product card.
+    await expect(page.locator('.product')).toHaveCount(0);
+  });
+
+  test('every product states its lifecycle rather than implying it is finished', async ({ page }) => {
+    await page.goto('/products');
+    const statuses = page.locator('.product__status');
+    const count = await statuses.count();
+    test.skip(count === 0, 'no products');
+
+    for (let i = 0; i < count; i++) {
+      const text = (await statuses.nth(i).textContent())?.trim() ?? '';
+      expect(text, `product ${i} has no lifecycle label`).not.toBe('');
+      // The forbidden states are the ones that over-claim.
+      expect(text).not.toMatch(/coming soon|almost|beta soon/i);
+    }
+  });
+
+  test('a product case study resolves and is not a 404', async ({ page, request }) => {
+    await page.goto('/products');
+    const link = page.locator('.product__name a').first();
+    test.skip((await link.count()) === 0, 'no products');
+
+    const href = await link.getAttribute('href');
+    test.skip(!href?.startsWith('/products/'), 'card links off-site, not to a case study');
+
+    const response = await request.get(href!);
+    expect(response.status()).toBe(200);
+    await page.goto(href!);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  });
+
+  test('a product slug 404s on the client-work route', async ({ page, request }) => {
+    // The route split has to be enforced by the query, or it is only cosmetic:
+    // /work/[slug] would happily render an own product and the distinction the
+    // whole site is built around would collapse.
+    await page.goto('/products');
+    const link = page.locator('.product__name a').first();
+    test.skip((await link.count()) === 0, 'no products');
+
+    const href = await link.getAttribute('href');
+    test.skip(!href?.startsWith('/products/'), 'card links off-site');
+
+    const slug = href!.split('/').filter(Boolean).pop()!;
+    const response = await request.get(`/work/${slug}`);
+    expect(response.status(), `${slug} must not resolve under /work`).toBe(404);
+  });
+});
+
+test.describe('published pricing', () => {
+  test('every service carries a range or an engagement, never both empty', async ({ page }) => {
+    await page.goto('/services');
+    const rows = page.locator('.price, .services-table__row');
+    const count = await rows.count();
+    test.skip(count === 0, 'no services published');
+
+    for (let i = 0; i < count; i++) {
+      const row = rows.nth(i);
+      const text = (await row.textContent()) ?? '';
+      const hasNumber = /\d/.test(text);
+      const hasEngagement = /fixed scope|monthly|ongoing/i.test(text);
+      expect(
+        hasNumber || hasEngagement,
+        `service ${i} shows neither a price nor an engagement: ${text.trim().slice(0, 80)}`,
+      ).toBe(true);
+    }
+  });
+
+  test('a price is never rendered as a zero or an empty range', async ({ page }) => {
+    await page.goto('/services');
+    const amounts = page.locator('.price__amount, .services-table__price');
+    const count = await amounts.count();
+    test.skip(count === 0, 'no services published');
+
+    for (let i = 0; i < count; i++) {
+      const text = ((await amounts.nth(i).textContent()) ?? '').trim();
+      // "0 – 0" or "–" would mean a null price was stringified.
+      expect(text).not.toMatch(/^\s*0\b/);
+      expect(text, 'an empty price block means priceFrom/priceTo leaked as empty strings').not.toBe('');
+      expect(text).not.toBe('–');
+    }
+  });
+
+  test('a service detail page resolves and states its range', async ({ page }) => {
+    await page.goto('/services');
+    const link = page.locator('.services-table__name a, .price__name a').first();
+    test.skip((await link.count()) === 0, 'no services published');
+
+    const href = await link.getAttribute('href');
+    const response = await page.goto(href!);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('.checklist')).toBeVisible();
+  });
+
+  test('an unknown service slug is a real 404', async ({ page }) => {
+    const response = await page.goto('/services/not-a-real-service');
+    expect(response?.status()).toBe(404);
+  });
+});
+
+test.describe('the site makes no claims it cannot support', () => {
+  const PAGES = ['/', '/work', '/products', '/services', '/about', '/contact'];
+
+  test('no invented proof: no testimonials, client counts or awards', async ({ page }) => {
+    for (const path of PAGES) {
+      await page.goto(path);
+      const text = ((await page.locator('body').textContent()) ?? '').toLowerCase();
+
+      // Every one of these is a claim about work that has not happened.
+      for (const claim of [
+        'trusted by',
+        'clients include',
+        'happy clients',
+        'award-winning',
+        'award winning',
+        'testimonial',
+        '10+ clients',
+        'years of experience',
+        'trusted partner',
+      ]) {
+        expect(text.includes(claim), `${path} claims "${claim}"`).toBe(false);
+      }
+    }
+  });
+
+  test('no fabricated statistics', async ({ page }) => {
+    for (const path of PAGES) {
+      await page.goto(path);
+      const text = ((await page.locator('body').textContent()) ?? '').replace(/\s+/g, ' ');
+
+      // A percentage, a multiplier or a "X+ clients" figure presented as a
+      // result. Prices and years are allowed, so this looks for the specific
+      // shapes that indicate a performance claim.
+      const claims = text.match(
+        /\b\d+(\.\d+)?\s?%\s(faster|more|increase|improvement|improv)/gi,
+      );
+      expect(claims ?? [], `${path} states an unverified performance figure`).toHaveLength(0);
+    }
+  });
+
+  test('no placeholder text ships publicly', async ({ page }) => {
+    for (const path of PAGES) {
+      await page.goto(path);
+      const text = (await page.locator('body').textContent()) ?? '';
+      expect(text.toLowerCase(), `${path} contains PLACEHOLDER`).not.toContain('placeholder');
+      expect(text, `${path} contains lorem ipsum`).not.toMatch(/lorem ipsum/i);
+      expect(text, `${path} contains TODO`).not.toMatch(/\bTODO\b/);
+    }
+  });
+
+  test('no personal identities are published', async ({ page }) => {
+    // The studio does not publish founder names or bios, so there must be no
+    // team section, no founder section and no portrait on any public page.
+    for (const path of PAGES) {
+      await page.goto(path);
+      await expect(page.locator('[data-team]')).toHaveCount(0);
+      await expect(page.locator('[data-person]')).toHaveCount(0);
+
+      const text = ((await page.locator('body').textContent()) ?? '').toLowerCase();
+      expect(text.includes('founder'), `${path} names a founder`).toBe(false);
+      expect(text.includes('co-founder'), `${path} names a co-founder`).toBe(false);
+    }
+  });
+
+  test('exactly one h1 per page, and it is a statement rather than a label', async ({ page }) => {
+    for (const path of PAGES) {
+      await page.goto(path);
+      const h1s = page.getByRole('heading', { level: 1 });
+      await expect(h1s, `${path} must have exactly one h1`).toHaveCount(1);
+
+      const text = ((await h1s.textContent()) ?? '').trim();
+      expect(text.length, `${path} h1 is too short to be a statement`).toBeGreaterThan(12);
+    }
+  });
+
+  test('headings descend without skipping a level', async ({ page }) => {
+    for (const path of PAGES) {
+      await page.goto(path);
+      const levels = await page.evaluate(() =>
+        [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].map((h) => Number(h.tagName[1])),
+      );
+
+      for (let i = 1; i < levels.length; i++) {
+        // One skip is a warning in the a11y guidance; two is a broken outline.
+        expect(
+          levels[i] - levels[i - 1],
+          `${path}: h${levels[i - 1]} is followed by h${levels[i]}`,
+        ).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});
+
+test.describe('internal linking', () => {
+  test('every internal link resolves', async ({ page, request }) => {
+    const seen = new Set<string>();
+    const queue = ['/'];
+    const broken: string[] = [];
+
+    while (queue.length > 0) {
+      const path = queue.shift()!;
+      if (seen.has(path)) continue;
+      seen.add(path);
+
+      const response = await request.get(path);
+      if (response.status() >= 400) {
+        broken.push(`${path} → ${response.status()}`);
+        continue;
+      }
+
+      const html = await response.text();
+      for (const match of html.matchAll(/href="(\/[^"#?]*)"/g)) {
+        const href = match[1];
+        if (href.startsWith('/admin') || href.startsWith('/api')) continue;
+        if (!seen.has(href)) queue.push(href);
+      }
+    }
+
+    expect(broken, broken.join(', ')).toHaveLength(0);
+  });
+
+  test('no link still points at a removed route', async ({ page }) => {
+    for (const path of ['/', '/work', '/products', '/services', '/about']) {
+      await page.goto(path);
+      const hrefs = await page.evaluate(() =>
+        [...document.querySelectorAll('a[href^="/"]')].map((a) => a.getAttribute('href') ?? ''),
+      );
+      for (const href of hrefs) {
+        expect(href, `${path} links to ${href}`).not.toMatch(/^\/(creations|studio)(\/|$)/);
+      }
+    }
+  });
+});
+
+test.describe('typography', () => {
+  test('the webfonts actually load and render, not just the fallbacks', async ({ page }) => {
+    /*
+     * `font-display: optional` removes the swap window that was producing a
+     * CLS of 0.037 on /work. Its risk is that the fallback silently wins
+     * forever and the design quietly stops being itself — which no CLS number
+     * would reveal. This asserts the webfont is genuinely in use.
+     */
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+
+    const faces = await page.evaluate(() => ({
+      display: document.fonts.check('1em Newsreader'),
+      sans: document.fonts.check('1em "IBM Plex Sans"'),
+      mono: document.fonts.check('1em "IBM Plex Mono"'),
+      loaded: [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family),
+    }));
+
+    expect(faces.display, 'the display face fell back').toBe(true);
+    expect(faces.sans, 'the text face fell back').toBe(true);
+    expect(faces.mono, 'the mono face fell back').toBe(true);
+
+    // The display face is on the headline: this is the site not looking like
+    // itself if it ever regresses.
+    const h1Font = await page.evaluate(() => {
+      const h1 = document.querySelector('h1');
+      return h1 ? getComputedStyle(h1).fontFamily : '';
+    });
+    expect(h1Font).toContain('Newsreader');
+  });
+
+  test('the headline sets in the display face, not the body face', async ({ page }) => {
+    await page.goto('/');
+    const h1Font = await page.evaluate(() => getComputedStyle(document.querySelector('h1')!).fontFamily);
+    const bodyFont = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
+
+    expect(h1Font).not.toEqual(bodyFont);
+    // The hero is the one place weight is dropped, so it must still be the
+    // display family — a heavier 400 fallback would be a visible regression.
+    expect(h1Font).toContain('Newsreader');
+  });
+
+  test('no font is loaded that the site does not use', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => document.fonts.ready);
+    const families = await page.evaluate(() =>
+      [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family),
+    );
+
+    for (const family of families) {
+      expect(
+        /Newsreader|IBM Plex|Plex (Mono|Sans) Fallback/.test(family),
+        `unexpected font loaded: ${family}`,
+      ).toBe(true);
+    }
   });
 });

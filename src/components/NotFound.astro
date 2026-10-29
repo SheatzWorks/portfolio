@@ -2,34 +2,39 @@
 /**
  * Not-found content.
  *
- * Shared between the framework 404 route and a project slug that resolves to
- * nothing, so both present the same page. The project route sets
- * `Astro.response.status = 404` and renders this instead of the case study;
- * `Astro.rewrite('/404')` was tried first and 500s, because the prerendered
- * 404 page cannot be rewritten to from an on-demand route.
+ * Shared between the framework 404 route and a slug that resolves to nothing,
+ * so both present the same page. The route sets `Astro.response.status = 404`
+ * and renders this inline; `Astro.rewrite('/404')` was tried first and 500s,
+ * because the prerendered 404 page cannot be rewritten to from an on-demand
+ * route.
+ *
+ * A 404 that suggests somewhere useful is worth more than one that apologises,
+ * so the products are offered rather than a bare "not found".
  */
-import { studio } from '~/config/site';
 import EmptyState from './EmptyState.astro';
-import CreationsGrid from './CreationsGrid.astro';
-import type { Project } from '~/lib/types';
+import ProductCard from './ProductCard.astro';
+import type { Product } from '~/lib/types';
 
 interface Props {
-  /** A few recent projects, so the visitor has somewhere useful to go. */
-  recent?: Project[];
+  /** A few recent products, so the visitor has somewhere useful to go. */
+  recent?: Product[];
 }
 
 const { recent = [] } = Astro.props;
 ---
 
 <p class="eyebrow">Error 404</p>
+
 <h1 class="case__title">There is nothing at this address.</h1>
+
 <p class="lede mt-4">
-  The page may have moved, or the link may have been mistyped. The work is the
+  The page may have moved, or the link may have been mistyped. What we have actually built is the
   most likely thing you were after.
 </p>
+
 <div class="btn-row mt-6">
-  <a class="btn btn--primary" href="/creations">
-    See the creations
+  <a class="btn btn--primary" href="/products">
+    See the products
     <span class="btn__arrow" aria-hidden="true">&rarr;</span>
   </a>
   <a class="btn btn--secondary" href="/">Back to the start</a>
@@ -38,15 +43,19 @@ const { recent = [] } = Astro.props;
 {
   recent.length > 0 ? (
     <section class="section">
-      <h2 class="eyebrow eyebrow--plain">Recent work</h2>
-      <CreationsGrid projects={recent.slice(0, 3)} priorityCount={0} />
+      <h2 class="eyebrow eyebrow--plain">Our products</h2>
+      <div class="products">
+        {recent.slice(0, 3).map((product) => (
+          <ProductCard product={product} />
+        ))}
+      </div>
     </section>
   ) : (
     <section class="section">
       <EmptyState
-        title="No work to suggest yet"
-        body="The creations index is empty, so there is nothing to link to from this page. It will fill in automatically as projects are published."
-        hint="Browse from the home page in the meantime."
+        title="Nothing to suggest yet"
+        body="No products are published, so there is nothing to link to from here."
+        hint="Everything is listed on the services page instead."
       />
     </section>
   )

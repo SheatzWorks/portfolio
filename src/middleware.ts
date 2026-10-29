@@ -6,12 +6,12 @@
  * page cannot accidentally ship unprotected.
  *
  * The Content-Security-Policy is NOT set here. Astro generates a hash-based one
- * in astro.config.mjs and emits it as a <meta> element. A second policy
- * delivered as an HTTP header would be enforced *in addition* (browsers
- * intersect all policies), and because a header cannot know the per-page
- * script hashes, it would block Astro's own inline scripts. One policy, one
- * place. The one directive that is invalid in a <meta> — frame-ancestors — is
- * sent below as its own single-directive policy.
+ * in astro.config.mjs: as a <meta> element on prerendered routes, as a response
+ * header on server-rendered ones. A second policy of our own would be enforced
+ * *in addition* (browsers intersect all policies) and could not know the
+ * per-page script hashes, so it would block Astro's own inline scripts. One
+ * policy, one place. The one directive that is invalid in a <meta> —
+ * frame-ancestors — is sent below as its own single-directive policy.
  */
 
 import { defineMiddleware } from 'astro:middleware';

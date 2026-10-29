@@ -1,0 +1,22 @@
+/*
+ * Loaded from a <noscript> in Base.astro when JavaScript is off.
+ *
+ * It is a file rather than a <style> block because Astro cannot hash an
+ * inline stylesheet, and the site's CSP has no 'unsafe-inline' to fall back
+ * on — an inline override here would be silently dropped, which is the same
+ * class of bug as the reveal that shipped invisible.
+ *
+ * Its only job: make scroll-revealed content visible to a visitor with no
+ * JS. The rest of the stylesheet already handles reduced motion and the
+ * motion-bundle-fails-to-load case.
+ */
+
+html [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+.scroll-progress {
+  display: none;
+}

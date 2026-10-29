@@ -1,7 +1,7 @@
 ---
 import Base from '~/layouts/Base.astro';
 import Section from '~/components/Section.astro';
-import { studio } from '~/config/site';
+import { studio, publishableSocial } from '~/config/site';
 import { getEnv } from '~/lib/env';
 import { getSiteContent } from '~/lib/db';
 
@@ -24,14 +24,14 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
   description={`Start a project with ${studio.name}. Send a short brief with a timeline and budget range, and we reply with a straight answer.`}
   canonicalPath="/contact"
 >
-  <Section id="contact" eyebrow="Contact" title="Tell us what you are building" size="lg" headingLevel={1}>
+  <Section id="contact" eyebrow="Contact" title="Tell us what you are building" headingLevel={1}>
     <div class="contact">
       <div class="contact__form">
         <form class="form" method="post" action="/api/contact" data-contact-form novalidate>
           <p class="lede">
             {
               blurb ??
-                'A short description, a rough timeline and a budget range is enough for us to tell you whether it is a fit and what it would take.'
+                "A sentence about the project, a rough timeline and a budget range is enough for us to say whether it's a fit."
             }
           </p>
 
@@ -71,19 +71,19 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
             </div>
           </div>
 
-          <div class="field">
-            <label class="field__label" for="company">Company or site</label>
-            <input
-              class="input"
-              id="company"
-              name="company"
-              type="text"
-              autocomplete="organization"
-              maxlength="200"
-            />
-          </div>
-
           <div class="form__row form__row--2">
+            <div class="field">
+              <label class="field__label" for="company">Company or site</label>
+              <input
+                class="input"
+                id="company"
+                name="company"
+                type="text"
+                autocomplete="organization"
+                maxlength="200"
+              />
+            </div>
+
             <div class="field">
               <label class="field__label" for="project_type">Project type</label>
               <select class="select" id="project_type" name="project_type">
@@ -98,7 +98,9 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
                 <option value="other">Something else</option>
               </select>
             </div>
+          </div>
 
+          <div class="form__row form__row--2">
             <div class="field">
               <label class="field__label" for="timeline">Timeline</label>
               <select class="select" id="timeline" name="timeline">
@@ -110,19 +112,19 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
                 <option value="exploring">Just exploring</option>
               </select>
             </div>
-          </div>
 
-          <div class="field">
-            <label class="field__label" for="budget">Budget range</label>
-            <select class="select" id="budget" name="budget">
-              <option value="">Prefer not to say</option>
-              <option value="under-5k">Under 5,000</option>
-              <option value="5k-15k">5,000 - 15,000</option>
-              <option value="15k-40k">15,000 - 40,000</option>
-              <option value="40k-plus">40,000+</option>
-              <option value="retainer">Ongoing / retainer</option>
-            </select>
-            <p class="field__hint">A range is enough. It tells us how to scope, not whether we are interested.</p>
+            <div class="field">
+              <label class="field__label" for="budget">Budget range</label>
+              <select class="select" id="budget" name="budget">
+                <option value="">Prefer not to say</option>
+                <option value="under-5k">Under 5,000</option>
+                <option value="5k-15k">5,000 - 15,000</option>
+                <option value="15k-40k">15,000 - 40,000</option>
+                <option value="40k-plus">40,000+</option>
+                <option value="retainer">Ongoing / retainer</option>
+              </select>
+              <p class="field__hint">A range is enough. It tells us how to scope, not whether we are interested.</p>
+            </div>
           </div>
 
           <div class="field">
@@ -161,18 +163,22 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
             )
           }
 
-          <div>
+          <p class="form__status" data-form-status role="status" aria-live="polite" hidden></p>
+
+          {/*
+            The submit row and the privacy note share one line: the note is
+            the button's caption, not a paragraph of its own, and on a
+            one-screen contact page that distinction is worth 65px.
+          */}
+          <div class="form__foot">
             <button class="btn btn--primary" type="submit" data-submit>
               Send it
             </button>
+            <p class="field__hint">
+              We use your details only to reply to this enquiry. Nothing is added to a
+              mailing list or shared. See the <a href="/privacy">privacy note</a>.
+            </p>
           </div>
-
-          <p class="form__status" data-form-status role="status" aria-live="polite" hidden></p>
-
-          <p class="field__hint">
-            We use your details only to reply to this enquiry. Nothing is added to a
-            mailing list or shared. See the <a href="/privacy">privacy note</a>.
-          </p>
         </form>
       </div>
 
@@ -183,21 +189,29 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
           <span class="copy-email__state" data-copy-state aria-hidden="true"></span>
         </a>
 
-        <h2 class="eyebrow eyebrow--plain contact__aside-heading">Elsewhere</h2>
-        <ul class="team__links contact__social">
-          {
-            studio.social
-              .filter((s) => s.href.startsWith('http'))
-              .map((s) => (
-                <li>
-                  <a href={s.href} target="_blank" rel="noopener noreferrer">
-                    {s.label}
-                    {s.handle ? ` ${s.handle}` : ''}
-                  </a>
-                </li>
-              ))
-          }
-        </ul>
+        {/*
+          Rendered only when there is somewhere to go. An "Elsewhere" heading
+          above an empty list is the same defect as the placeholder links it
+          replaced.
+        */}
+        {publishableSocial().length > 0 && (
+          <>
+            <h2 class="eyebrow eyebrow--plain contact__aside-heading">Elsewhere</h2>
+            <ul class="team__links contact__social">
+              {
+                publishableSocial()
+                  .map((s) => (
+                  <li>
+                    <a href={s.href} target="_blank" rel="noopener noreferrer">
+                      {s.label}
+                      {s.handle ? ` ${s.handle}` : ''}
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+          </>
+        )}
 
         <h2 class="eyebrow eyebrow--plain contact__aside-heading">What happens next</h2>
         <ol class="contact__next list-none">

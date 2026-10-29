@@ -14,8 +14,10 @@ export const prerender = false;
 
 const STATIC_ROUTES: { path: string; priority: string; changefreq: string }[] = [
   { path: '/', priority: '1.0', changefreq: 'weekly' },
-  { path: '/creations', priority: '0.9', changefreq: 'weekly' },
-  { path: '/studio', priority: '0.7', changefreq: 'monthly' },
+  { path: '/work', priority: '0.9', changefreq: 'weekly' },
+  { path: '/products', priority: '0.9', changefreq: 'weekly' },
+  { path: '/services', priority: '0.8', changefreq: 'monthly' },
+  { path: '/about', priority: '0.7', changefreq: 'monthly' },
   { path: '/contact', priority: '0.8', changefreq: 'yearly' },
   { path: '/privacy', priority: '0.3', changefreq: 'yearly' },
   { path: '/terms', priority: '0.3', changefreq: 'yearly' },
@@ -49,10 +51,16 @@ export const GET: APIRoute = async ({ locals }) => {
     );
   }
 
+  /*
+   * Commissions live under /work and products under /products. Emitting both
+   * under one prefix would put products on the client-work route, which is the
+   * distinction the site is built around.
+   */
   for (const project of projects) {
     if (!project.hasCaseStudy) continue;
+    const prefix = project.ownership === 'own' ? '/products' : '/work';
     entries.push(
-      `  <url><loc>${escapeXml(`${base}/creations/${project.slug}`)}</loc>` +
+      `  <url><loc>${escapeXml(`${base}${prefix}/${project.slug}`)}</loc>` +
         (project.updatedAt
           ? `<lastmod>${escapeXml(project.updatedAt.slice(0, 10))}</lastmod>`
           : '') +
