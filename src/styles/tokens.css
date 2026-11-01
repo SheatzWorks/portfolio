@@ -107,7 +107,6 @@
   --line-ghost: color-mix(in srgb, var(--line-strong) 34%, transparent);
   --ink-faint-70: color-mix(in srgb, var(--ink-faint) 70%, transparent);
   --ink-faint-65: color-mix(in srgb, var(--ink-faint) 65%, transparent);
-  --plate-note-bg: color-mix(in srgb, var(--lift-3) 78%, transparent);
   --ticks: linear-gradient(var(--line-strong), var(--line-strong)) top left / 14px 1px no-repeat,
     linear-gradient(var(--line-strong), var(--line-strong)) top left / 1px 14px no-repeat,
     linear-gradient(var(--line-strong), var(--line-strong)) top right / 14px 1px no-repeat,

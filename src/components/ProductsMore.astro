@@ -8,9 +8,10 @@
  * sit under the grid, promoted into the row it was closing.
  *
  * It is drawn as a frame, not a card: no fill, because a card in a row of two
- * is pretending to hold content it does not have. An empty frame with corner
- * ticks is honest about holding nothing, and registration furniture is already
- * this site's vocabulary for an unset plate.
+ * is pretending to hold content it does not have. But it borrows the card's
+ * spine — plate band over text — so the three cells share one rhythm and the
+ * blankness sits inside a plate, where a blank means "unset", rather than
+ * scattered down the whole cell.
  */
 interface Props {
   href: string;
@@ -24,16 +25,18 @@ const { href, label, note } = Astro.props;
 
 <a class="products__more" href={href}>
   {/*
-    Both decorative layers are block-level, and that is not cosmetic: gate 49
-    exempts "a link holding block-level content (a whole card)" from its
-    no-wrapping-label rule, because this cell is a card that happens to be one
-    link rather than an affordance label. The label itself still sets on one
-    line at every width — the exemption is about what surrounds it.
+    The two sections of the cell are block-level, and that is not cosmetic:
+    gate 49 exempts "a link holding block-level content (a whole card)" from
+    its no-wrapping-label rule, because this cell is a card that happens to be
+    one link rather than an affordance label. The label itself still sets on
+    one line at every width; the exemption is about what surrounds it.
   */}
-  <div class="products__more-ticks" aria-hidden="true"></div>
-  <span class="products__more-label">
-    {label}
-    <span class="btn__arrow" aria-hidden="true">→</span>
-  </span>
-  {note && <div class="products__more-note">{note}</div>}
+  <div class="products__more-plate" aria-hidden="true">
+    <span class="products__more-ticks"></span>
+    <span class="products__more-arrow">→</span>
+  </div>
+  <div class="products__more-body">
+    <span class="products__more-label">{label}</span>
+    {note && <span class="products__more-note">{note}</span>}
+  </div>
 </a>

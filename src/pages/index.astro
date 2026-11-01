@@ -109,7 +109,13 @@ const HOME_FAQ = content.faq.slice(0, 6);
               {studio.hero.primary.label}
               <span class="btn__arrow" aria-hidden="true">→</span>
             </a>
-            <a class="btn btn--quiet" href={studio.hero.secondary.href}>
+            {/*
+              A hairline, not bare text. The secondary action is a route to the
+              enquiry form, which makes it an action and not a utility link —
+              set in the same mono voice as the primary beside it, it read as a
+              third line of the lede rather than as the second thing to press.
+            */}
+            <a class="btn btn--secondary" href={studio.hero.secondary.href}>
               {studio.hero.secondary.label}
             </a>
           </div>
@@ -117,10 +123,11 @@ const HOME_FAQ = content.faq.slice(0, 6);
         </div>
 
         {/*
-          The right column is the ledger line made visible: a file of ruled
-          lines that answers the pointer. It is the site's one signature
-          moment, not another product card — section 02 already leads with
-          those, and repeating one here would double the claim.
+          The right column is the studio's delivery sheet: a ruled project
+          folio that is written, built, verified and stamped on a twelve-second
+          loop. It is the site's one signature moment, not another product card
+          — section 02 already leads with those, and repeating one here would
+          double the claim.
 
           It sits before the meta list in the DOM so a phone sees the
           signature while it is still in the first screenful; the desktop grid

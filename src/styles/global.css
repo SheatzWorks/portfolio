@@ -102,11 +102,15 @@ body::before {
 
 /* Alternating section bands, counted across `main > section` so the hero and
    the closing statement always land on the un-banded value and the two
-   bookends read as one surface. The hairline is what stops the value step
-   looking like a rendering artefact rather than a decision. */
+   bookends read as one surface.
+
+   Fill only — no border of its own. The band used to draw a hairline top and
+   bottom at 55% of `--line`, and at every seam except the first it landed
+   against the following section's own `--line` rule one pixel below it: half
+   the section breaks on the site were a two-pixel line, pale over dark. The
+   value step is the decision; one rule is enough to mark it. */
 main > section:nth-of-type(even) {
   background-color: var(--bg-band);
-  border-block: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
 }
 
 /* The hero and the closing line are un-banded on purpose: one is the entry,
@@ -261,18 +265,6 @@ hr {
    Utilities
    ---------------------------------------------------------------------- */
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
 .skip-link {
   position: absolute;
   top: var(--sp-2);
@@ -281,6 +273,9 @@ hr {
   transform: translateY(-150%);
   background: var(--accent);
   color: var(--accent-ink);
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap);
   padding: var(--sp-2) var(--sp-4);
   font-family: var(--font-mono);
   font-size: var(--step--1);
@@ -327,6 +322,16 @@ hr {
 }
 
 .section + .section {
+  border-top: 1px solid var(--line);
+}
+
+/* The two bookends — the home hero and every route's page head — open without
+   the `.section` class, because their padding is theirs and not the scale's.
+   So the rule above cannot see the seam after them and the first real section
+   drew no line at all once the band stopped drawing its own. One line, same
+   weight as every other section break, from the same side of the join. */
+main > section.hero + .section,
+main > section.page-head + .section {
   border-top: 1px solid var(--line);
 }
 

@@ -2,7 +2,7 @@
 /**
  * Responsive QA matrix.
  *
- * Screenshots every route at seven real viewport sizes and asserts, at each
+ * Screenshots every route at fourteen real viewport sizes and asserts, at each
  * one, that there is no horizontal overflow, no element sticking out past the
  * viewport, and no console error. "It looks fine when I resize the browser"
  * is not the same as being correct on a 360px Android, which is where most of
@@ -14,13 +14,32 @@ import { mkdirSync } from 'node:fs';
 const BASE = process.argv[2] ?? 'http://127.0.0.1:4321';
 const OUT = '/tmp/qa-matrix';
 
+/*
+ * Every width the design brief names, plus the three extra real devices that
+ * sit on the other side of a breakpoint from it (412, 834, 2560).
+ *
+ * The list used to be seven entries and missed four of the twelve the layout
+ * can actually change at: 320 is the narrowest phone the site has to survive,
+ * and 768 / 1024 land exactly on the `min-width: 48rem` and `min-width: 64rem`
+ * queries — the two widths where a column count flips. A matrix that skips the
+ * breakpoint is a matrix that reports clean while the grid is broken.
+ *
+ * Order runs narrow to wide so a failure reads as a progression.
+ */
 const VIEWPORTS = [
+  { name: 'tiny-android', width: 320, height: 568, mobile: true },
   { name: 'small-android', width: 360, height: 740, mobile: true },
-  { name: 'android', width: 412, height: 915, mobile: true },
+  { name: 'iphone-se', width: 375, height: 667, mobile: true },
   { name: 'iphone', width: 390, height: 844, mobile: true },
-  { name: 'tablet', width: 834, height: 1112, mobile: false },
+  { name: 'android', width: 412, height: 915, mobile: true },
+  { name: 'iphone-plus', width: 414, height: 896, mobile: true },
+  { name: 'iphone-pro-max', width: 430, height: 932, mobile: true },
+  { name: 'tablet-portrait', width: 768, height: 1024, mobile: true },
+  { name: 'tablet', width: 834, height: 1112, mobile: true },
+  { name: 'tablet-landscape', width: 1024, height: 768, mobile: false },
   { name: 'laptop', width: 1280, height: 800, mobile: false },
   { name: 'desktop', width: 1440, height: 900, mobile: false },
+  { name: 'full-hd', width: 1920, height: 1080, mobile: false },
   { name: 'ultrawide', width: 2560, height: 1080, mobile: false },
 ];
 

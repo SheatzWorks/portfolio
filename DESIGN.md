@@ -33,7 +33,7 @@ Scores are originality / fit / feasibility / portability (portability: lower is 
 | **Anchor** | The products-vs-commissions split is the architecture, not a section order. | On-device AI is a real product claim; the site can demonstrate the same property. | The name and the actual artefacts (screenshots, specs, ranges). |
 | **Layout rule** | Two vertical lines; every block starts on one of them. Split hero, split case pages. | Media and type sit on a single plane; nothing waits for a network state. | Full-bleed sheets, one per route; page transitions slide the stack. |
 | **Motion verb** | *rule* — the line draws itself and things align to it. | *compute* — instant, local, idle drift. | *turn the sheet* — lift, slide, settle. |
-| **Signature** | The working ledger: the hero figure draws the site's own tagline — the method on the upper line (*Build → Run → Ship*), the work being delivered on the lower line. | The hairline figure, drawn as one. | Sheet-to-sheet transition. |
+| **Signature** | The studio delivery folio: the hero figure is one project sheet being worked through five stages — *Brief → Spec → Build → Verify → Ship* — with a stage rail naming each one. | The hairline figure, drawn as one. | Sheet-to-sheet transition. |
 | **Risk** | Can read as broadsheet (gates already keep it from becoming decoration). | Concept lives only in the hero — the skill says kill it if so. | Skeuomorphism; heaviest to build. |
 | **Score** | **4 / 5 / 5 / 2** | 4 / 4 / 4 / 3 | 5 / 4 / 3 / 2 |
 
@@ -46,13 +46,14 @@ details: from **B**, the interaction must feel local and must keep moving at res
 
 - **Idea:** the site is a ledger with one line through it — ours above, yours below.
 - **Metaphor:** ruled paper / a register, not a gallery grid.
-- **Signature moment:** one drawing in the hero — the **working ledger**: two lines, the method
-  on the upper one (*Build → Run → Ship*), receipts landing on the lower one, two people as two
-  dots riding the line, one delivered build riding out with a flag. It continues as the section
-  rules and resolves into the footer rule.
+- **Signature moment:** one drawing in the hero — the **delivery folio**: a ruled project sheet
+  with entries being written on it, a small interface assembling under *Build*, a check drawn
+  over it, and a stamp landing as the delivery rule runs out to the sheet edge. Two people are
+  two marks riding the ledger margin, stepping down as each stage closes. A stage rail names
+  all five stages at once. It continues as the section rules and resolves into the footer rule.
 - **Motion verb:** rule.
 - **Emotion:** precise, calm, accountable. The opposite of a sales page.
-- **Screenshot frame:** hero at 1440 px, the working ledger in the right column, mono labels
+- **Screenshot frame:** hero at 1440 px, the delivery folio in the right column, mono labels
   pinned to its rules, the four studio facts in a strip along the bottom — readable as a
   poster with motion off.
 
@@ -105,7 +106,7 @@ No gradients, glows or glass. Selection colour, focus ring and scrollbar use the
 
 ```
 HERO            [ eyebrow ......................... ]
-                [ display headline .......... ]   [ working ledger ]
+                [ display headline .......... ]   [ delivery folio ]
                 [ lede ...................... ]   [ Fig. 01    ]
                 [ primary → ] [ secondary ]       [ readout    ]
                 [ meta strip: focus · engagement · status · reply ]  (full width)
@@ -140,53 +141,63 @@ Serif; italic-accented word as the only typographic idea; "A · B · C" meta str
 A jury should be able to crop any section and still recognise the studio. If a new element
 could be pasted into any other studio site unchanged, it is not finished.
 
-## 4. Signature moment — the working ledger
+## 4. Signature moment — the studio delivery folio
 
 **What it is**
 
-One drawing in the hero's right column: the site's own idea, being worked. A hairline sheet
-ruled with exactly **two lines** — the upper line is the method (*Build → Run → Ship*), the
-lower line is what it leaves behind. Two people are two dots riding the upper line: they walk
-in, take each station in turn, and every finished stage drops a hairline down to the lower
-line — a receipt, landing where we build for you. Run draws a check. Ship delivers a crate
-with a flag, which rides the lower line out of the sheet with both people following it off
-the edge. The readout under the sheet names the stage. A twelve-second loop; then the sheet
-rests, and the next build walks in from the left.
+One drawing in the hero's right column: a project sheet being worked. A ruled sheet on the
+page's own paper, a ledger margin down the left, and the five stages of how the studio actually
+delivers written onto it in order —
 
-It replaces a read-head on a static sheet. That figure answered the pointer, but it answered
-with nowhere to go; this one is the ledger itself, with entries being made and work being
-delivered, drawn in the studio's own hairline hand.
+- **Brief** — three entries ruled onto the sheet;
+- **Spec** — two more, the scope taking shape;
+- **Build** — a small interface assembles: a frame, a sidebar, two lines, one filled block;
+- **Verify** — a check draws over the thing that was built;
+- **Ship** — a stamp lands and the delivery rule runs out to the sheet edge.
+
+A stage rail down the right edge holds all five names at once, so the sheet says where it is to
+someone who arrives mid-loop and to someone who never sees it move. The two people are two marks
+riding the margin, stepping down as each stage closes. The readout under the sheet names the
+current stage; the caption is *Fig. 01 — One brief. Five stages. Two people.*
+
+It replaces the working ledger (two lines, *Build → Run → Ship*, a delivered crate riding out with
+a flag). That figure said the studio runs and ships; it did not say *how a piece of work gets
+made*, and the brief asked for the delivery process itself. The folio answers that, in the same
+hairline hand and on the same sheet of paper.
 
 **Contract**
 
 - One driver module owns pointer position (normalised −1…1) and hero scroll progress (0…1),
   published as custom properties the drawing consumes.
-  - **The type does not move.** The hero words are anchored: text that floats on the cursor is
-    harder to read and says the page is reacting to the visitor rather than to their work. Only
-    the drawing answers the pointer — a few pixels of parallax and a lift as the hero scrolls out.
-- **The loop is SVG and CSS, and it runs without the driver.** Every animated property is
-  `transform`, `opacity` or `stroke-dashoffset`, so the loop is compositor-only, works on touch
-  and costs no JavaScript of its own.
+  - **The type does not move.** Verified in-browser: with the pointer swept across the hero, the
+    headline's `top`/`left` are unchanged while the figure takes a 4px parallax. Only the drawing
+    answers the pointer.
+- **The loop is SVG and CSS, and it runs without the driver.** Measured with JavaScript switched
+    off entirely: the master timeline advances on the identical phase clock (`t` = 0 → 2000 → 4017
+    → 6033 → 8050 → 16066 ms, `playState: running`) and the sheet draws, verifies and stamps
+    exactly as it does with JS on. Every animated property is `transform`, `opacity` or
+    `stroke-dashoffset` — compositor-only, no script of its own.
 - **The loop is one twelve-second timeline with per-element keyframes.** Every element's 0%
   keyframe is the loop's own first frame and every hold is pinned, so nothing drifts or
   half-undraws at the wrap. Short one-shot animations (`3` iterations of 1.33s) are the
   historical bug: they stop after the first build and the second one happens in silence.
 - **Idle motion:** a slow sine drift so the concept breathes with the pointer still.
-- **Mount only** when `(pointer: fine)` and `prefers-reduced-motion: no-preference` and JS is on.
-  Otherwise render a static composed frame (same geometry, no driver).
-- **Three states, never a fourth:** driven · animated loop · poster frame. Under reduced motion
-  the same composition is frozen with the build already finished — all three stations on the
-  sheet, receipts down, check drawn, both people at the edge, readout on Ship. The box is never
-  empty, so the poster frame is the design and not a fallback.
-- **No layout shift:** the figure's box is reserved in CSS before the module runs.
-- **Budget:** the module and the figure package together must keep total JS under
-  `BUDGETS.totalJsKb` (40 KB) in `scripts/perf.mjs`.
+- **Three states, never a fourth:** driven · animated loop · poster frame.
+- **The poster is the base state, and it is complete.** Under `prefers-reduced-motion: reduce`
+  the loop stops and the composition lands finished: **60 of 60 drawing elements at full opacity,
+  0 animating, none hidden, none mid-fade**, readout on *Ship*. The animated loop never shows an
+  empty sheet either — its least-filled moment is 47 of 60, and the remainder are the three
+  not-yet-current stages sitting at 0.45 (dimmed, not missing).
+- **No layout shift:** the figure's box is reserved in CSS before the module runs. CLS measures
+  0.0000 at every viewport in `scripts/perf.mjs`.
+- **Budget:** the module and the figure keep total JS at 34.3 KB against the 40 KB
+  `BUDGETS.totalJsKb` in `scripts/perf.mjs`.
 - **CSP:** bundled Astro module only. Never inline script.
 
-**Does it survive the concept test?** Yes — it *is* the ledger line, and the same line is the
-section rule, the case-page column edge and the footer rule. The two lines of the drawing are
-the site's two lines: what we run above, what we build for you below. If the drawing only lived
-in the hero it would be an effect, and it would be cut.
+**Does it survive the concept test?** Yes — the sheet rule it is drawn with is the same rule the
+site uses to separate sections, the case-page column edge and the footer rule. The stages on the
+rail are the stages `/services` and `/about` describe in words. If the drawing only lived in the
+hero it would be an effect, and it would be cut.
 
 ## 5. Motion system
 

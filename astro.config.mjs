@@ -81,7 +81,7 @@ export default defineConfig({
 
         /*
          * Every directive below appears EXACTLY ONCE. A duplicate frame-src or
-         // connect-src makes Astro warn at build time, because a second
+         * connect-src makes Astro warn at build time, because a second
          * occurrence does not add to the first.
          */
         // Frames: /creations embeds allowlisted project previews, and

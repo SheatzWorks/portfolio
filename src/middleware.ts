@@ -38,6 +38,17 @@ const PROTECTED = [/^\/admin(?:\/|$)/, /^\/api\/admin(?:\/|$)/];
 const PUBLIC = [/^\/admin\/login\/?$/, /^\/api\/admin\/session$/];
 
 /**
+ * The operator's own surface and the data endpoints.
+ *
+ * Neither belongs in a shared cache or in a search index. `public/_headers`
+ * asks for the same two headers on these prefixes, but that file is only read
+ * for assets the static-assets binding serves without the Worker — and every
+ * route here is server-rendered, so the Worker answers all of them and the
+ * `_headers` rules never fire. This is the only place they can be set.
+ */
+const PRIVATE = [/^\/admin(?:\/|$)/, /^\/api(?:\/|$)/];
+
+/**
  * Applies the hardening header set to any response, including error paths.
  *
  * `x-robots-tag` is NOT set here. It is tempting to gate it on
@@ -46,11 +57,15 @@ const PUBLIC = [/^\/admin\/login\/?$/, /^\/api\/admin\/session$/];
  * never true at request time. Prerendered pages get their robots tag from
  * public/_headers instead.
  */
-function harden(headers: Headers): Headers {
+function harden(headers: Headers, pathname: string): Headers {
   for (const [key, value] of Object.entries(HEADERS)) {
     headers.set(key, value);
   }
   headers.append('content-security-policy', FRAME_ANCESTORS);
+  if (PRIVATE.some((re) => re.test(pathname))) {
+    headers.set('cache-control', 'no-store');
+    headers.set('x-robots-tag', 'noindex, nofollow');
+  }
   return headers;
 }
 
@@ -76,7 +91,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       if (wantsJson) {
         return new Response(unauthorized(session.reason).body, {
           status: unauthorized(session.reason).status,
-          headers: harden(unauthorized(session.reason).headers),
+          headers: harden(unauthorized(session.reason).headers, pathname),
         });
       }
 
@@ -87,14 +102,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
           'Admin access is disabled because ADMIN_TOKEN is not configured on this deployment.',
           {
             status: 503,
-            headers: harden(new Headers({ 'content-type': 'text/plain; charset=utf-8' })),
+            headers: harden(new Headers({ 'content-type': 'text/plain; charset=utf-8' }), pathname),
           },
         );
       }
       const target = encodeURIComponent(`${pathname}${context.url.search}`);
       return new Response(null, {
         status: 302,
-        headers: harden(new Headers({ location: `/admin/login?next=${target}` })),
+        headers: harden(new Headers({ location: `/admin/login?next=${target}` }), pathname),
       });
     }
   }
@@ -103,7 +118,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // An error path may hand back a bare Response. Hardening must apply to the
   // 500 page too, not just the happy path.
-  const headers = harden(new Headers(response.headers));
+  const headers = harden(new Headers(response.headers), pathname);
 
   return new Response(response.body, {
     status: response.status,

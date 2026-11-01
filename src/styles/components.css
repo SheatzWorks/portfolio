@@ -26,10 +26,6 @@
   padding-inline: var(--gutter);
 }
 
-.shell--wide {
-  max-width: 100rem;
-}
-
 /* -------------------------------------------------------------------------
    Buttons
    One primary (accent), one secondary (hairline), one quiet (text+arrow).
@@ -50,7 +46,11 @@
   transition:
     background-color var(--dur-1) var(--ease),
     border-color var(--dur-1) var(--ease),
-    color var(--dur-1) var(--ease);
+    color var(--dur-1) var(--ease),
+    /* The press. Without transform here, `.btn:active` jumped the button down
+       a pixel and back with no easing, which reads as a glitch rather than as
+       a key going down. */
+    transform var(--dur-1) var(--ease);
   white-space: nowrap;
 }
 
@@ -139,18 +139,6 @@
   position: relative;
 }
 
-.hero__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--ink-muted);
-  margin-bottom: var(--sp-5);
-}
-
-/* The single decorative element on the site: a 5px status dot. It means
-   "available for work", which is a real fact the studio controls. */
 /* -------------------------------------------------------------------------
    Work grid
    Irregular fractional rows on a 12-column grid. Rows justify to the same
@@ -486,63 +474,9 @@
   text-wrap: pretty;
 }
 
-.service__deliverables {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--ink-faint);
-}
-
-.service__deliverables li {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.1rem var(--sp-2);
-}
-
 /* -------------------------------------------------------------------------
-   Process — a schematic track with hairline rules.
-   NOT numbered circles: a 1-2-3 step sequence is a current AI-slop tell and
-   reads as a marketing funnel rather than how the work actually runs.
+   Process marker — the hairline a list of next steps gets.
    ---------------------------------------------------------------------- */
-
-.process {
-  display: grid;
-  gap: 0;
-  border-top: 1px solid var(--line);
-}
-
-@media (min-width: 56rem) {
-  .process {
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-  }
-  .process__step {
-    border-right: 1px solid var(--line);
-    border-bottom: none;
-    padding-inline: var(--sp-4) var(--sp-5);
-  }
-  .process__step:first-child {
-    padding-left: 0;
-  }
-  .process__step:last-child {
-    border-right: none;
-    padding-right: 0;
-  }
-}
-
-.process__step {
-  padding-block: var(--sp-5);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  position: relative;
-}
 
 .process__marker {
   display: block;
@@ -552,124 +486,9 @@
   margin-bottom: var(--sp-2);
 }
 
-.process__phase {
-  font-family: var(--font-mono);
-  font-size: var(--step-0);
-  color: var(--ink);
-}
-
-.process__detail {
-  font-size: var(--step--1);
-  color: var(--ink-muted);
-  text-wrap: pretty;
-}
-
 /* -------------------------------------------------------------------------
-   Capabilities — compact spec table, not a résumé
+   Social links — the row under the contact details.
    ---------------------------------------------------------------------- */
-
-.capabilities {
-  display: grid;
-  gap: var(--sp-6);
-}
-
-@media (min-width: 56rem) {
-  .capabilities {
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--sp-6) var(--sp-8);
-  }
-}
-
-.capability__group {
-  border-top: 1px solid var(--line);
-  padding-top: var(--sp-3);
-}
-
-.capability__label {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--accent-deep);
-  margin-bottom: var(--sp-3);
-}
-
-.capability__items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-3);
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  color: var(--ink-body);
-  font-size: var(--step-0);
-}
-
-.capability__items li {
-  position: relative;
-}
-
-.capability__items li:not(:first-child)::before {
-  content: '·';
-  position: absolute;
-  left: calc(var(--sp-3) * -1);
-  color: var(--line-focus);
-}
-
-/* -------------------------------------------------------------------------
-   Team — an editorial spread, not circular-avatar profile cards
-   ---------------------------------------------------------------------- */
-
-.team {
-  display: grid;
-  gap: var(--sp-6);
-}
-
-@media (min-width: 48rem) {
-  .team {
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--sp-7);
-  }
-  /* A hairline between, rather than a card around each. */
-  .team__member + .team__member {
-    border-left: 1px solid var(--line);
-    padding-left: var(--sp-6);
-  }
-}
-
-.team__member {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-.team__name {
-  font-family: var(--font-display);
-  font-size: var(--step-3);
-  color: var(--ink);
-  line-height: 1.1;
-}
-
-.team__role {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--accent-deep);
-}
-
-.team__bio {
-  color: var(--ink-body);
-  text-wrap: pretty;
-}
-
-.team__focus {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-3);
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--ink-faint);
-}
 
 .team__links {
   display: flex;
@@ -802,116 +621,8 @@
 }
 
 /* -------------------------------------------------------------------------
-   Testimonials
+   Copy-email — an address you can lift, not a field to type into
    ---------------------------------------------------------------------- */
-
-.testimonials {
-  display: grid;
-  gap: var(--sp-5);
-}
-
-@media (min-width: 56rem) {
-  .testimonials {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.testimonial {
-  border-top: 1px solid var(--line);
-  padding-top: var(--sp-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-}
-
-.testimonial__quote {
-  font-family: var(--font-display);
-  font-size: var(--step-1);
-  line-height: 1.4;
-  color: var(--ink);
-  text-wrap: pretty;
-}
-
-.testimonial__attrib {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--ink-faint);
-}
-
-/* -------------------------------------------------------------------------
-   Instagram — studio-owned images, no embed, no third-party JS
-   ---------------------------------------------------------------------- */
-
-.ig-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-2);
-}
-
-@media (min-width: 48rem) {
-  .ig-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.ig-tile {
-  position: relative;
-  display: block;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background-color: var(--bg-raised);
-}
-
-.ig-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform var(--dur-3) var(--ease), opacity var(--dur-2) var(--ease);
-}
-
-.ig-tile:hover img {
-  transform: scale(1.03);
-  opacity: 0.86;
-}
-
-/* -------------------------------------------------------------------------
-   CTA band
-   ---------------------------------------------------------------------- */
-
-.cta {
-  display: grid;
-  gap: var(--sp-5);
-  padding-block: var(--section-y-lg);
-  border-top: 1px solid var(--line);
-}
-
-@media (min-width: 48rem) {
-  .cta {
-    grid-template-columns: 1.2fr 1fr;
-    align-items: end;
-    gap: var(--sp-8);
-  }
-}
-
-.cta__title {
-  font-size: var(--step-5);
-  max-width: 16ch;
-}
-
-.cta__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-3);
-  justify-content: flex-start;
-}
-
-@media (min-width: 48rem) {
-  .cta__actions {
-    justify-content: flex-end;
-  }
-}
 
 /* Same treatment as .foot__email: an address with a copy action reads as a
    link, and a bordered box at input height reads as a field to type in. */
@@ -938,91 +649,6 @@
   font-size: var(--step--1);
   color: var(--accent-deep);
   min-width: 3.5em;
-}
-
-/* -------------------------------------------------------------------------
-   Footer
-   ---------------------------------------------------------------------- */
-
-.site-footer {
-  border-top: 1px solid var(--line);
-  padding-block: var(--sp-7) var(--sp-5);
-  font-size: var(--step--1);
-}
-
-.site-footer__grid {
-  display: grid;
-  gap: var(--sp-6);
-}
-
-@media (min-width: 48rem) {
-  .site-footer__grid {
-    grid-template-columns: 1.4fr 1fr 1fr;
-    gap: var(--sp-7);
-  }
-}
-
-.site-footer__brand {
-  font-family: var(--font-mono);
-  color: var(--ink);
-  margin-bottom: var(--sp-2);
-}
-
-.site-footer__blurb {
-  color: var(--ink-faint);
-  max-width: 34ch;
-}
-
-.site-footer__heading {
-  font-family: var(--font-mono);
-  color: var(--ink-faint);
-  margin-bottom: var(--sp-3);
-}
-
-.site-footer__list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-.site-footer__list a {
-  color: var(--ink-muted);
-  text-decoration: none;
-}
-
-.site-footer__list a:hover {
-  color: var(--accent-deep);
-}
-
-.site-footer__base a {
-  display: inline-flex;
-  align-items: center;
-  /* min-width as well as min-height: a short label like "Terms" would
-     otherwise clear the height bar and miss the width one. */
-  min-height: var(--tap);
-  min-width: var(--tap);
-  justify-content: center;
-  padding-inline: var(--sp-2);
-  text-decoration: none;
-}
-
-.site-footer__base a:hover {
-  color: var(--accent-deep);
-}
-
-.site-footer__base {
-  margin-top: var(--sp-7);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--line);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-4);
-  justify-content: space-between;
-  color: var(--ink-faint);
-  font-family: var(--font-mono);
 }
 
 /* -------------------------------------------------------------------------
@@ -1334,7 +960,7 @@
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
   margin-top: var(--sp-4);
 }
 
@@ -1547,56 +1173,8 @@
 }
 
 /* -------------------------------------------------------------------------
-   Admin
+   Badges — the state of a record, read at a glance in the admin tables.
    ---------------------------------------------------------------------- */
-
-.admin {
-  padding-block: var(--sp-6) var(--section-y);
-}
-
-.admin__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding-bottom: var(--sp-4);
-  border-bottom: 1px solid var(--line);
-  margin-bottom: var(--sp-5);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--step--1);
-}
-
-.admin-table th,
-.admin-table td {
-  text-align: left;
-  padding: var(--sp-3) var(--sp-2);
-  border-bottom: 1px solid var(--line);
-  vertical-align: top;
-}
-
-.admin-table th {
-  font-family: var(--font-mono);
-  color: var(--ink-faint);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.admin-table td {
-  color: var(--ink-body);
-}
-
-.admin-table__scroll {
-  overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
 
 .badge {
   display: inline-block;
@@ -1882,6 +1460,27 @@
   .masthead__toggle {
     display: none;
   }
+
+  /*
+   * The horizontal row is the only arrangement where a nav link's hit area is
+   * exactly as wide as its label: "Work" in mono at `--step--1` measures 32px,
+   * and at 768px — an iPad in portrait — that is a thumb target, not a cursor
+   * one. Padding brings every link to 44px square, `--tap` on both axes.
+   *
+   * The row looks unchanged because the arithmetic is closed: the gap gives
+   * back what the padding takes (24px → 12px, plus 6px on each facing edge),
+   * and the negative margin cancels the padding the row's two outer edges
+   * would otherwise gain. Text sits where it always sat; only the invisible
+   * box grew. Below 48rem the links are full-width rows in the sheet and this
+   * does not apply.
+   */
+  .masthead__list {
+    gap: var(--sp-3);
+    margin-inline: -6px;
+  }
+  .masthead__link {
+    padding-inline: 6px;
+  }
 }
 
 /* -------------------------------------------------------------------------
@@ -1895,8 +1494,10 @@
   display: grid;
   /* One column below the split. The gap was --sp-7, which is a desktop's
      worth of air between a headline and a drawing that is already a screen
-     away on a phone. */
-  gap: var(--sp-6);
+     away on a phone. Tightened again to --sp-5 now the copy block no longer
+     carries its own bottom margin: the sheet should follow the actions, not
+     sit a screen below them. */
+  gap: var(--sp-5);
   align-items: stretch;
 }
 
@@ -1916,7 +1517,16 @@
       'intro figure'
       'meta meta';
     gap: var(--sp-5) var(--sp-8);
-    align-items: end;
+    /*
+     * Start, not end.
+     *
+     * The figure used to bottom-align with the copy, which left ~175px of
+     * nothing above the sheet on a 1440 screen: the drawing hung in the lower
+     * half of its column and read as a plate that had slipped off the page.
+     * Both columns now open on the same line, so the sheet sits at the eyebrow
+     * like a document laid beside its title.
+     */
+    align-items: start;
   }
 
   .hero__intro {
@@ -1929,7 +1539,6 @@
 
   .hero-figure {
     grid-area: figure;
-    align-self: end;
   }
 }
 
@@ -1973,13 +1582,15 @@
 }
 
 /* Primary action first, the quieter route beside it. Wraps rather than
-   overflowing at 320px, and the gap is the only spacing rule needed. */
+   overflowing at 320px, and the gap is the only spacing rule needed.
+   No bottom margin: on desktop the meta strip is its own grid area and on
+   phone the grid gap already separates the columns, so a margin here was
+   32px of dead air stacked on top of the gap it did not need. */
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2) var(--sp-4);
-  margin-bottom: var(--sp-6);
 }
 
 .hero__meta {
@@ -1994,13 +1605,16 @@
 }
 
 /* Mono label over a plain-language value: the label is the only uppercase
-   text, so the value stays readable at a glance. */
+   text, so the value stays readable at a glance.
+   Muted, not faint. Uppercase mono at --step--1 is the smallest text on the
+   page, and the faint tone measured 4.63:1 against the hero curtain — inside
+   AA, but with nothing to spare for a screen that renders it lighter. */
 .hero__meta-label {
   font-family: var(--font-mono);
   font-size: var(--step--1);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 
 .hero__meta-value {
@@ -2018,12 +1632,14 @@
 }
 
 /*
- * Four across once there is room for four.
+ * Four across once the hero is a split.
  *
- * Below this the facts stack two by two, which is a phone's worth of width
- * per value and keeps every line of every value on one line.
+ * This used to be 48rem, which put four facts into a 768px single column:
+ * every value wrapped to two lines and the strip read as a paragraph rather
+ * than as four facts. Below the split they stack two by two, which is a
+ * phone's worth of width per value and keeps each value on one line.
  */
-@media (min-width: 48rem) {
+@media (min-width: 64rem) {
   .hero__meta {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--sp-3) var(--sp-6);
@@ -2031,16 +1647,17 @@
 }
 
 /*
- * The hero visual is a hand-drawn scene, not a product frame: strokes carry
- * the drawing and colour appears only where a pen would have left it. All
- * geometry lives in the SVG; this block only dresses it in tokens.
- */
-/*
- * The hero figure: a file of ruled lines that answers the pointer.
+ * The hero figure: a project sheet being worked.
  *
- * The stage reserves a 5:4 box before any JavaScript runs, so the static
- * frame and the live figure occupy identical space and the upgrade never
- * shifts the page. Both states are absolutely positioned inside it.
+ * The stage reserves a 400 × 420 box before any JavaScript runs, so the
+ * static frame and the live figure occupy identical space and the upgrade
+ * never shifts the page.
+ *
+ * Everything that gives the drawing its weight is static — the sheet's paper,
+ * the ledger margin, the rules, the rail, the title block. Only the work that
+ * is being *done* to the sheet animates. That is the difference between a
+ * figure that reads as a document and one that reads as an empty box with a
+ * line through it.
  */
 .hero-figure {
   margin: 0;
@@ -2048,9 +1665,7 @@
 
 .hero-figure__stage {
   position: relative;
-  /* Matches the cropped viewBox (400 × 264): the ruled band of the sheet
-     with 32 units of margin above and below, no dead space beyond that. */
-  aspect-ratio: 400 / 264;
+  aspect-ratio: 400 / 420;
   width: 100%;
 }
 
@@ -2058,16 +1673,14 @@
    The hero answers the driver (src/scripts/hero-driver.ts).
 
    One module owns pointer position and hero scroll progress and publishes
-   them as custom properties on .hero; the type and the figure both read the
-   same numbers, so nothing on screen disagrees. The variables are unset
-   unless the driver is mounted (fine pointer, motion allowed), and the
-   fallback of 0 resolves to an identity transform — so touch, reduced-motion
-   and no-JS visitors get the exact static composition, with no rule to
-   unwind.
+   them as custom properties on .hero; the figure reads the same numbers, so
+   nothing on screen disagrees. The variables are unset unless the driver is
+   mounted (fine pointer, motion allowed), and the fallback of 0 resolves to
+   an identity transform — so touch, reduced-motion and no-JS visitors get
+   the exact static composition, with no rule to unwind.
 
    Transforms only: no layout property is touched, the driver eases its own
-   values so no transition is needed, and both layers are composited (no
-   reflow, no repaint of the sheet).
+   values so no transition is needed, and the layer is composited.
    ---------------------------------------------------------------------- */
 /*
  * The words do not move.
@@ -2093,10 +1706,6 @@
   will-change: transform;
 }
 
-/* The figure moves against the type, by a slightly larger amount: the sheet
-   and the words stay a held distance apart while both drift — the ledger and
-   the hand writing on it. */
-
 @media (prefers-reduced-motion: reduce) {
   .hero-figure__drift {
     transform: none;
@@ -2105,9 +1714,9 @@
 
   /*
    * The build loop stops. What is left is the poster frame: the same
-   * composition with the build already finished — all three stations on
-   * the sheet, receipts down, check drawn, crate riding out, both people
-   * at the edge — which is a drawing, not an empty box.
+   * composition with the sheet already finished — every entry written, the
+   * build assembled, the check drawn, all five stages lit, the stamp down and
+   * the crew at the foot of the margin — which is a drawing, not an empty box.
    */
   .hero-figure__static * {
     animation: none !important;
@@ -2115,12 +1724,6 @@
 
   .hero-figure__readout .hf-phase {
     animation: none !important;
-  }
-
-  /* The poster state, not the loop's opening frame: Ship is the stage the
-     build finished on, so its label is the acid. */
-  .hero-figure .hf-station--ship .hf-label {
-    fill: var(--accent-deep);
   }
 
   /* Three classes, so this beats the `.hero-figure .hf-phase` rule further
@@ -2140,47 +1743,49 @@
 /*
  * The drawing.
  *
- * Two lines: the upper one is the method (Build · Run · Ship), the lower one
- * is what it leaves behind — the work, written as receipts. Two people are
- * two dots riding the upper line, an acid dot leading and a hollow one
- * keeping pace. Every stroke is a token, and the acid appears only where
- * something is filled, checked or delivered — a fill, never a letter.
+ * Base styles are the poster state: the loop's 0% keyframe is its own first
+ * frame, so under reduced motion `animation: none` lands on the finished sheet
+ * with no duplicate rules to keep in phase.
  *
- * Base styles are the poster state: the loop's 0% keyframe is its first
- * frame, so under reduced motion `animation: none` lands on the finished
- * build with no duplicate rules to keep in phase.
+ * The acid appears only where something is filled or delivered — a fill,
+ * never a letter. Every green word is --accent-deep.
  */
 .hero-figure .hf-sheet {
-  fill: none;
-  stroke: var(--line);
-}
-
-.hero-figure .hf-run-line,
-.hero-figure .hf-built-line {
-  fill: none;
-  stroke: var(--line-strong);
-  stroke-width: 1.3;
-  stroke-linecap: round;
-}
-
-.hero-figure .hf-line {
-  fill: none;
-  stroke: var(--line-strong);
-  stroke-width: 1.2;
-  stroke-linecap: round;
-}
-
-.hero-figure .hf-line--faint {
-  opacity: 0.45;
-}
-
-.hero-figure .hf-tick {
-  fill: none;
+  fill: var(--lift-1);
   stroke: var(--line-strong);
   stroke-width: 1;
 }
 
-.hero-figure .hf-label {
+.hero-figure .hf-margin {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.hero-figure .hf-rule {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.hero-figure .hf-rule--strong {
+  stroke: var(--line-strong);
+}
+
+/* The printed sign-off field: present at rest, so the footer of the sheet is
+   never blank. Dashed, because it is a space to be filled and not a rule. */
+.hero-figure .hf-field {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.hero-figure .hf-track {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.hero-figure .hf-meta {
   fill: var(--ink-faint);
   font-family: var(--font-mono);
   font-size: 7px;
@@ -2188,255 +1793,358 @@
   text-transform: uppercase;
 }
 
-/* A receipt: the hairline a station drops to the lower line, and the work
-   that lands where it arrives. Each grows from its own station's origin,
-   pinned in the drawing's own units. */
-.hero-figure .hf-drop {
-  fill: none;
+.hero-figure .hf-meta--index {
+  fill: var(--accent-deep);
+}
+
+.hero-figure .hf-label {
+  fill: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 6.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The rail: a faint track, an acid-deep fill that runs down it, and one pip
+   per stage. The fill is the only element that moves continuously, which is
+   what makes the sheet read as *progressing* rather than flickering. */
+.hero-figure .hf-rail {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.hero-figure .hf-rail-fill {
+  stroke: var(--line-strong);
+  stroke-width: 1.4;
+  transform-box: view-box;
+  transform-origin: 336px 84px;
+  transform: scaleY(1);
+}
+
+.hero-figure .hf-pip {
+  /* Base is the poster state: every stage reached, so every pip filled. The
+     loop's 0% keyframe empties them again — see hf-pip-*. */
+  fill: var(--accent);
   stroke: var(--line-strong);
   stroke-width: 1;
+}
+
+.hero-figure .hf-stage {
   transform-box: view-box;
 }
 
-.hero-figure .hf-land {
-  fill: var(--line-strong);
+/* An entry: a line of the brief written onto a rule of the ledger. */
+.hero-figure .hf-entry {
+  stroke: var(--line-strong);
+  stroke-width: 5;
+  stroke-linecap: butt;
   transform-box: view-box;
+  transform-origin: 72px 0;
+  transform: scaleX(1);
 }
 
-.hero-figure .hf-station--build .hf-drop { transform-origin: 110px 150px; }
-.hero-figure .hf-station--run   .hf-drop { transform-origin: 212px 150px; }
-.hero-figure .hf-station--ship  .hf-drop { transform-origin: 314px 150px; }
-.hero-figure .hf-station--build .hf-land { transform-origin: 110px 250px; }
-.hero-figure .hf-station--run   .hf-land { transform-origin: 212px 250px; }
-.hero-figure .hf-station--ship  .hf-land { transform-origin: 314px 250px; }
-
-/* The check draws itself when the run passes. */
-.hero-figure .hf-check {
-  fill: none;
-  stroke: var(--accent-deep);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 26;
-  stroke-dashoffset: 0;
-}
-
-/* The two people: the lead dot is acid-filled, the follower is hollow with
-   the same acid for its outline. */
+/* The crew — two people on the margin. Both marks are solid: a filled dot next
+   to a hollow ring reads as one control in two states, which is a progress
+   metaphor the rail already owns. Two solid marks of different weight read as
+   two people. */
 .hero-figure .hf-dot--lead {
   fill: var(--accent);
+  stroke: var(--line-strong);
+  stroke-width: 1;
 }
 
 .hero-figure .hf-dot--follow {
-  fill: var(--bg);
+  fill: var(--ink-faint);
+}
+
+.hero-figure .hf-crew {
+  transform-box: view-box;
+  transform: translateY(216px);
+}
+
+.hero-figure .hf-frame {
+  /* The paper again, so the assembled interface sits *on* the sheet and
+     occludes the two rules it straddles rather than having them strike
+     through its own content lines. */
+  fill: var(--lift-1);
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+  stroke-dasharray: 388;
+  stroke-dashoffset: 0;
+}
+
+.hero-figure .hf-frame-part {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.hero-figure .hf-frame-block {
+  fill: var(--accent);
+  transform-box: view-box;
+  transform-origin: 108px 0;
+  transform: scaleX(1);
+}
+
+.hero-figure .hf-check {
+  fill: none;
+  stroke: var(--accent-deep);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 34;
+  stroke-dashoffset: 0;
+}
+
+.hero-figure .hf-label--verify {
+  fill: var(--accent-deep);
+}
+
+.hero-figure .hf-stamp-box {
+  /* Paper, not air: the stamp lands *over* the printed field and has to hide
+     its dashes, or the two rects fight at the same coordinates. */
+  fill: var(--lift-1);
   stroke: var(--accent-deep);
   stroke-width: 1.2;
 }
 
-/* The delivery: the crate and the flag on it. The crate body occludes the
-   lower line while it rides it, so it is filled with the page. */
-.hero-figure .hf-crate-body {
-  fill: var(--bg);
+.hero-figure .hf-stamp-bar {
+  fill: var(--accent);
+}
+
+.hero-figure .hf-stamp-label {
+  fill: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-anchor: middle;
+}
+
+.hero-figure .hf-stamp {
+  transform-box: view-box;
+  transform-origin: 130px 380px;
+  transform: scale(1);
+}
+
+.hero-figure .hf-delivery-rule {
   stroke: var(--line-strong);
   stroke-width: 1.2;
 }
 
-.hero-figure .hf-flag-mark {
+.hero-figure .hf-delivery-head {
   fill: var(--accent);
 }
 
 /*
  * The loop.
  *
- * Twelve seconds, one timeline, no JavaScript. 0–7% the pair walks in;
- * BUILD appears 2–5% and drops its receipt 8–24%; the pair moves to Run at
- * 22–28%; RUN appears 30–34%, the check draws 34–40% and its receipt drops
- * 40–56%; the pair moves to Ship at 46–52%; SHIP appears 52–56%, the crate
- * is delivered 56–62% and the flag pops 62–66%; the crate rides the lower
- * line out of the sheet 66–76%, the pair follows to the edge 78–86%; the
- * stations fade 88–94% and the next build walks in from the left.
+ * Twelve seconds, one timeline, no JavaScript. BRIEF writes three entries
+ * 4–20%; the crew steps down and SPEC writes two more 24–35%; BUILD draws the
+ * frame 40–46% and assembles it to 60%; VERIFY draws the check 64–70% and names
+ * it to 74%; SHIP lands the stamp 78–84% and runs the delivery rule out to
+ * 88%. The sheet then holds complete 88–95% — the resting state is the poster
+ * state, so the loop spends its quietest moment on the thing it is describing —
+ * and the entries fade back out for the next brief.
  *
- * Per-element keyframes: every element's 0% is the loop's own first frame
- * and every hold is pinned, so nothing drifts or half-undraws at the wrap.
- * Every animated property is transform, opacity or stroke-dashoffset —
- * except the fill of four mono words, which is paint on a twelve-second
- * cycle, not layout.
+ * Per-element keyframes: every element's 0% is the loop's own first frame and
+ * every hold is pinned, so nothing drifts or half-undraws at the wrap. Every
+ * animated property is transform, opacity or stroke-dashoffset — paint and
+ * composite only, never layout.
  */
-@keyframes hf-pair-walk {
-  0% { transform: translateX(-140px); opacity: 0; }
-  5% { opacity: 1; }
-  7%, 22% { transform: translateX(0); }
-  28% { transform: translateX(96px); }
-  46% { transform: translateX(96px); }
-  52% { transform: translateX(192px); }
-  78% { transform: translateX(192px); }
-  86% { transform: translateX(270px); opacity: 1; }
-  90%, 100% { transform: translateX(270px); opacity: 0; }
+@keyframes hf-entry-1 {
+  0%, 4% { transform: scaleX(0); }
+  9%, 95% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
 }
 
-@keyframes hf-pair-bob {
+@keyframes hf-entry-2 {
+  0%, 9% { transform: scaleX(0); }
+  14%, 95% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+@keyframes hf-entry-3 {
+  0%, 14% { transform: scaleX(0); }
+  20%, 95% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+@keyframes hf-entry-4 {
+  0%, 24% { transform: scaleX(0); }
+  29%, 95% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+@keyframes hf-entry-5 {
+  0%, 29% { transform: scaleX(0); }
+  35%, 95% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+/* The crew walks down the margin, one step per finished stage. */
+@keyframes hf-crew-down {
+  0% { transform: translateY(0); }
+  20%, 22% { transform: translateY(0); }
+  24%, 36% { transform: translateY(54px); }
+  38%, 60% { transform: translateY(108px); }
+  62%, 74% { transform: translateY(162px); }
+  76%, 95% { transform: translateY(216px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes hf-crew-bob {
   0%, 25%, 50%, 75%, 100% { transform: translateY(0); }
   12.5%, 37.5%, 62.5%, 87.5% { transform: translateY(-1.6px); }
 }
 
-@keyframes hf-station-build {
-  0%, 2% { opacity: 0; }
-  5%, 88% { opacity: 1; }
-  94%, 100% { opacity: 0; }
+/* The rail runs the length of the sheet across the whole build. */
+@keyframes hf-rail-fill {
+  0%, 4% { transform: scaleY(0); }
+  88%, 95% { transform: scaleY(1); }
+  100% { transform: scaleY(0); }
 }
 
-@keyframes hf-station-run {
-  0%, 30% { opacity: 0; }
-  34%, 88% { opacity: 1; }
-  94%, 100% { opacity: 0; }
+@keyframes hf-stage-brief {
+  0%, 3% { opacity: 0.45; }
+  5%, 95% { opacity: 1; }
+  100% { opacity: 0.45; }
 }
 
-@keyframes hf-station-ship {
-  0%, 52% { opacity: 0; }
-  56%, 88% { opacity: 1; }
-  94%, 100% { opacity: 0; }
+@keyframes hf-stage-spec {
+  0%, 23% { opacity: 0.45; }
+  25%, 95% { opacity: 1; }
+  100% { opacity: 0.45; }
 }
 
-@keyframes hf-drop-build {
-  0%, 8% { transform: scaleY(0); }
-  22%, 94% { transform: scaleY(1); }
-  98%, 100% { transform: scaleY(0); }
+@keyframes hf-stage-build {
+  0%, 39% { opacity: 0.45; }
+  41%, 95% { opacity: 1; }
+  100% { opacity: 0.45; }
 }
 
-@keyframes hf-drop-run {
-  0%, 40% { transform: scaleY(0); }
-  52%, 94% { transform: scaleY(1); }
-  98%, 100% { transform: scaleY(0); }
+@keyframes hf-stage-verify {
+  0%, 63% { opacity: 0.45; }
+  65%, 95% { opacity: 1; }
+  100% { opacity: 0.45; }
 }
 
-@keyframes hf-drop-ship {
-  0%, 60% { transform: scaleY(0); }
-  70%, 94% { transform: scaleY(1); }
-  98%, 100% { transform: scaleY(0); }
+@keyframes hf-stage-ship {
+  0%, 77% { opacity: 0.45; }
+  79%, 95% { opacity: 1; }
+  100% { opacity: 0.45; }
 }
 
-@keyframes hf-land-build {
-  0%, 18% { transform: scaleX(0); }
-  24%, 94% { transform: scaleX(1); }
-  98%, 100% { transform: scaleX(0); }
+/* The pip fills when its stage is reached. */
+@keyframes hf-pip-brief {
+  0%, 3% { fill: var(--bg-hero); }
+  5%, 95% { fill: var(--accent); }
+  100% { fill: var(--bg-hero); }
 }
 
-@keyframes hf-land-run {
-  0%, 50% { transform: scaleX(0); }
-  56%, 94% { transform: scaleX(1); }
-  98%, 100% { transform: scaleX(0); }
+@keyframes hf-pip-spec {
+  0%, 23% { fill: var(--bg-hero); }
+  25%, 95% { fill: var(--accent); }
+  100% { fill: var(--bg-hero); }
 }
 
-@keyframes hf-land-ship {
-  0%, 68% { transform: scaleX(0); }
-  74%, 94% { transform: scaleX(1); }
-  98%, 100% { transform: scaleX(0); }
+@keyframes hf-pip-build {
+  0%, 39% { fill: var(--bg-hero); }
+  41%, 95% { fill: var(--accent); }
+  100% { fill: var(--bg-hero); }
 }
 
-/* The labels fill to acid while their stage is being worked. */
-@keyframes hf-label-build {
-  0%, 4% { fill: var(--ink-faint); }
-  8%, 28% { fill: var(--accent-deep); }
-  34%, 100% { fill: var(--ink-faint); }
+@keyframes hf-pip-verify {
+  0%, 63% { fill: var(--bg-hero); }
+  65%, 95% { fill: var(--accent); }
+  100% { fill: var(--bg-hero); }
 }
 
-@keyframes hf-label-run {
-  0%, 34% { fill: var(--ink-faint); }
-  38%, 52% { fill: var(--accent-deep); }
-  58%, 100% { fill: var(--ink-faint); }
+@keyframes hf-pip-ship {
+  0%, 77% { fill: var(--bg-hero); }
+  79%, 95% { fill: var(--accent); }
+  100% { fill: var(--bg-hero); }
 }
 
-@keyframes hf-label-ship {
-  0%, 56% { fill: var(--ink-faint); }
-  60%, 78% { fill: var(--accent-deep); }
-  84%, 100% { fill: var(--ink-faint); }
+/* BUILD — the frame is drawn, then its parts appear, then the block fills. */
+@keyframes hf-frame-draw {
+  0%, 40% { stroke-dashoffset: 388; opacity: 0; }
+  42% { opacity: 1; }
+  48%, 95% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 388; opacity: 0; }
+}
+
+@keyframes hf-frame-parts {
+  0%, 48% { opacity: 0; }
+  54%, 95% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes hf-frame-block {
+  0%, 54% { transform: scaleX(0); }
+  60%, 95% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
 }
 
 @keyframes hf-check-draw {
-  0%, 34% { stroke-dashoffset: 26; opacity: 0; }
-  36% { opacity: 1; }
-  40%, 94% { stroke-dashoffset: 0; opacity: 1; }
-  98%, 100% { stroke-dashoffset: 26; opacity: 0; }
+  0%, 64% { stroke-dashoffset: 34; opacity: 0; }
+  66% { opacity: 1; }
+  70%, 95% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 34; opacity: 0; }
 }
 
-@keyframes hf-crate-out {
-  0%, 56% { transform: translateX(0); opacity: 0; }
-  62% { transform: translateX(12px); opacity: 1; }
-  76%, 100% { transform: translateX(146px); opacity: 1; }
+@keyframes hf-verify-label {
+  0%, 70% { opacity: 0; }
+  74%, 95% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
-@keyframes hf-flag-pop {
-  0%, 62% { transform: scale(0); opacity: 0; }
-  66% { transform: scale(1.15); opacity: 1; }
-  70%, 100% { transform: scale(1); opacity: 1; }
+@keyframes hf-stamp-down {
+  0%, 78% { transform: scale(0.82); opacity: 0; }
+  82% { transform: scale(1.04); opacity: 1; }
+  84%, 95% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.82); opacity: 0; }
 }
 
-/*
- * The readout. Each stage owns its own window of the loop instead of sharing
- * one keyframe with a negative delay, so the caption can never disagree with
- * the drawing: BUILD owns 0–28%, RUN 30–52%, SHIP 54–88%, and the caption
- * goes back to BUILD exactly when the stations fade for the next build.
- */
-@keyframes hf-phase-build {
-  0%, 28% { opacity: 1; }
-  30%, 92% { opacity: 0; }
-  96%, 100% { opacity: 1; }
+@keyframes hf-delivery-out {
+  0%, 84% { transform: translateX(-14px); opacity: 0; }
+  88%, 95% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(-14px); opacity: 0; }
 }
 
-@keyframes hf-phase-run {
-  0%, 28% { opacity: 0; }
-  30%, 52% { opacity: 1; }
-  54%, 100% { opacity: 0; }
-}
+/* The loop bindings. Every element carries its poster position as its base
+   transform, so a reduced-motion reader gets the finished sheet. */
+.hero-figure .hf-entry--1 { animation: hf-entry-1 12s linear infinite; }
+.hero-figure .hf-entry--2 { animation: hf-entry-2 12s linear infinite; }
+.hero-figure .hf-entry--3 { animation: hf-entry-3 12s linear infinite; }
+.hero-figure .hf-entry--4 { animation: hf-entry-4 12s linear infinite; }
+.hero-figure .hf-entry--5 { animation: hf-entry-5 12s linear infinite; }
 
-@keyframes hf-phase-ship {
-  0%, 52% { opacity: 0; }
-  54%, 86% { opacity: 1; }
-  88%, 100% { opacity: 0; }
-}
+.hero-figure .hf-crew { animation: hf-crew-down 12s linear infinite; }
+.hero-figure .hf-crew-bob { animation: hf-crew-bob 12s ease-in-out infinite; }
 
-/* The loop itself. The pair and the crate carry their poster position as
-   their base transform, so a reduced-motion reader gets the finished build. */
-.hero-figure .hf-pair {
-  transform: translateX(270px);
-  animation: hf-pair-walk 12s linear infinite;
-}
+.hero-figure .hf-rail-fill { animation: hf-rail-fill 12s linear infinite; }
 
-.hero-figure .hf-pair-bob {
-  animation: hf-pair-bob 12s ease-in-out infinite;
-}
+.hero-figure .hf-stage--brief { animation: hf-stage-brief 12s linear infinite; }
+.hero-figure .hf-stage--spec { animation: hf-stage-spec 12s linear infinite; }
+.hero-figure .hf-stage--build { animation: hf-stage-build 12s linear infinite; }
+.hero-figure .hf-stage--verify { animation: hf-stage-verify 12s linear infinite; }
+.hero-figure .hf-stage--ship { animation: hf-stage-ship 12s linear infinite; }
 
-.hero-figure .hf-station--build { animation: hf-station-build 12s linear infinite; }
-.hero-figure .hf-station--run { animation: hf-station-run 12s linear infinite; }
-.hero-figure .hf-station--ship { animation: hf-station-ship 12s linear infinite; }
+.hero-figure .hf-stage--brief .hf-pip { animation: hf-pip-brief 12s linear infinite; }
+.hero-figure .hf-stage--spec .hf-pip { animation: hf-pip-spec 12s linear infinite; }
+.hero-figure .hf-stage--build .hf-pip { animation: hf-pip-build 12s linear infinite; }
+.hero-figure .hf-stage--verify .hf-pip { animation: hf-pip-verify 12s linear infinite; }
+.hero-figure .hf-stage--ship .hf-pip { animation: hf-pip-ship 12s linear infinite; }
 
-.hero-figure .hf-station--build .hf-drop { animation: hf-drop-build 12s linear infinite; }
-.hero-figure .hf-station--run   .hf-drop { animation: hf-drop-run 12s linear infinite; }
-.hero-figure .hf-station--ship  .hf-drop { animation: hf-drop-ship 12s linear infinite; }
-
-.hero-figure .hf-station--build .hf-land { animation: hf-land-build 12s linear infinite; }
-.hero-figure .hf-station--run   .hf-land { animation: hf-land-run 12s linear infinite; }
-.hero-figure .hf-station--ship  .hf-land { animation: hf-land-ship 12s linear infinite; }
-
-/* The labels fill to acid while their stage is being worked. */
-.hero-figure .hf-station--build .hf-label { animation: hf-label-build 12s linear infinite; }
-.hero-figure .hf-station--run   .hf-label { animation: hf-label-run 12s linear infinite; }
-.hero-figure .hf-station--ship  .hf-label { animation: hf-label-ship 12s linear infinite; }
+.hero-figure .hf-frame { animation: hf-frame-draw 12s linear infinite; }
+.hero-figure .hf-frame-part { animation: hf-frame-parts 12s linear infinite; }
+.hero-figure .hf-frame-block { animation: hf-frame-block 12s linear infinite; }
 
 .hero-figure .hf-check { animation: hf-check-draw 12s linear infinite; }
+.hero-figure .hf-label--verify { animation: hf-verify-label 12s linear infinite; }
 
-.hero-figure .hf-crate {
-  /* Poster: the build has ridden out of the sheet. */
-  transform: translateX(146px);
-  animation: hf-crate-out 12s ease-in-out infinite;
-  transform-box: view-box;
-}
-
-.hero-figure .hf-flag {
-  animation: hf-flag-pop 12s ease-out infinite;
-  transform-box: view-box;
-  transform-origin: 307px 236px;
-}
+.hero-figure .hf-stamp { animation: hf-stamp-down 12s ease-out infinite; }
+.hero-figure .hf-delivery { animation: hf-delivery-out 12s ease-out infinite; }
 
 .hero-figure__caption {
   display: flex;
@@ -2460,9 +2168,29 @@
   min-width: 0;
 }
 
+/*
+ * A phone's width does not hold "Fig. 01", a sentence and a stage name on one
+ * ruled line: the sentence broke and left "people." alone on the second row
+ * under the index. Two rows instead — the index and the stage name share the
+ * first, the sentence gets the second.
+ */
+@media (max-width: 29.99rem) {
+  .hero-figure__caption {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    column-gap: var(--sp-3);
+    row-gap: var(--sp-1);
+  }
+
+  .hero-figure__note {
+    grid-column: 1 / -1;
+  }
+}
+
 .hero-figure__readout {
   /*
-   * A grid, not a text node: the three stage labels sit in the same cell and
+   * A grid, not a text node: the five stage labels sit in the same cell and
    * the CSS loop fades between them, so the caption never reflows and never
    * needs a word of JavaScript to know what the drawing is doing.
    */
@@ -2472,7 +2200,7 @@
   text-transform: uppercase;
   /* Reserved width: the readout changes when the build moves stage, and a
      caption that reflows under the pointer reads as a glitch. */
-  min-inline-size: 7ch;
+  min-inline-size: 8ch;
   text-align: right;
 }
 
@@ -2487,16 +2215,60 @@
   margin-inline-start: auto;
 }
 
-/* The three stages take one third of the loop each. */
+/* The five stages take their own window of the loop, matching the drawing. */
+.hero-figure .hf-phase--brief { animation: hf-phase-brief 12s linear infinite; }
+.hero-figure .hf-phase--spec { animation: hf-phase-spec 12s linear infinite; }
 .hero-figure .hf-phase--build { animation: hf-phase-build 12s linear infinite; }
-.hero-figure .hf-phase--run { animation: hf-phase-run 12s linear infinite; }
+.hero-figure .hf-phase--verify { animation: hf-phase-verify 12s linear infinite; }
 .hero-figure .hf-phase--ship { animation: hf-phase-ship 12s linear infinite; }
+
+/*
+ * The five windows are butted, not ramped. A 2% ramp cross-faded two stage
+ * names in the same grid cell, which read as overprinted garbage for a fifth
+ * of a second on every stage change — and a caption that flickers into
+ * nonsense is worse than one that does not change.
+ *
+ * The 0.1% step is load-bearing. Two rules sharing an offset (`24%` here and
+ * `24%` there) do not hold and then cut: the cascade keeps only the later
+ * declaration for that offset, so the previous window ramped to zero across
+ * its whole span instead of holding. 0.1% of 12s is 12ms — a hard cut that
+ * survives the cascade.
+ */
+@keyframes hf-phase-brief {
+  0%, 23.9% { opacity: 1; }
+  24%, 95.9% { opacity: 0; }
+  96%, 100% { opacity: 1; }
+}
+
+@keyframes hf-phase-spec {
+  0%, 23.9% { opacity: 0; }
+  24%, 39.9% { opacity: 1; }
+  40%, 100% { opacity: 0; }
+}
+
+@keyframes hf-phase-build {
+  0%, 39.9% { opacity: 0; }
+  40%, 63.9% { opacity: 1; }
+  64%, 100% { opacity: 0; }
+}
+
+@keyframes hf-phase-verify {
+  0%, 63.9% { opacity: 0; }
+  64%, 77.9% { opacity: 1; }
+  78%, 100% { opacity: 0; }
+}
+
+@keyframes hf-phase-ship {
+  0%, 77.9% { opacity: 0; }
+  78%, 95.9% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
 
 @media (max-width: 63.99rem) {
   /* Below the split, the figure sits under the copy: cap it so it never
      dominates a phone screen. */
   .hero-figure {
-    max-width: 30rem;
+    max-width: 26rem;
   }
 }
 
@@ -2658,13 +2430,6 @@ main:has(.closing) ~ .foot .foot__statement {
   border-left: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-.pointer__title {
-  font-family: var(--font-display);
-  font-size: var(--step-2);
-  color: var(--ink);
-  max-width: 24ch;
-}
-
 .pointer__body {
   color: var(--ink-muted);
   max-width: 68ch;
@@ -2692,7 +2457,11 @@ main:has(.closing) ~ .foot .foot__statement {
     grid-row: 1;
   }
 
-  .pointer p:last-child {
+  /* Anything that is not one of the two statements — the action, the footnote —
+     runs under both of them. Pinned to the last child only, the action stayed in
+     the first track and the panel grew a hole in its bottom right corner: the
+     two columns are the same height only where both are filled. */
+  .pointer > p:not(.pointer__body) {
     grid-column: 1 / -1;
   }
 }
@@ -2839,11 +2608,14 @@ main > section {
    statement rather than a category label — "What we build and run ourselves."
    instead of "Products" as an h1 — because a label as a heading is the
    clearest tell of a generated page.
+
+   No border-bottom. The seam under the page head belongs to the section that
+   follows it, at the same weight as every other section break — two rules
+   meeting one pixel apart is how the old two-pixel band edge got drawn.
    ---------------------------------------------------------------------- */
 
 .page-head {
   padding-block: var(--sp-8) var(--sp-7);
-  border-bottom: 1px solid var(--line);
 }
 
 .page-head__title {
@@ -2925,7 +2697,11 @@ main > section {
   gap: var(--sp-3);
   padding: var(--sp-3);
   background-color: var(--lift-1);
-  border: 1px solid var(--line);
+  /* --line, not --line-soft, used to be the card's edge: at 1.24:1 against the
+     page it was not a boundary, it was a suggestion, and the card read as text
+     floating on the page rather than as a surface lifted off it. A UI edge needs
+     3:1; --line-soft is the faintest token that clears it. */
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius);
   overflow: hidden;
   transition:
@@ -2936,7 +2712,7 @@ main > section {
 @media (hover: hover) {
   .product:hover {
     background-color: var(--lift-2);
-    border-color: var(--line-soft);
+    border-color: var(--line-strong);
   }
 }
 
@@ -3052,11 +2828,18 @@ main > section {
 /* Pinned to the corner rather than centred: centred, it landed on top of the
    monogram and the two fought — a chip over a letterform is the one
    arrangement on this card that looked accidental. Corner-anchored, the ghost
-   gets the middle of the frame and the fact gets the margin. */
+   gets the middle of the frame and the fact gets the margin.
+
+   It sits on --sp-4, the same inset as the registration ticks, so the chip
+   closes the fourth corner of their frame instead of overlapping it from
+   outside. The fill is opaque for the same reason: a translucent one let the
+   tick beneath it ghost through at a fifth strength, and a hairline emerging
+   from behind an applied label reads as a misregistration. An applied label
+   covers what it is applied to. */
 .product__plate-note {
   position: absolute;
-  inset-inline-start: var(--sp-3);
-  inset-block-end: var(--sp-3);
+  inset-inline-start: var(--sp-4);
+  inset-block-end: var(--sp-4);
   z-index: 1;
   font-family: var(--font-mono);
   font-size: var(--step--1);
@@ -3067,7 +2850,7 @@ main > section {
   max-width: 18ch;
   text-align: left;
   padding: var(--sp-1) var(--sp-2);
-  background-color: var(--plate-note-bg);
+  background-color: var(--lift-3);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
@@ -3160,19 +2943,25 @@ main > section {
   text-wrap: pretty;
 }
 
+/*
+ * Two rows, always: the stack above the actions.
+ *
+ * This was a wrapping flex row, which meant a short stack ("Flutter · Riverpod
+ * · Drift") shared a line with the link and a long one ("React Native · Expo ·
+ * TypeScript") pushed it down — so two cards in the same row had the same
+ * parts in a different order. The stack is a variable-length list of the
+ * studio's own choosing; a layout that depends on its width is not a layout.
+ */
 .product__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: var(--sp-3);
   margin-top: auto;
   padding-top: var(--sp-3);
   border-top: 1px solid var(--line);
 }
 
-/* The two outbound actions sit together on the left of the foot; the stack
-   is metadata and drifts right when there is room. */
+/* The outbound actions read left to right in the order a visitor weighs them:
+   try the thing, then read about it. */
 .product__actions {
   display: inline-flex;
   flex-wrap: wrap;
@@ -3208,14 +2997,17 @@ main > section {
    ---------------------------------------------------------------------- */
 .products__more {
   position: relative;
+  /* Three cards across, this cell is the third of them and the row is as tall
+     as the two real cards. Stretched, it ended 160px below its own last line —
+     which is the emptiness this cell was already accused of, now framed.
+     It opens on the cards' line and closes where its content closes; the slack
+     belongs to the page, not to the cell. */
+  align-self: start;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
   gap: var(--sp-3);
-  min-height: 11rem;
-  padding: var(--sp-5);
-  border: 1px solid var(--line);
+  padding: var(--sp-3);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius);
   text-decoration: none;
   transition:
@@ -3229,23 +3021,55 @@ main > section {
     border-color: var(--line-strong);
   }
 
-  .products__more:hover .btn__arrow {
-    transform: translateX(3px);
+  .products__more:hover .products__more-arrow {
+    color: var(--line-strong);
+  }
+}
+
+/* The plate band: the same height as a card's figure, so the two cells in the
+   row open on the same line. It carries no fill and no outline — a dashed rect
+   is what a placeholder component looks like, and this plate is not waiting
+   for an image, it is deliberately empty. The corner ticks alone say so.
+   The arrow is the only mark on it, and it is the plate saying where the rest
+   of the row lives. */
+.products__more-plate {
+  position: relative;
+  aspect-ratio: 2 / 1;
+}
+
+@media (min-width: 48rem) {
+  .products__more-plate {
+    aspect-ratio: 5 / 2;
   }
 }
 
 .products__more-ticks {
   position: absolute;
-  inset: var(--sp-3);
+  inset: var(--sp-4);
   background: var(--ticks);
   opacity: 0.55;
   pointer-events: none;
 }
 
-.products__more-label {
-  display: inline-flex;
-  align-items: center;
+.products__more-arrow {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--step-2);
+  line-height: 1;
+  color: var(--line-ghost);
+  transition: color var(--dur-2) var(--ease);
+}
+
+.products__more-body {
+  display: flex;
+  flex-direction: column;
   gap: var(--sp-2);
+}
+
+.products__more-label {
   font-family: var(--font-mono);
   font-size: var(--step-0);
   color: var(--ink);
@@ -3590,6 +3414,13 @@ main > section {
    ---------------------------------------------------------------------- */
 
 .services-table {
+  /* The 404 list is a real <ul>, and the UA gave it 40px of inline padding and
+     a block margin that nothing else on the site has: the rows hung 28px inside
+     their own hairlines. The home and services uses are <div>s and inherit
+     nothing from this. */
+  padding: 0;
+  margin: 0;
+  list-style: none;
   border-top: 1px solid var(--line);
 }
 
@@ -3686,6 +3517,18 @@ main > section {
   .services-table__price {
     text-align: right;
   }
+}
+
+/*
+ * A service 404 offers the pricelist's names without its columns.
+ *
+ * The row's four tracks are for index / name / outcome / price. The 404 list
+ * has only a name, so the name landed in the 3rem index track and every service
+ * was set in forty-eight pixels of column inside a 1338px row. One column, and
+ * the row keeps only the hairline it was borrowed for.
+ */
+.services-table--names .services-table__row {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* -------------------------------------------------------------------------
@@ -3905,11 +3748,12 @@ main > section {
 
    A statement, one supporting line, one action. The final section of the home
    page is a place to say the thing rather than to repeat the navigation.
-   ---------------------------------------------------------------------- */
 
-.closing {
-  border-top: 1px solid var(--line-strong);
-}
+   No border-top of its own. There used to be one, at --line-strong, to mark the
+   last seam on the page — but .closing is always a .section preceded by another
+   .section, so global.css's `.section + .section` outranked it and the heavier
+   rule never painted. The move to --bg-closing already closes the page.
+   ---------------------------------------------------------------------- */
 
 .closing__line {
   font-family: var(--font-display);

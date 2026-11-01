@@ -21,9 +21,14 @@ if (hasDb(env)) {
   description="That page does not exist."
   canonicalPath="/404"
 >
-  <div class="shell">
-    <section class="section section--lg">
+  {/* The standard shape: `main > section > .shell`, not the reverse. Inverted,
+      this page's section was not a `main > section` at all, so it sat outside
+      the surface system entirely. The surface itself stays the paper one on
+      purpose: `NotFound` is shared with the slug 404s, which render inside a
+      case section on paper, and the two are meant to be the same page. */}
+  <section class="section section--lg">
+    <div class="shell">
       <NotFound recent={recent} />
-    </section>
-  </div>
+    </div>
+  </section>
 </Base>

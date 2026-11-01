@@ -18,7 +18,11 @@
   --ink: #ededf0;
   --ink-body: #d4d4da;
   --ink-muted: #9a9aa4;
-  --ink-faint: #6e6e78;
+  /* Was #6e6e78: 3.88:1 on --bg and 3.80:1 on --bg-raised, which fails AA for
+     every place it is used — table headers, hints, the bar meta — all of them
+     under 0.85rem. This is the faintest step that clears 4.5:1 on the darker
+     of the two surfaces while staying a visible step below --ink-muted. */
+  --ink-faint: #80808a;
   --accent: #b8f14a;
   --ok: #7ee787;
   --warn: #e3b341;
@@ -37,6 +41,22 @@ body {
 }
 a { color: var(--accent); }
 
+/*
+ * Focus.
+ *
+ * The two form rules here used to be `outline: none; border-color: var(--accent)`
+ * — the browser's ring deleted and replaced by a 1px change of hue on a 1px
+ * border. On the sign-in screen that was the only signal of where the caret
+ * is, and it is invisible to anyone who cannot separate lime from slate.
+ * /admin is behind a token and outside the gates' route list, so nothing
+ * measured it. One rule for the whole surface instead.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .shell { max-width: 76rem; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 
 /* ---- sign-in ---- */
@@ -50,12 +70,11 @@ a { color: var(--accent); }
 .admin-login h1 { font-size: 1.4rem; color: var(--ink); margin: 0 0 1.25rem; font-weight: 500; }
 .admin-login label { display: block; font: 0.8rem var(--mono); color: var(--ink-muted); margin-bottom: 0.4rem; }
 .admin-login input {
-  width: 100%; padding: 0.65rem 0.75rem; background: var(--bg-inset);
+  width: 100%; min-height: 2.75rem; padding: 0.65rem 0.75rem; background: var(--bg-inset);
   border: 1px solid var(--line-strong); color: var(--ink); font: inherit; border-radius: 2px;
 }
-.admin-login input:focus { outline: none; border-color: var(--accent); }
 .admin-login button {
-  margin-top: 0.9rem; width: 100%; padding: 0.7rem; background: var(--accent);
+  margin-top: 0.9rem; width: 100%; min-height: 2.75rem; padding: 0.7rem; background: var(--accent);
   color: #0a0a0b; border: 0; border-radius: 2px; font: 500 0.85rem var(--mono); cursor: pointer;
 }
 .admin-login button:hover { background: #c8ff5e; }
@@ -81,8 +100,15 @@ h2.section-title {
 }
 
 /* ---- buttons ---- */
+/*
+ * `2.75rem` is the 44px touch minimum, applied to every standalone control —
+ * the header pair, the sign-in submit, the form actions. The row-level
+ * `.btn--sm` below deliberately stays smaller: a projects table puts six of
+ * them in every row, and inflating them to 44px makes the grid unreadable on
+ * the screen the operator actually works in.
+ */
 .btn {
-  display: inline-flex; align-items: center; gap: 0.35rem; min-height: 2.1rem;
+  display: inline-flex; align-items: center; gap: 0.35rem; min-height: 2.75rem;
   padding: 0 0.7rem; background: transparent; border: 1px solid var(--line-strong);
   color: var(--ink); border-radius: 2px; font: 0.78rem var(--mono); cursor: pointer;
   text-decoration: none; white-space: nowrap;
@@ -125,11 +151,10 @@ td a.mono:hover { color: var(--accent); }
 .field { display: grid; gap: 0.3rem; }
 .field label { font: 0.75rem var(--mono); color: var(--ink-muted); }
 .field input, .field select, .field textarea {
-  width: 100%; min-height: 2.3rem; padding: 0.5rem 0.6rem; background: var(--bg-inset);
+  width: 100%; min-height: 2.75rem; padding: 0.5rem 0.6rem; background: var(--bg-inset);
   border: 1px solid var(--line-strong); color: var(--ink); font: inherit; border-radius: 2px;
 }
 .field textarea { min-height: 7rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.5; resize: vertical; }
-.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
 .field .hint { font-size: 0.75rem; color: var(--ink-faint); }
 
 .status { margin-top: 0.9rem; padding: 0.6rem 0.75rem; border: 1px solid var(--line-strong); border-radius: 2px; font: 0.78rem var(--mono); }

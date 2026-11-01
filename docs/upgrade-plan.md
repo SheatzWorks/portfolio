@@ -7,7 +7,7 @@ decisions already made, audit findings with `file:line`, phase-by-phase task lis
 verification chain.
 
 > **Superseded in part (2026-10-31).** The hairline library was never shipped. The hero figure
-> is now a first-party SVG working ledger (`src/components/HeroFigure.astro`) whose build loop is
+> is now a first-party SVG delivery folio (`src/components/HeroFigure.astro`) whose build loop is
 > CSS, driven by `src/scripts/hero-driver.ts`; the live-preview tier was removed entirely. §3a and
 > the dependency budget below describe the plan as it was written, not as it was built — read
 > `DESIGN.md` §4 and `docs/design-system.md` for what exists.

@@ -1,26 +1,28 @@
 ---
 /**
- * HeroFigure — the hero's right column: the ledger, being worked.
+ * HeroFigure — the hero's right column: a project sheet being worked.
  *
- * The studio's idea is a ledger with one line through it: what we run above,
- * what we build for you below. The figure is that idea, drawn and then set in
- * motion — two lines, one method, one delivery.
+ * The studio delivers software the way a document is made: a brief is written
+ * down, specified, built, verified and handed over. The figure is that sheet,
+ * drawn in the site's own ledger hand, with the entries being made on it.
  *
  * The drawing
  * -----------
- * A hairline sheet, ruled with exactly two lines:
+ * One ruled sheet, filled with the page's own paper so it reads as an object
+ * and not as an empty outline. A ledger margin runs down the left; the two
+ * people are two marks riding that margin, and they step down the sheet as
+ * each stage is finished. The body carries the work:
  *
- *   * the upper line — the method — carries three stations: Build, Run, Ship;
- *   * the lower line — the work — is what each station leaves behind.
+ *   * BRIEF  — three entries written onto the rules;
+ *   * SPEC   — two more, the scope getting its shape;
+ *   * BUILD  — a small interface assembling: a frame, a sidebar, two lines,
+ *              one filled block, which is the thing actually being made;
+ *   * VERIFY — a check drawn over the built thing;
+ *   * SHIP   — a stamp lands and the delivery rule runs out to the sheet edge.
  *
- * Two people are two dots riding the upper line. They arrive together, take
- * each station in turn, and every finished stage drops a hairline down to the
- * lower line — a receipt, landing where we build for you. Run drops a check.
- * Ship drops a crate with a flag, and the crate rides the lower line out of
- * the sheet to the right, with both people following it off the edge.
- *
- * The loop is twelve seconds and resets by fading, then the next build walks
- * in from the left.
+ * A stage rail down the right edge holds all five names at once, so the sheet
+ * says where it is even to someone who arrives mid-loop and to someone who
+ * never sees it move.
  *
  * Three states, in order of preference:
  *
@@ -28,9 +30,9 @@
  *      and lifts as the hero scrolls out.
  *   2. Animated: the loop runs on its own, on touch too — no pointer, no
  *      script.
- *   3. Poster: under reduced motion the same composition is frozen at the
- *      delivery moment — receipts down, check drawn, crate at the edge, flag
- *      up, both people right behind it.
+ *   3. Poster: under reduced motion the same composition is frozen complete —
+ *      every entry written, the build assembled, the check drawn, all five
+ *      stages lit, the stamp down and the crew at the bottom of the margin.
  *
  * Plain SVG, plain CSS, no JavaScript beyond the driver it shares.
  * Decorative by contract: the hero's words carry the meaning.
@@ -40,69 +42,121 @@
 <figure class="hero-figure" data-hero-figure>
   <div class="hero-figure__drift" data-hero-figure-drift>
     <div class="hero-figure__stage" data-hero-figure-stage>
-      <svg class="hero-figure__static" viewBox="0 56 400 264" aria-hidden="true" focusable="false">
-        {/* The sheet: a hairline bound, nothing else. It is the page this
-            studio ships. Its rule band is vertically balanced against the
-            two lines it carries. */}
-        <rect class="hf-sheet" x="22" y="88" width="356" height="200" />
-
-        {/* The upper line: what we run. The method's spine. */}
-        <line class="hf-run-line" x1="22" y1="150" x2="378" y2="150" />
-
-        {/* The lower line: what we build for you. */}
-        <line class="hf-built-line" x1="22" y1="250" x2="378" y2="250" />
+      <svg class="hero-figure__static" viewBox="0 0 400 420" aria-hidden="true" focusable="false">
+        {/*
+          The static furniture is drawn first and never animates: the sheet,
+          its paper, the ledger margin, the rules, the rail and the two rules
+          that close the title block and the delivery strip. It is what gives
+          the composition weight before a single entry is made, and it is why
+          the box is never empty.
+        */}
+        <rect class="hf-sheet" x="16" y="12" width="368" height="396" />
+        <line class="hf-margin" x1="62" y1="12" x2="62" y2="408" />
+        <line class="hf-rule hf-rule--strong" x1="16" y1="54" x2="384" y2="54" />
+        <line class="hf-rule" x1="62" y1="84" x2="316" y2="84" />
+        <line class="hf-rule" x1="62" y1="114" x2="316" y2="114" />
+        <line class="hf-rule" x1="62" y1="144" x2="316" y2="144" />
+        <line class="hf-rule" x1="62" y1="174" x2="316" y2="174" />
+        <line class="hf-rule" x1="62" y1="204" x2="316" y2="204" />
+        <line class="hf-rule" x1="62" y1="234" x2="316" y2="234" />
+        <line class="hf-rule" x1="62" y1="264" x2="316" y2="264" />
+        <line class="hf-rule" x1="62" y1="294" x2="316" y2="294" />
+        <line class="hf-rule" x1="62" y1="324" x2="316" y2="324" />
+        <line class="hf-rule hf-rule--strong" x1="16" y1="348" x2="384" y2="348" />
 
         {/*
-          The pair — two people, riding the upper line. The move layer carries
-          their walk, the bob layer keeps them breathing while they stand.
+          The printed sign-off field. A real sheet has the box on it before
+          anyone stamps it, so the footer is furniture and not a reveal: the
+          field waits, the stamp lands inside it, the rule runs along the
+          printed track. Without these two marks the bottom fifth of the sheet
+          was blank for three quarters of every loop.
         */}
-        <g class="hf-pair">
-          <g class="hf-pair-bob">
-            <circle class="hf-dot hf-dot--lead" cx="102" cy="150" r="3.4" />
-            <circle class="hf-dot hf-dot--follow" cx="118" cy="150" r="3.4" />
+        <rect class="hf-field" x="72" y="364" width="116" height="32" />
+        <line class="hf-track" x1="200" y1="380" x2="310" y2="380" />
+
+        {/* Title block — the sheet's own identity, present at rest. */}
+        <text class="hf-meta" x="72" y="38">Project sheet</text>
+        <text class="hf-meta hf-meta--index" x="368" y="38">01</text>
+
+        {/* The stage rail: five names, held all the way down the right edge. */}
+        <line class="hf-rail" x1="336" y1="84" x2="336" y2="300" />
+        <line class="hf-rail-fill" x1="336" y1="84" x2="336" y2="300" />
+        <g class="hf-stage hf-stage--brief">
+          <circle class="hf-pip" cx="336" cy="84" r="2.8" />
+          <text class="hf-label" x="346" y="86.5">Brief</text>
+        </g>
+        <g class="hf-stage hf-stage--spec">
+          <circle class="hf-pip" cx="336" cy="138" r="2.8" />
+          <text class="hf-label" x="346" y="140.5">Spec</text>
+        </g>
+        <g class="hf-stage hf-stage--build">
+          <circle class="hf-pip" cx="336" cy="192" r="2.8" />
+          <text class="hf-label" x="346" y="194.5">Build</text>
+        </g>
+        <g class="hf-stage hf-stage--verify">
+          <circle class="hf-pip" cx="336" cy="246" r="2.8" />
+          <text class="hf-label" x="346" y="248.5">Verify</text>
+        </g>
+        <g class="hf-stage hf-stage--ship">
+          <circle class="hf-pip" cx="336" cy="300" r="2.8" />
+          <text class="hf-label" x="346" y="302.5">Ship</text>
+        </g>
+
+        {/*
+          The crew — two people, one behind the other, on the stage rail.
+
+          They used to ride the ledger margin at x=34/48, which put them in the
+          one empty band on the sheet and 300 units away from the pips they
+          light as they arrive. Two five-pixel dots walking down a blank margin
+          read as stray registration marks, not as the studio. On the rail they
+          are the thing the rail is for: the line, being walked.
+
+          The follower sits above the leader, because the pair travel downward
+          and the poster state parks them at the bottom of the rail — where a
+          follower below the last stage would hang off the end of the line.
+        */}
+        <g class="hf-crew">
+          <g class="hf-crew-bob">
+            <circle class="hf-dot hf-dot--follow" cx="322" cy="73" r="3.4" />
+            <circle class="hf-dot hf-dot--lead" cx="322" cy="84" r="3.4" />
           </g>
         </g>
 
-        {/* Station 1 · Build */}
-        <g class="hf-station hf-station--build">
-          <line class="hf-tick" x1="110" y1="150" x2="110" y2="138" />
-          <text class="hf-label" x="110" y="132" text-anchor="middle">Build</text>
-          {/* The receipt: a drop, and the work landing on the lower line. */}
-          <line class="hf-drop" x1="110" y1="150" x2="110" y2="250" />
-          <rect class="hf-land" x="102" y="247" width="16" height="3.2" />
+        {/* BRIEF · SPEC — entries written onto the rules. */}
+        <g class="hf-entries">
+          <line class="hf-entry hf-entry--1" x1="72" y1="84" x2="214" y2="84" />
+          <line class="hf-entry hf-entry--2" x1="72" y1="114" x2="252" y2="114" />
+          <line class="hf-entry hf-entry--3" x1="72" y1="144" x2="178" y2="144" />
+          <line class="hf-entry hf-entry--4" x1="72" y1="174" x2="236" y2="174" />
+          <line class="hf-entry hf-entry--5" x1="72" y1="204" x2="150" y2="204" />
         </g>
 
-        {/* Station 2 · Run */}
-        <g class="hf-station hf-station--run">
-          <line class="hf-tick" x1="212" y1="150" x2="212" y2="138" />
-          <text class="hf-label" x="212" y="132" text-anchor="middle">Run</text>
-          {/* The check: the stage receipt, drawn to the right of the tick —
-              clear of the label above and the dots standing at the station. */}
-          <path class="hf-check" d="M220 141 l5 6 l10 -13" />
-          <line class="hf-drop" x1="212" y1="150" x2="212" y2="250" />
-          <rect class="hf-land" x="204" y="247" width="16" height="3.2" />
+        {/* BUILD — the small interface assembling: a frame, a sidebar, two
+            lines of content and one filled block. The built thing, not a
+            terminal. */}
+        <g class="hf-work">
+          <rect class="hf-frame" x="72" y="240" width="128" height="66" />
+          <line class="hf-frame-part" x1="98" y1="240" x2="98" y2="306" />
+          <line class="hf-frame-part" x1="108" y1="258" x2="190" y2="258" />
+          <line class="hf-frame-part" x1="108" y1="274" x2="170" y2="274" />
+          <rect class="hf-frame-block" x="108" y="286" width="40" height="10" />
         </g>
 
-        {/* Station 3 · Ship */}
-        <g class="hf-station hf-station--ship">
-          <line class="hf-tick" x1="314" y1="150" x2="314" y2="138" />
-          <text class="hf-label" x="314" y="132" text-anchor="middle">Ship</text>
-          <line class="hf-drop" x1="314" y1="150" x2="314" y2="250" />
-          <rect class="hf-land" x="306" y="247" width="16" height="3.2" />
+        {/* VERIFY — the check, drawn over what was built. */}
+        <g class="hf-verify">
+          <path class="hf-check" d="M222 264 l7 8 l15 -18" />
+          <text class="hf-label hf-label--verify" x="252" y="268">Verified</text>
         </g>
 
-        {/*
-          The crate: the delivered build, riding the lower line out of the
-          sheet. Its flag pops on it at the ship station.
-        */}
-        <g class="hf-crate">
-          <rect class="hf-crate-body" x="296" y="236" width="22" height="14" />
-          <line class="hf-line hf-line--faint" x1="296" y1="243" x2="318" y2="243" />
-          <line class="hf-line hf-line--faint" x1="307" y1="236" x2="307" y2="250" />
-          <g class="hf-flag">
-            <line class="hf-line" x1="307" y1="236" x2="307" y2="222" />
-            <path class="hf-flag-mark" d="M307 222 l10 3.6 l-10 3.6 z" />
-          </g>
+        {/* SHIP — the stamp lands, and the delivery rule runs out. */}
+        <g class="hf-stamp">
+          <rect class="hf-stamp-box" x="72" y="364" width="116" height="32" />
+          <rect class="hf-stamp-bar" x="72" y="364" width="4" height="32" />
+          <text class="hf-stamp-label" x="134" y="384">Delivered</text>
+        </g>
+        <g class="hf-delivery">
+          <line class="hf-delivery-rule" x1="200" y1="380" x2="300" y2="380" />
+          <path class="hf-delivery-head" d="M300 374 l10 6 l-10 6 z" />
         </g>
       </svg>
     </div>
@@ -110,10 +164,12 @@
 
   <figcaption class="hero-figure__caption">
     <span class="hero-figure__index">Fig. 01</span>
-    <span class="hero-figure__note">One method. Two lines. Two people.</span>
+    <span class="hero-figure__note">One brief. Five stages. Two people.</span>
     <span class="hero-figure__readout" aria-hidden="true">
+      <span class="hf-phase hf-phase--brief">Brief</span>
+      <span class="hf-phase hf-phase--spec">Spec</span>
       <span class="hf-phase hf-phase--build">Build</span>
-      <span class="hf-phase hf-phase--run">Run</span>
+      <span class="hf-phase hf-phase--verify">Verify</span>
       <span class="hf-phase hf-phase--ship">Ship</span>
     </span>
   </figcaption>

@@ -25,7 +25,8 @@
     "perf": "node scripts/perf.mjs",
     "qa": "node scripts/qa-matrix.mjs",
     "gates": "node scripts/gates.mjs",
-    "verify": "npm run typecheck && npm test && npm run build && npm run test:e2e && npm run perf && npm run qa && npm run gates",
+    "restart": "bash restart-server.sh",
+    "verify": "npm run typecheck && npm test && npm run build && npm run restart && npm run test:e2e && npm run perf && npm run qa && npm run gates",
     "db:clear:remote": "wrangler d1 execute studio --remote --file=./scripts/clear-demo.sql",
     "typecheck": "tsc --noEmit -p tsconfig.check.json"
   },
