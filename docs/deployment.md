@@ -212,8 +212,48 @@ Without a `RESEND_API_KEY` the form still validates, rate-limits, **stores the
 enquiry in D1**, and confirms to the user. Email is simply not sent. A lead is
 never lost to a mail provider outage.
 
-To enable delivery: create a Resend account, verify the sending domain, set the
-three variables above.
+### Storing enquiries in your own Gmail
+
+`CONTACT_TO_EMAIL` can be any address, a personal Gmail included. How to set up
+the sender side depends on whether you have a domain ready.
+
+**Path A — no domain yet (fastest, works on the free tier).** Resend's shared
+testing sender `onboarding@resend.dev` delivers to exactly one address: the
+email your Resend account is registered with. That restriction is the feature
+here — make that account address your Gmail, and enquiries land in it.
+
+1. Create a Resend account **with the Gmail address** you want enquiries in.
+2. Dashboard → API Keys → Create, and note the key.
+3. Set the secrets:
+   ```bash
+   wrangler secret put RESEND_API_KEY
+   wrangler secret put CONTACT_TO_EMAIL    # your Gmail address — same one the Resend account is registered with
+   wrangler secret put CONTACT_FROM_EMAIL  # onboarding@resend.dev
+   ```
+4. Submit the form once to confirm; the email arrives in the Gmail inbox, and
+   replies from Gmail reach the sender via `replyTo` without any setup.
+
+Limits of Path A: it can only deliver to your own account address, the
+`From:` shows Resend's shared testing sender, and Google is free to treat
+`resend.dev` traffic with less trust than domain-verified mail. Good for
+launched-and-watching, not a long-term answer.
+
+**Path B — you own a domain (the production way).**
+
+1. Resend → Domains → Add domain (`send.yourdomain.com` is fine).
+2. Add the DNS records Resend lists — SPF, DKIM, and a DMARC policy on the
+   root domain — at your DNS provider. Propagation is usually minutes.
+3. Set the same three secrets, with `CONTACT_FROM_EMAIL` on the verified
+   domain (`studio@yourdomain.com`) and `CONTACT_TO_EMAIL` wherever the
+   enquiries should land — unrestricted in this path.
+4. Optional, in Gmail: a filter on the subject `New enquiry —` to label them
+   automatically.
+
+For both paths the delivery chain is unchanged: the enquiry is stored in D1
+first, emailed second, every send carries an idempotency key so a double-submit
+cannot send twice, and a failure to email is logged and never loses the lead —
+it remains visible in `/admin`, in the Recent enquiries panel, where each row
+is badged `emailed` or `stored`.
 
 ---
 
@@ -229,7 +269,8 @@ three variables above.
       wrangler d1 execute studio --remote --file=./scripts/clear-demo.sql
       ```
 - [ ] Turnstile keys added (optional but recommended)
-- [ ] Resend domain verified (optional)
+- [ ] Resend delivery configured — see [Contact form](#contact-form):
+      Path A (no domain) or Path B (verified domain)
 - [ ] `/privacy` — the "Before launch" list on that page, with wording reviewed
       for your jurisdiction
 - [ ] `/terms` — same

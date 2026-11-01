@@ -10,9 +10,83 @@ import {
   clearCookie,
 } from '../../src/lib/admin-auth';
 import { checkRateLimit, recordAttempt, hashIdentifier, MIN_FILL_MS } from '../../src/lib/rate-limit';
+import { setTestEnv } from '../../src/lib/env';
+import { POST as sessionPost } from '../../src/pages/api/admin/session';
+import { POST as contactPost } from '../../src/pages/api/contact';
 import type { D1Like } from '../../src/lib/db';
 
 const TOKEN = 'a'.repeat(32);
+
+/**
+ * The `resend` SDK is dynamically imported by the contact endpoint. The mock
+ * captures the arguments so tests can assert the email that would have been
+ * sent without network access.
+ */
+const resendSend = vi.hoisted(() =>
+  vi.fn(async (_payload: Record<string, unknown>) => ({ id: 'email-1' })),
+);
+vi.mock('resend', () => ({
+  Resend: function MockResend(_key: string) {
+    return { emails: { send: (payload: Record<string, unknown>) => resendSend(payload) } };
+  },
+}));
+
+/** Valid enquiry body; rendered_at is backdated so fill-time passes. */
+const contactBody = new URLSearchParams({
+  name: 'Ada Lovelace',
+  email: 'ada@example.com',
+  message: 'We would like a small web application built for our team, please.',
+  rendered_at: String(Date.now() - 60_000),
+});
+
+const postContact = () =>
+  contactPost({
+    request: new Request('https://x.test/api/contact', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'cf-connecting-ip': '203.0.113.20',
+      },
+      body: contactBody,
+    }),
+  } as never) as Promise<Response>;
+
+/**
+ * D1 stub that records every executed statement. `run()` reports a fixed
+ * last_row_id, which is what the delivered flag is keyed on.
+ */
+function recordingDb() {
+  const exec: { sql: string; values: unknown[] }[] = [];
+  const db: D1Like = {
+    prepare(sql: string) {
+      const statement = {
+        bind(...values: unknown[]) {
+          const bound = values;
+          const flush = async (meta: { changes: number; last_row_id: number }) => {
+            exec.push({ sql, values: bound });
+            return { meta };
+          };
+          return {
+            first: async () => null,
+            all: async () => flush({ changes: 0, last_row_id: 0 }) as unknown as { results: [] },
+            run: async () => flush({ changes: 1, last_row_id: 42 }),
+          };
+        },
+        first: async () => null,
+        all: async () => {
+          exec.push({ sql, values: [] });
+          return { results: [] };
+        },
+        run: async () => {
+          exec.push({ sql, values: [] });
+          return { meta: { changes: 1, last_row_id: 42 } };
+        },
+      };
+      return statement as unknown as import('../../src/lib/db').D1StatementLike;
+    },
+  };
+  return { db, exec };
+}
 
 /** Mirrors the implementation's HMAC so tests can forge valid signatures. */
 const sign = (value: string, secret = TOKEN) =>
@@ -237,3 +311,122 @@ describe('spam defence constants', () => {
     expect(MIN_FILL_MS).toBeGreaterThanOrEqual(2000);
   });
 });
+
+describe('admin sign-in lockout', () => {
+  afterEach(() => setTestEnv(null));
+
+  const WRONG = 'b'.repeat(20);
+
+  const postSession = (
+    loginBody: Record<string, string>,
+    asForm = false,
+    ip = '203.0.113.9',
+  ) =>
+    sessionPost({
+      request: new Request('https://x.test/api/admin/session', {
+        method: 'POST',
+        headers: {
+          'content-type': asForm ? 'application/x-www-form-urlencoded' : 'application/json',
+          'cf-connecting-ip': ip,
+        },
+        body: asForm
+          ? new URLSearchParams(loginBody).toString()
+          : JSON.stringify(loginBody),
+      }),
+      cookies: {},
+    } as never) as Promise<Response>;
+
+  it('counts a wrong token against the lockout and returns 401', async () => {
+    const { db, store } = stubDb();
+    setTestEnv({ ADMIN_TOKEN: TOKEN, DB: db as never });
+
+    const res = await postSession({ token: WRONG });
+    expect(res.status).toBe(401);
+    expect(store.row).not.toBeNull();
+    expect(store.row!.hits).toBe(1);
+  });
+
+  it('returns 429 once five wrong tokens are used within the window', async () => {
+    const { db } = stubDb({ hits: 5, window_start: '2099-01-01 00:00:00' });
+    setTestEnv({ ADMIN_TOKEN: TOKEN, DB: db as never });
+
+    const res = await postSession({ token: WRONG });
+    expect(res.status).toBe(429);
+    expect((await res.json() as { error: string }).error).toMatch(/too many/i);
+  });
+
+  it('sends a browser form post back to the sign-in page with a locked flag', async () => {
+    const { db } = stubDb({ hits: 5, window_start: '2099-01-01 00:00:00' });
+    setTestEnv({ ADMIN_TOKEN: TOKEN, DB: db as never });
+
+    const res = await postSession({ token: WRONG, next: '/admin' }, true);
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toContain('/admin/login?locked=1');
+    // The destination must survive the round trip.
+    expect(res.headers.get('location')).toContain('next=%2Fadmin');
+  });
+
+  it('does not lock out a correct token even after failures', async () => {
+    const { db, store } = stubDb({ hits: 4, window_start: '2099-01-01 00:00:00' });
+    setTestEnv({ ADMIN_TOKEN: TOKEN, DB: db as never });
+
+    const res = await postSession({ token: TOKEN });
+    expect(res.status).toBe(200);
+    // A success must not register an attempt in the login bucket.
+    expect(store.row!.hits).toBe(4);
+    expect(res.headers.get('set-cookie')).toContain('studio_admin=');
+  });
+
+  it('fails open when there is no D1 binding rather than disabling sign-in', async () => {
+    setTestEnv({ ADMIN_TOKEN: TOKEN });
+    const res = await postSession({ token: WRONG });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('contact enquiry delivery flag', () => {
+  afterEach(() => {
+    setTestEnv(null);
+    vi.clearAllMocks();
+  });
+
+  it('marks the stored enquiry delivered after a successful email', async () => {
+    const { db, exec } = recordingDb();
+    setTestEnv({
+      DB: db as never,
+      RATE_LIMIT_SALT: 'salt',
+      RESEND_API_KEY: 're_test_key',
+      CONTACT_TO_EMAIL: 'studio-owner@example.com',
+      CONTACT_FROM_EMAIL: 'onboarding@resend.dev',
+    });
+
+    const res = await postContact();
+    const body = (await res.json()) as { ok: boolean; message?: string };
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(resendSend).toHaveBeenCalledTimes(1);
+    const payload = resendSend.mock.calls[0][0] as { to?: string; replyTo?: string; from?: string };
+    expect(payload.to).toBe('studio-owner@example.com');
+    expect(payload.replyTo).toBe('ada@example.com');
+    expect(payload.from).toBe('onboarding@resend.dev');
+
+    // The stored row is flagged, keyed on the row the insert just created.
+    const update = exec.find((e) => e.sql.startsWith('UPDATE enquiries'));
+    expect(update, 'the delivered flag was never set').toBeDefined();
+    expect(update!.values).toContain(42);
+  });
+
+  it('stores the enquiry but never marks it delivered when email is unconfigured', async () => {
+    const { db, exec } = recordingDb();
+    setTestEnv({ DB: db as never, RATE_LIMIT_SALT: 'salt' });
+
+    const res = await postContact();
+    expect(res.status).toBe(200);
+    expect(resendSend).not.toHaveBeenCalled();
+    expect(exec.some((e) => e.sql.startsWith('UPDATE enquiries'))).toBe(false);
+    // The lead is still persisted.
+    expect(exec.some((e) => e.sql.startsWith('INSERT INTO enquiries'))).toBe(true);
+  });
+});
+

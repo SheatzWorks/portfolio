@@ -69,8 +69,6 @@ export interface Preview {
   dominant?: string;
   width?: number;
   height?: number;
-  /** Whether the live site permits framing, probed server-side at capture. */
-  frameable?: boolean;
   /** ISO date of the last successful capture, for cache invalidation. */
   checkedAt?: string;
   /** Which tier actually produced the visible asset. */
@@ -163,10 +161,6 @@ export interface ResolvedPreview {
   videoUrl?: string;
   /** Poster frame for the video. */
   videoPoster?: string;
-  /** True only when the live site allows framing AND the host is allowlisted. */
-  live: boolean;
-  /** The target to iframe. */
-  liveUrl: string;
   /** Which tier won. Drives the small status label on the card. */
   source: PreviewSource;
   /** Intrinsic size when known, so the card can reserve space (no CLS). */

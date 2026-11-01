@@ -479,9 +479,6 @@ html.no-motion [data-reveal] {
     display: inline;
     will-change: auto;
   }
-  .scroll-progress {
-    display: none;
-  }
 }
 
 /* Words the hero timeline staggers. `inline-block` so a transform applies at
@@ -495,8 +492,8 @@ html.no-motion [data-reveal] {
    Page transitions (Astro ClientRouter)
 
    One quiet treatment: the old page lifts 4px and fades, the new one settles
-   in from 4px below. The masthead and progress bar keep their own names so
-   the frame stays put instead of cross-fading with the content — a nav that
+   in from 4px below. The masthead keeps its own view-transition name so the
+   frame stays put instead of cross-fading with the content — a nav that
    blinks on every click reads as a full reload, which is the opposite of the
    point.
    ========================================================================= */
@@ -504,14 +501,8 @@ html.no-motion [data-reveal] {
   view-transition-name: site-nav;
 }
 
-.scroll-progress {
-  view-transition-name: scroll-progress;
-}
-
 ::view-transition-old(site-nav),
-::view-transition-new(site-nav),
-::view-transition-old(scroll-progress),
-::view-transition-new(scroll-progress) {
+::view-transition-new(site-nav) {
   animation: none;
 }
 

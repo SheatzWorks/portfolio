@@ -7,8 +7,9 @@
  * one leads with a statement, which is what a two-person studio can actually
  * say and an agency cannot.
  */
-import { studio, publishableSocial } from '~/config/site';
+import { studio, publishableSocial, publishableEmail } from '~/config/site';
 const year = new Date().getFullYear();
+const email = publishableEmail();
 
 const nav = [
   { href: '/work', label: 'Work' },
@@ -25,10 +26,20 @@ const nav = [
   <div class="shell">
     <p class="foot__statement">{studio.closing}</p>
 
-    <a class="foot__email" href={`mailto:${studio.email}`} data-copy-email title="Copy email address">
-      <span>{studio.email}</span>
-      <span class="copy-email__state" data-copy-state aria-live="polite"></span>
-    </a>
+    {email ? (
+      <a class="foot__email" href={`mailto:${email}`} data-copy-email title="Copy email address">
+        <span>{email}</span>
+        <span class="copy-email__state" data-copy-state aria-live="polite"></span>
+      </a>
+    ) : (
+      /* The mailbox is unresolved. The slot keeps its weight but points at the
+         form, which works with no configuration — a dead mailto: to a
+         placeholder domain is the one thing this footer must never ship. */
+      <a class="foot__email" href="/contact">
+        <span>Start a project</span>
+        <span class="copy-email__state" data-copy-state aria-live="polite"></span>
+      </a>
+    )}
 
     <ul class="foot__nav">
       {
@@ -74,7 +85,11 @@ const nav = [
       link.dataset.copyBound = 'true';
 
       const state = link.querySelector<HTMLElement>('[data-copy-state]');
-      const email = link.getAttribute('href')?.replace(/^mailto:/, '') ?? '';
+      const href = link.getAttribute('href') ?? '';
+      /* Only a real mailto: is copyable. The fallback slot points at the
+         contact form and must keep its default navigation. */
+      if (!href.startsWith('mailto:')) continue;
+      const email = href.replace(/^mailto:/, '');
       if (!email) continue;
 
       link.addEventListener('click', async (event) => {

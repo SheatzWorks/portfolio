@@ -184,9 +184,8 @@ The three most likely reasons a row here moves:
    library. Each has to justify itself against the 40 KB figure and lose to it
    first.
 2. **An interactive component grows past the entrance choreography** — a
-   live-iframe preview switcher, a drag-reorder list in the admin, a client-side
-   filter. Each should be scoped to the route that needs it, never loaded on the
-   home page.
+   drag-reorder list in the admin, a client-side filter. Each should be scoped
+   to the route that needs it, never loaded on the home page.
 3. **The stylesheet is edited without watching the row.** CSS is the tightest
    budget on this list at 10.7 of 12 KB. It is the one most likely to fail next,
    and it would fail for the honest reason: too much was written.

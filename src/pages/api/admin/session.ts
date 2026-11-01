@@ -3,10 +3,29 @@
  * sign-in page needs no JavaScript at all.
  */
 import type { APIRoute } from 'astro';
-import { getEnv } from '~/lib/env';
+import { getEnv, getDb, hasDb } from '~/lib/env';
+import {
+  checkRateLimit,
+  recordAttempt,
+  clientIp,
+  hashIdentifier,
+} from '~/lib/rate-limit';
 import { timingSafeEqualStr, sessionCookie, clearCookie } from '~/lib/admin-auth';
 
 export const prerender = false;
+
+/**
+ * Consecutive failed sign-ins per IP, per hour.
+ *
+ * The 500 ms delay below is necessary but not sufficient: it never slows a
+ * request that goes out in parallel, so without a lockout a thousand requests
+ * an hour are unaffected by it. Five wrong tokens lock the address out for
+ * the rest of the hour — long enough to make guessing pointless, short
+ * enough that the studio being the only user is never locked out by their
+ * own typo. Same D1 table the contact form limits on, so there is no new
+ * mechanism and no new infrastructure: one limiter, audited once.
+ */
+const ADMIN_LOGIN_MAX = 5;
 
 /** Only same-origin relative paths, so `next` cannot be an open redirect. */
 function safeNext(raw: string | null): string {
@@ -21,6 +40,7 @@ function safeNext(raw: string | null): string {
 export const POST: APIRoute = async ({ request }) => {
   const env = await getEnv();
   const url = new URL(request.url);
+
 
   let token = '';
   let next = '/admin';
@@ -49,9 +69,46 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
+  // ---- Per-IP lockout, before the comparison ----------------------------
+  let db: D1Database | null = null;
+  let identifier = '';
+  if (hasDb(env)) {
+    db = getDb(env);
+    identifier = await hashIdentifier(
+      clientIp(request),
+      env.RATE_LIMIT_SALT ?? 'no-salt-configured',
+    );
+    // `db as never` — the same cast contact.ts uses: the runtime binding
+    // satisfies the D1Like contract at call time, but the ambient types make
+    // the structural check unresolvable.
+    const limit = await checkRateLimit(
+      db as never,
+      identifier,
+      'admin-login',
+      ADMIN_LOGIN_MAX,
+    ).catch(() => null);
+    if (limit && !limit.allowed) {
+      // A distinct fate from a wrong token, so the operator who is fat-
+      // fingering their own token can tell the difference from the logs —
+      // but still no API shape that says WHICH check tripped to a prober.
+      console.log(JSON.stringify({ event: 'admin.login_rate_limited', outcome: 'rejected' }));
+      if (contentType.includes('application/json')) {
+        return Response.json(
+          { ok: false, error: 'Too many unsuccessful attempts. Try again in an hour.' },
+          { status: 429 },
+        );
+      }
+      return context302(request, `/admin/login?locked=1&next=${encodeURIComponent(next)}`);
+    }
+  }
+
   if (!message && (!token || !timingSafeEqualStr(token, env.ADMIN_TOKEN))) {
     // Slow the guess down so it cannot run at line speed.
     await new Promise((r) => setTimeout(r, 500));
+    // The failed attempt is what earns the lockout, so only a wrong token
+    // consumes one of the five. Limiter failures are swallowed: being unable
+    // to count must not take sign-in down with it.
+    if (db) void recordAttempt(db as never, identifier, 'admin-login').catch(() => {});
     if (contentType.includes('application/json')) {
       return Response.json({ ok: false, error: 'That token is not valid.' }, { status: 401 });
     }

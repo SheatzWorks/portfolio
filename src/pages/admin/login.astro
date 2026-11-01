@@ -9,6 +9,7 @@ import { studio } from '~/config/site';
 export const prerender = false;
 
 const error = Astro.url.searchParams.has('error');
+const locked = Astro.url.searchParams.has('locked');
 const next = Astro.url.searchParams.get('next') ?? '/admin';
 ---
 
@@ -31,7 +32,15 @@ const next = Astro.url.searchParams.get('next') ?? '/admin';
           </p>
         )
       }
+      {
+        locked && (
+          <p class="error" role="alert">
+            Too many unsuccessful attempts. Try again in an hour.
+          </p>
+        )
+      }
       <form method="post" action="/api/admin/session">
+
         <input type="hidden" name="next" value={next} />
         <label for="token">Admin token</label>
         <input

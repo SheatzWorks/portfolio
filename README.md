@@ -9,11 +9,12 @@ column, exposed as two routes, with the split enforced in SQL rather than in a
 template.
 
 Anything added by pasting a URL has its preview generated automatically —
-screenshot, social image, favicon or live iframe.
+screenshot, social image, favicon or a designed plate.
 
 Astro 7 on Cloudflare Workers. D1 for content, R2 for media, a Node capture
 worker for screenshots and video. Client-side behavior is a single bundled
-GSAP module (`src/scripts/motion.ts`) for reveals and the hairline hero;
+GSAP module (`src/scripts/motion.ts`) for reveals, plus one tiny driver
+(`src/scripts/hero-driver.ts`) that owns the hero's pointer and scroll numbers;
 everything else — scroll, navigation, form submission — is native.
 
 ---
@@ -93,12 +94,16 @@ invents a client, a metric, a testimonial or a claim.
    links, the price currency and the site URL. One file, one swap.
 2. **`wrangler.jsonc`** — set `PUBLIC_SITE_URL` to the real domain.
 3. **Cloudflare** — set `ADMIN_TOKEN` (see [docs/deployment.md](docs/deployment.md)).
-4. **Confirm `studio.priceCurrency`.** It is set to `GBP` as an assumption and is
+4. **Contact form delivery** — create a Resend account with the Gmail address
+   enquiries should land in, then set `RESEND_API_KEY`, `CONTACT_TO_EMAIL` and
+   `CONTACT_FROM_EMAIL` with `wrangler secret put`. The Gmail-only path needs
+   no domain: [docs/deployment.md](docs/deployment.md) → Contact form.
+5. **Confirm `studio.priceCurrency`.** It is set to `GBP` as an assumption and is
    the one substantive value on this site that was not supplied. A bare
    `30,000 – 75,000` cannot be compared between two services, so it is rendered
    with its currency attached; change the one value and every range and every
    JSON-LD `Offer` follows.
-5. **Unresolved social links are simply absent.** `publishableSocial()` filters
+6. **Unresolved social links are simply absent.** `publishableSocial()` filters
    placeholders out at the point of rendering, so an unresolved link is missing
    rather than being a link to nowhere. Fill them in and they appear.
 
@@ -143,12 +148,13 @@ node scripts/capture.mjs --url https://my-project.com --slug my-project
 
 A card can never render broken. The tiers, in order:
 
-1. **Live iframe** — only when the site permits framing *and* its host is on
-   the allowlist in `src/config/site.ts`. Never autoloaded on mobile.
-2. **Screenshot** — our own 1440x810 capture, served from R2 as AVIF/WebP.
-3. **og:image** — hot-linked from the project, only when genuinely reachable.
-4. **Favicon**.
-5. **Designed plate** — a typeset placeholder, not a broken image.
+1. **Screenshot** — our own 1440x810 capture, served from R2 as AVIF/WebP.
+2. **og:image** — hot-linked from the project, only when genuinely reachable.
+3. **Favicon** — shown as a logo treatment, not stretched into a photo strip.
+4. **Designed plate** — a typeset placeholder, not a broken image.
+
+Nothing is ever framed inside the site: there is no live iframe tier, no
+framing probe and no allowlist to opt into.
 
 Every tier is recorded on the project row, so a degraded preview is diagnosable
 in the admin rather than being a mystery.
@@ -166,7 +172,8 @@ Full detail: [docs/preview-pipeline.md](docs/preview-pipeline.md).
 | [docs/preview-pipeline.md](docs/preview-pipeline.md) | The four preview tiers and how to regenerate them |
 | [docs/security.md](docs/security.md) | SSRF defence, CSP, admin auth, contact-form spam defence |
 | [docs/performance.md](docs/performance.md) | Budgets, measured numbers, and how to re-measure |
-| [docs/deployment.md](docs/deployment.md) | Cloudflare setup, environment variables, R2, the capture worker |
+| [docs/deployment.md](docs/deployment.md) | Cloudflare setup, environment variables, R2, the capture worker, contact-form delivery (including the Gmail-only path) |
+| [docs/content.md](docs/content.md) | Every editable content field, and what to put in it |
 
 ---
 
@@ -193,7 +200,6 @@ The [Impeccable](https://github.com/) detector is also clean against `src/`:
 ```bash
 node /home/arka/promo/skills/impeccable/cli/bin/cli.js detect ./src
 ```
-| [docs/content.md](docs/content.md) | Every editable content field, and what to put in it |
 
 ---
 
@@ -201,9 +207,9 @@ node /home/arka/promo/skills/impeccable/cli/bin/cli.js detect ./src
 
 Measured on this machine against the real build in workerd:
 
-- **127 unit tests** — SSRF vectors, metadata extraction, markdown XSS, preview
-  fallbacks, admin auth, rate limiting
-- **116 end-to-end tests** — desktop and mobile, against the production build
+- **134 unit tests** — SSRF vectors, metadata extraction, markdown XSS, preview
+  fallbacks, admin auth, admin sign-in lockout, rate limiting, contact delivery
+- **110 end-to-end tests** — desktop and mobile, against the production build
 - **42/42** viewport x route combinations clean (360px to 2560px)
 - **40/40 automated design gates** pass, plus 21 that need a human eye
 - **All 10 performance budgets met** on throttled Slow 4G with 4x CPU throttle:

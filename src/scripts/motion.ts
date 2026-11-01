@@ -83,8 +83,6 @@ export function initMotion(): void {
   dispose = null;
 
   const reveals = Array.from(document.querySelectorAll<HTMLElement>('[data-reveal]'));
-  /* Every listener this pass adds dies with the page. */
-  const abort = new AbortController();
 
   /* -----------------------------------------------------------------------
      Reduced motion: no entrance choreography at all. The CSS already forces
@@ -123,8 +121,25 @@ export function initMotion(): void {
   const io = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
         const el = entry.target as HTMLElement;
+
+        /* A section the reader scrolled PAST — fully above the viewport and
+           still hidden. Momentum scrolling, anchor jumps and PgDn can move an
+           element from below the fold to above it between two IO samples, so
+           `isIntersecting` was never true for a single frame and the old
+           callback skipped it: the section then stayed blank until the
+           reader scrolled back up to meet it again. Reveal it now; it is
+           off-screen, so no animation is needed and none plays. */
+        if (!entry.isIntersecting) {
+          if (entry.boundingClientRect.bottom <= 0) {
+            io.unobserve(el);
+            el.classList.add('is-revealed');
+            el.style.transform = '';
+            el.style.opacity = '';
+          }
+          continue;
+        }
+
         io.unobserve(el);
         gsap.to(el, {
           opacity: 1,
@@ -147,6 +162,53 @@ export function initMotion(): void {
   );
 
   for (const el of reveals) io.observe(el);
+
+  /*
+   * The scroll sweep, behind the observer.
+   *
+   * IO only delivers a record when an element's intersection *state* changes
+   * against a threshold. An element that crosses from below the viewport to
+   * above it without ever producing an intersecting sample — one long momentum
+   * fling does exactly that — generates no record at all, so the callback
+   * above cannot rescue what it is never told about. (The fast-capture audit,
+   * 120 ms per screenful, left 30+ elements permanently hidden.)
+   *
+   * A rAF-throttled scroll listener covers the hole: it reads every
+   * unrevealed element's rect in one batch — reads first, writes second, so
+   * there is exactly one layout per scroll frame, not one per element — and
+   * reveals anything fully above the fold. It removes itself once the list is
+   * empty, because the common case (a reader who scrolls to the end) must not
+   * pay for it afterwards.
+   */
+  let sweepPending = false;
+  const sweep = () => {
+    sweepPending = false;
+    const missed = document.querySelectorAll<HTMLElement>('[data-reveal]:not(.is-revealed)');
+    if (missed.length === 0) {
+      window.removeEventListener('scroll', onSweepScroll);
+      window.removeEventListener('resize', onSweepScroll);
+      return;
+    }
+    /* One write per element AFTER all reads, so the batch costs one layout. */
+    const above: HTMLElement[] = [];
+    for (const el of missed) {
+      if (el.getBoundingClientRect().bottom <= 0) above.push(el);
+    }
+    for (const el of above) {
+      gsap.killTweensOf(el);
+      el.classList.add('is-revealed');
+      el.style.transform = '';
+      el.style.opacity = '';
+    }
+  };
+  const onSweepScroll = () => {
+    if (sweepPending) return;
+    sweepPending = true;
+    requestAnimationFrame(sweep);
+  };
+  window.addEventListener('scroll', onSweepScroll, { passive: true });
+  window.addEventListener('resize', onSweepScroll, { passive: true });
+  sweep();
 
   /* Report in. This is what cancels the 3s failsafe, so it has to happen only
      once observers are attached — taking it earlier would arm the very timer
@@ -181,10 +243,23 @@ export function initMotion(): void {
 
     /* The title container carries `data-intro`: hidden from first byte so it
        never flashes visible before the word split. Revealed here in sync with
-       the words, not separately, so the container never shows an empty frame. */
+       the words, not separately, so the container never shows an empty frame.
+
+       THIS MUST BE `gsap.to()`, NOT `gsap.from()`.
+
+       `from()` animates FROM the values you give it TO whatever the element's
+       current computed value happens to be. The resting CSS state for
+       `[data-intro]` is `opacity: 0` (global.css) — so `from({ opacity: 0 })`
+       animates 0 → 0 and the headline stays invisible forever. It shipped
+       that way: the hero H1 rendered at opacity 0 on every load, and the
+       reveal test passed because it ran under `prefers-reduced-motion`,
+       where the media query forces opacity to 1 regardless.
+
+       `to()` states the destination explicitly, so it is correct regardless
+       of what the CSS resting state is. */
     const titleIntro = hero.querySelector('[data-intro]');
     if (titleIntro) {
-      tl.from(titleIntro, { opacity: 0, y: 12, duration: 0.7 }, 0);
+      tl.to(titleIntro, { opacity: 1, y: 0, duration: 0.7 }, 0);
     }
 
     for (const [i, block] of blocks.entries()) {
@@ -195,37 +270,65 @@ export function initMotion(): void {
         words.length ? 0.12 + i * 0.07 : i * 0.07,
       );
     }
+
+    /* The blocks above are animated with `from()` because their resting CSS
+       state is fully visible (opacity 1) — `from()` is correct there. The
+       title container is the exception, and it is handled above.
+
+       One more thing the `from()` calls get wrong on their own: they leave an
+       inline `opacity: 0` on the element if the timeline is interrupted by a
+       navigation before it completes, and the element then depends on the
+       next pass to clean up. The `onComplete` handler hands every animated
+       element back to CSS so a later media-query change can reposition it. */
+    tl.eventCallback('onComplete', () => {
+      for (const block of blocks) {
+        block.style.opacity = '';
+        block.style.transform = '';
+      }
+      const intro = hero.querySelector<HTMLElement>('[data-intro]');
+      if (intro) {
+        intro.classList.add('is-revealed');
+        intro.style.opacity = '';
+        intro.style.transform = '';
+      }
+      for (const word of hero.querySelectorAll<HTMLElement>('.word')) {
+        word.style.opacity = '';
+        word.style.transform = '';
+      }
+    });
   }
 
   /* -----------------------------------------------------------------------
-     Scroll progress.
-     rAF-throttled: a scroll listener that writes to the DOM on every event
-     will jank on a phone, and this runs on every route.
+     Scroll progress — the bar was cut from the masthead, and this driver was
+     left behind: a scroll listener and an rAF write running on every route to
+     style an element that no longer exists. Removed with it. If a progress
+     bar ever returns, its driver returns with it.
      --------------------------------------------------------------------- */
-  const bar = document.querySelector<HTMLElement>('.scroll-progress');
-  if (bar) {
-    let ticking = false;
-    const update = () => {
-      const max = root.scrollHeight - window.innerHeight;
-      const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
-      bar.style.setProperty('--progress', String(Math.round(p * 1000) / 1000));
-      ticking = false;
-    };
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(update);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true, signal: abort.signal });
-    window.addEventListener('resize', onScroll, { passive: true, signal: abort.signal });
-    update();
-  }
 
   /* Safety net. The ordering above is designed to make a stuck reveal
      impossible, but "designed to" is not "impossible": if 2.5s after load an
      element that should already have settled is still at opacity 0, force it.
-     Scoped to elements whose box is actually on screen so a genuine IO failure
-     cannot wipe out the scroll reveals still to come. */
+
+     It covers the hero entrance as well as the scroll reveals. The hero
+     blocks are animated with `from()`, which sets their start state
+     immediately — so if the timeline is interrupted (a navigation, a
+     backgrounded tab that pauses rAF, a dropped frame budget) they are left
+     sitting at opacity 0 with no CSS class to release them. The scroll
+     reveals had a recovery path; the hero did not.
+
+     Scoped to elements whose box is actually on screen, so a genuine IO
+     failure cannot wipe out the scroll reveals still to come. */
+  const heroBlocks = hero
+    ? [
+        hero.querySelector<HTMLElement>('.eyebrow'),
+        hero.querySelector<HTMLElement>('.hero__title'),
+        hero.querySelector<HTMLElement>('.hero__lede'),
+        hero.querySelector<HTMLElement>('.hero__actions'),
+        hero.querySelector<HTMLElement>('.hero__meta'),
+        hero.querySelector<HTMLElement>('.hero-figure'),
+      ].filter((n): n is HTMLElement => n !== null)
+    : [];
+
   const timer = window.setTimeout(() => {
     document
       .querySelectorAll<HTMLElement>('[data-reveal]:not(.is-revealed)')
@@ -237,13 +340,30 @@ export function initMotion(): void {
         el.style.opacity = '1';
         el.style.transform = 'none';
       });
+
+    /* The hero, same treatment. */
+    const title = heroBlocks.find((el) => el.classList.contains('hero__title'));
+    if (title && getComputedStyle(title).opacity !== '1') {
+      gsap.killTweensOf(heroBlocks);
+      for (const el of heroBlocks) {
+        el.classList.add('is-revealed');
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      }
+      title.querySelectorAll<HTMLElement>('.word').forEach((word) => {
+        word.style.opacity = '1';
+        word.style.transform = 'none';
+      });
+    }
   }, 2500);
 
   dispose = () => {
     io.disconnect();
-    abort.abort();
+    window.removeEventListener('scroll', onSweepScroll);
+    window.removeEventListener('resize', onSweepScroll);
     window.clearTimeout(timer);
     gsap.killTweensOf(reveals);
+    gsap.killTweensOf(heroBlocks);
     // Clean any leftover inline styles from the word-split and hero intro.
     document.querySelectorAll('.word').forEach((el) => {
       (el as HTMLElement).style.opacity = '';

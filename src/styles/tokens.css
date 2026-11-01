@@ -123,7 +123,6 @@
     color-mix(in srgb, var(--line-strong) 70%, transparent) 88%,
     transparent
   );
-  --progress-bar: linear-gradient(90deg, var(--accent-dim), var(--accent));
   --rule-kicker: linear-gradient(
     90deg,
     color-mix(in srgb, var(--accent) 70%, transparent),
@@ -229,9 +228,14 @@
 
   /* Section rhythm. Generosity belongs in the type scale, not in empty
      vertical space — these were tightened after a full-page screenshot read
-     as sparse rather than composed. */
-  --section-y: clamp(3rem, 1.6rem + 4.4vw, 5.5rem);
-  --section-y-lg: clamp(3.5rem, 1.8rem + 5.6vw, 7rem);
+     as sparse rather than composed.
+
+     They were tightened again for the section-fit pass: at 1280 the padding
+     was 85px above and below every section, which is 170px of nothing around
+     a heading and three cards. The generous space is now inside the section,
+     between its parts, and the section itself fits the screen it is on. */
+  --section-y: clamp(2.25rem, 1rem + 2.8vw, 4rem);
+  --section-y-lg: clamp(2.75rem, 1.2rem + 3.4vw, 5rem);
 
   /* ---- layout --------------------------------------------------------- */
   --gutter: clamp(1.15rem, 0.55rem + 2.4vw, 3.25rem);

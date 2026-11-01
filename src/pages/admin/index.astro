@@ -35,6 +35,58 @@ try {
   /* counts are decorative */
 }
 
+// The latest enquiries, newest first. Contact-form traffic has no other
+// dashboard, so this panel is where a lead survives a mail outage.
+// `delivered` is set by the contact endpoint at the moment of a successful
+// send; 0 is also the honest state when email is not configured.
+type AdminEnquiryRow = {
+  id: number;
+  name: string;
+  email: string;
+  company: string | null;
+  project_type: string | null;
+  budget: string | null;
+  timeline: string | null;
+  message: string;
+  delivered: number;
+  created_at: string;
+};
+type AdminEnquiry = {
+  id: number;
+  name: string;
+  email: string;
+  company: string | null;
+  projectType: string | null;
+  budget: string | null;
+  timeline: string | null;
+  message: string;
+  delivered: boolean;
+  createdAt: string;
+};
+const enquiries: AdminEnquiry[] = await db
+  .prepare(
+    `SELECT id, name, email, company, project_type, budget, timeline, message, delivered, created_at
+     FROM enquiries
+     ORDER BY id DESC
+     LIMIT 20`,
+  )
+  .all<AdminEnquiryRow>()
+  .then(({ results }) =>
+    results.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      company: row.company,
+      projectType: row.project_type,
+      budget: row.budget,
+      timeline: row.timeline,
+      message: row.message,
+      delivered: row.delivered === 1,
+      createdAt: row.created_at.replace('T', ' ').slice(0, 16),
+    })),
+  )
+  .catch(() => [] as AdminEnquiry[]);
+
 const provider = env.CAPTURE_PROVIDER ?? 'none';
 const previewMode = env.PREVIEW_FETCH_MODE ?? 'egress';
 const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.trim()).length;
@@ -198,6 +250,65 @@ const allowlist = (env.ALLOWED_CAPTURE_HOSTS ?? '').split(',').filter((s) => s.t
 
           <p class="status" data-status role="status" aria-live="polite" hidden></p>
         </form>
+      </div>
+
+      <!-- ------------------------------------------------------ enquiries -->
+      <h2 class="section-title">Recent enquiries</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Received</th>
+              <th>From</th>
+              <th>About</th>
+              <th>Message</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              enquiries.length === 0 ? (
+                <tr class="empty-row">
+                  <td colspan={5}>No enquiries yet. When the contact form is used, they appear here.</td>
+                </tr>
+              ) : (
+                enquiries.map((e) => (
+                  <tr>
+                    <td class="mono">{e.createdAt}</td>
+                    <td>
+                      <strong class="row-title">{e.name}</strong>
+                      {e.company && (
+                        <>
+                          <br />
+                          <span class="mono">{e.company}</span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {e.projectType && (
+                        <>
+                          <span class="mono">{e.projectType}</span>
+                          <br />
+                        </>
+                      )}
+                      {e.budget && <span class="mono">{e.budget}</span>}
+                      {e.budget && e.timeline && <br />}
+                      {e.timeline && <span class="mono">{e.timeline}</span>}
+                    </td>
+                    <td class="enquiry-msg">{e.message}</td>
+                    <td>
+                      <span class="badge" data-on={String(e.delivered)}>
+                        {e.delivered ? 'emailed' : 'stored'}
+                      </span>
+                      <br />
+                      <a class="mono" href={`mailto:${e.email}`}>{e.email}</a>
+                    </td>
+                  </tr>
+                ))
+              )
+            }
+          </tbody>
+        </table>
       </div>
 
       <!-- ---------------------------------------------------------- list -->

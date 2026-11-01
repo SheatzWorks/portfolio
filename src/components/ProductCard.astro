@@ -3,17 +3,25 @@
  * F6 · Product card.
  *
  * A product is not a commissioned project and must not be rendered as one.
- * A product has a lifecycle (planning → live → retired) and often an
- * availability link, and the status is a fact about the software rather than
- * a label. The card states it plainly and never dresses up unfinished work.
+ * A product has a lifecycle (planning → live → retired), a kind (a mobile app,
+ * a web app, a service) and usually an availability link, and all three are
+ * facts about the software rather than labels. The card states them plainly
+ * and never dresses up unfinished work.
  *
- * The card is compact by contract: a 2:1 media strip, a description clamped
- * to two lines that opens through a native <details> (works without JS), and
- * an always-visible "Open ↗" to the thing itself — a visitor should be able
- * to leave for the product without reading a case study first.
+ * The card is an *identity* card: the software's own mark, its name, one line
+ * about it, and where to get it. The screenshot is not here — a capture of
+ * somebody's app is evidence, and evidence belongs on the case study, where
+ * there is room to read it. What stays on the index is the mark, which is
+ * small enough to sit in a band and is the thing a visitor recognises.
+ *
+ * The description is always visible. It was a native <details> clamped to two
+ * lines with a More/Less control; that bought nothing, because the line that
+ * matters is the tagline — one sentence, written for the card — and the rest
+ * of the writing is on the case study.
  */
-import type { Product } from '~/lib/types';
-import { resolveProductPreview, PRODUCT_STATUS_LABELS } from '~/lib/preview';
+import type { Product, ProjectKind } from '~/lib/types';
+import { PRODUCT_STATUS_LABELS } from '~/lib/preview';
+import { publishableUrl } from '~/config/site';
 
 interface Props {
   product: Product;
@@ -30,79 +38,98 @@ interface Props {
 }
 
 const { product, priority = false, headingLevel = 3 } = Astro.props;
-const preview = resolveProductPreview(product);
-const href = product.hasCaseStudy ? `/products/${product.slug}` : (product.availabilityUrl ?? product.url);
-const external = href === product.url || href === product.availabilityUrl;
-const openHref = product.availabilityUrl ?? product.url;
-
-const tagline = product.tagline?.trim() || null;
-const summary = product.summary?.trim() || null;
-const detail = tagline && summary && summary !== tagline ? summary : null;
 
 /*
- * Three shapes, decided here rather than in CSS: the pair opens from two
- * lines into the full paragraph; a summary with no tagline still clamps
- * (the More/Less control owns the clamp); a tagline on its own is a
- * one-liner by design and is shown whole, with nothing to disclose.
+ * The mark.
+ *
+ * The site's own icon, when the pipeline found one. It is shown at a modest
+ * size on the plate: a 32px favicon stretched across a 2:1 strip used to read
+ * as a smeared photograph, and a blown-up 16px icon reads as a mistake too.
  */
-const desc = tagline ?? summary;
-const opens = detail !== null || (summary !== null && tagline === null);
+const logo = publishableUrl(product.preview?.favicon);
+
+/* The monogram, for the times there is no mark to show. */
+const monogram = product.title.trim().slice(0, 1).toUpperCase() || '·';
+
+/*
+ * The outbound target is filtered, never rendered raw: products arrive from
+ * D1 with the placeholder domain still in `url` / `availabilityUrl`, and a
+ * link to https://example.com/... is a live broken link on the strongest page
+ * of the site. Unresolved targets suppress the link rather than ship it —
+ * same doctrine as publishableSocial().
+ */
+const externalHref = publishableUrl(product.availabilityUrl) ?? publishableUrl(product.url);
+const href = product.hasCaseStudy ? `/products/${product.slug}` : externalHref;
+const external = href !== null && href === externalHref;
+
+/** One line about the product. The tagline if there is one, the summary if not. */
+const tagline = product.tagline?.trim() || product.summary?.trim() || null;
+
+/** What kind of thing it is, in the studio's words. */
+const KIND_LABELS: Partial<Record<ProjectKind, string>> = {
+  mobile: 'Mobile app',
+  webapp: 'Web app',
+  web: 'Web',
+  saas: 'Service',
+  ai: 'AI tool',
+  experiment: 'Experiment',
+};
+const kindLabel = KIND_LABELS[product.kind] ?? product.kind;
+
+function hostOf(value: string | null): string {
+  if (!value) return '';
+  try {
+    return new URL(value).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * What the outbound link is called.
+ *
+ * A mobile product is distributed from a store, so the link says which one;
+ * a web product links to its own site. The host is checked first: a mobile
+ * product listed on Apple's store says App Store, not Play Store. The label
+ * has to be true, not merely plausible.
+ */
+function outboundLabel(kind: ProjectKind, target: string | null): string {
+  const host = hostOf(target);
+  if (host.includes('play.google.com')) return 'Play Store';
+  if (host.includes('apps.apple.com')) return 'App Store';
+  return kind === 'mobile' ? 'Play Store' : 'Website';
+}
+
+const outbound = externalHref ? outboundLabel(product.kind, externalHref) : null;
 ---
 
 <article class="product">
+  {/*
+    The plate: a measurement field with the product's own mark in the middle.
+    It is always drawn — the grid, the registration ticks and the monogram are
+    the card's frame, and the mark is laid over them — so the figure never
+    changes shape when a product has no icon.
+  */}
   <div class="product__figure">
+    <span class="product__plate-grid" aria-hidden="true"></span>
+    <span class="product__plate-ticks" aria-hidden="true"></span>
+    <span class="product__plate-ghost" aria-hidden="true">{monogram}</span>
     {
-      preview.imageUrl ? (
-        <>
-          <img
-            src={preview.imageUrl}
-            srcset={preview.srcset}
-            sizes="(min-width: 1152px) 30vw, (min-width: 768px) 46vw, 100vw"
-            alt=""
-            width={preview.width ?? 1200}
-            height={preview.height ?? 750}
-            loading={priority ? 'eager' : 'lazy'}
-            decoding={priority ? 'sync' : 'async'}
-            fetchpriority={priority ? 'high' : 'auto'}
-            data-img-fallback
-          />
-          {/*
-            Always rendered, `hidden` when there is media. The error handler
-            below looks for this node — previously the plate only existed on
-            the no-media path, so the handler could never find it and an
-            unreachable host left a broken image in the grid instead.
-          */}
-          <div class="product__plate" hidden>
-            <span class="product__plate-grid" aria-hidden="true"></span>
-            <span class="product__plate-ticks" aria-hidden="true"></span>
-            <span class="product__plate-ghost" aria-hidden="true">
-              {product.title.trim().slice(0, 1).toUpperCase()}
-            </span>
-            <span class="product__plate-note">No public build to capture yet</span>
-          </div>
-        </>
-      ) : (
-        /* A designed plate rather than a grey box.
-
-           It used to print the product name beside the heading that already
-           says it — two identical strings in one card — so it now carries the
-           one fact the figure would otherwise withhold: that there is no
-           public build to photograph yet. Everything else on it is
-           registration furniture: a grid, corner ticks and a monogram, which
-           is what an empty frame looks like when it was drawn rather than
-           left. */
-        <div class="product__plate" hidden={Boolean(preview.imageUrl)}>
-          <span class="product__plate-grid" aria-hidden="true"></span>
-          <span class="product__plate-ticks" aria-hidden="true"></span>
-          <span class="product__plate-ghost" aria-hidden="true">
-            {product.title.trim().slice(0, 1).toUpperCase()}
-          </span>
-          <span class="product__plate-note">
-            No public build to capture yet
-          </span>
-        </div>
+      logo && (
+        <img
+          class="product__logo"
+          src={logo}
+          alt=""
+          width="64"
+          height="64"
+          loading={priority ? 'eager' : 'lazy'}
+          decoding={priority ? 'sync' : 'async'}
+          fetchpriority={priority ? 'high' : 'auto'}
+          data-logo-fallback
+        />
       )
     }
+    <span class="product__plate-note">{kindLabel}</span>
   </div>
 
   <div class="product__body">
@@ -117,8 +144,12 @@ const opens = detail !== null || (summary !== null && tagline === null);
           <a href={href} target="_blank" rel="noopener noreferrer">
             {product.title}
           </a>
-        ) : (
+        ) : href ? (
           <a href={href}>{product.title}</a>
+        ) : (
+          /* Nowhere to link: no case study and no publishable URL. A title
+             with no destination beats a link to a placeholder domain. */
+          product.title
         )}
       </h2>
     ) : (
@@ -127,24 +158,15 @@ const opens = detail !== null || (summary !== null && tagline === null);
           <a href={href} target="_blank" rel="noopener noreferrer">
             {product.title}
           </a>
-        ) : (
+        ) : href ? (
           <a href={href}>{product.title}</a>
+        ) : (
+          product.title
         )}
       </h3>
     )}
 
-    {
-      desc && opens ? (
-        <details class="product__copy">
-          <summary class="product__summary">
-            <span class="product__desc">{desc}</span>
-          </summary>
-          {detail && <div class="product__detail">{detail}</div>}
-        </details>
-      ) : (
-        desc && <p class="product__desc">{desc}</p>
-      )
-    }
+    {tagline && <p class="product__desc">{tagline}</p>}
 
     <div class="product__foot">
       {
@@ -157,18 +179,22 @@ const opens = detail !== null || (summary !== null && tagline === null);
         )
       }
       <span class="product__actions">
-        <a
-          class="btn btn--secondary"
-          href={openHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Open ${product.title} in a new tab`}
-        >
-          Open
-          <span class="btn__arrow" aria-hidden="true">
-            ↗
-          </span>
-        </a>
+        {
+          externalHref && outbound && (
+            <a
+              class="btn btn--secondary"
+              href={externalHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${outbound} — ${product.title} (opens in a new tab)`}
+            >
+              {outbound}
+              <span class="btn__arrow" aria-hidden="true">
+                ↗
+              </span>
+            </a>
+          )
+        }
         {
           product.hasCaseStudy && (
             <a class="btn btn--quiet" href={`/products/${product.slug}`}>
@@ -185,19 +211,31 @@ const opens = detail !== null || (summary !== null && tagline === null);
 </article>
 
 <script>
-  // Same guarantee as the project card: an unreachable media host degrades to
-  // the plate rather than leaving a broken image in the grid.
-  for (const img of document.querySelectorAll<HTMLImageElement>('[data-img-fallback]')) {
-    img.addEventListener(
-      'error',
-      () => {
-        const plate = img.parentElement?.querySelector<HTMLElement>('.product__plate');
-        if (plate) {
-          img.remove();
-          plate.hidden = false;
-        }
-      },
-      { once: true },
-    );
+  /*
+   * The mark is a hot-linked icon from someone else's site, so it can fail.
+   * When it does, the monogram behind it is already drawn — all this has to do
+   * is take the broken image out of the frame.
+   */
+  function initFallbacks() {
+    for (const img of document.querySelectorAll<HTMLImageElement>('[data-logo-fallback]')) {
+      if (img.dataset.fallbackBound === 'true') continue;
+      img.dataset.fallbackBound = 'true';
+      const fallback = () => img.remove();
+      // An image that failed before this listener existed (carried over from a
+      // previous page, or a cached error) never fires `error` again.
+      if (img.complete && img.naturalWidth === 0) {
+        fallback();
+        continue;
+      }
+      img.addEventListener('error', fallback, { once: true });
+    }
   }
+
+  /*
+   * `astro:page-load`, not module top-level. A bundled module runs exactly
+   * once, but the ClientRouter swaps the body on every navigation — the top
+   * level bound real listeners for the first page only, and a client-side
+   * arrival on /products left every new card without the handler.
+   */
+  document.addEventListener('astro:page-load', initFallbacks);
 </script>

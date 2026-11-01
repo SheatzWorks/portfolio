@@ -80,10 +80,15 @@ export const studio: StudioConfig = {
 
   closing: 'We do our best. It is the only tier we have.',
 
-  // PLACEHOLDER — no real domain or mailbox yet. Both are printed at the top
-  // of every build until they are replaced.
-  email: 'hello@example.com',
+  /*
+   * The studio mailbox. This is the real address now, so it is published: the
+   * contact page renders it as a link and the contact API falls back to it as
+   * the destination when no CONTACT_TO_EMAIL secret is set — one address, one
+   * place to change it.
+   */
+  email: 'sheatz.work@gmail.com',
   location: 'Remote',
+  // PLACEHOLDER until the domain is registered.
   siteUrl: 'https://example.com',
 
   /**
@@ -96,7 +101,10 @@ export const studio: StudioConfig = {
   priceCurrency: 'GBP',
 
   social: [
-    { label: 'Instagram', href: 'https://instagram.com/PLACEHOLDER', handle: '@PLACEHOLDER' },
+    // Real: the only social account that exists today. The other two are
+    // placeholders and are filtered out at the point of rendering, so no
+    // link to nowhere ever ships.
+    { label: 'Instagram', href: 'https://instagram.com/sheatz.any', handle: '@sheatz.any' },
     { label: 'GitHub', href: 'https://github.com/PLACEHOLDER' },
     { label: 'LinkedIn', href: 'https://linkedin.com/in/PLACEHOLDER' },
   ],
@@ -111,14 +119,6 @@ export const studio: StudioConfig = {
  */
 export const media = {
   baseUrl: 'https://media.example.com',
-
-  /**
-   * Hosts permitted to be rendered inside an <iframe> as a live preview.
-   *
-   * EMPTY on purpose. An empty list means no third-party page is ever framed
-   * inside the studio's own — see docs/security.md. Opt in per host.
-   */
-  framableHosts: [] as readonly string[],
 };
 
 export function absoluteUrl(path = '/'): string {
@@ -126,12 +126,45 @@ export function absoluteUrl(path = '/'): string {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+/**
+ * The studio mailbox, when it is safe to publish.
+ *
+ * The single source of truth for what may be rendered, exactly like
+ * `publishableSocial()`. The placeholder mailbox used to ship as a live
+ * `mailto:` link on every page — a link to nowhere is worse than no link, and
+ * the placeholder text reaching public output is the defect the build guard
+ * exists for. While the address is unresolved the call sites fall back to the
+ * contact form, which works with no configuration at all.
+ */
+export function publishableEmail(): string | null {
+  const email = studio.email.trim();
+  if (!email) return null;
+  if (/PLACEHOLDER|example\.(com|org|net)/i.test(email)) return null;
+  return email;
+}
+
+/**
+ * External URLs that are safe to link to, or null.
+ *
+ * Products arrive from D1 with `url` / `availabilityUrl` columns that are
+ * still on the placeholder domain. An "Open ↗" button pointing at
+ * `https://example.com/...` is a live broken link on the strongest page of
+ * the site, so unresolved targets are suppressed at the point of rendering —
+ * same doctrine as `publishableSocial()`, one check no call site can forget.
+ */
+export function publishableUrl(href: string | null | undefined): string | null {
+  const value = (href ?? '').trim();
+  if (!value) return null;
+  if (/PLACEHOLDER|example\.(com|org|net)/i.test(value)) return null;
+  return value;
+}
+
 /** True while any identity placeholder is still unresolved. */
 export function hasPlaceholders(): boolean {
   return (
-    studio.email === 'hello@example.com' ||
+    publishableEmail() === null ||
     studio.siteUrl === 'https://example.com' ||
-    studio.social.some((s) => s.href.includes('PLACEHOLDER'))
+    publishableSocial().length < studio.social.length
   );
 }
 

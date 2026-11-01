@@ -23,15 +23,21 @@ test.describe('home', () => {
     await page.goto('/');
     const h1 = page.getByRole('heading', { level: 1 });
     await expect(h1).toBeVisible();
-    await expect(page.getByRole('link', { name: /see the work/i }).first()).toBeVisible();
+    // The primary action is config-driven (studio.hero.primary): "See what we
+    // run" → /products, because the studio's own software is the proof that
+    // needs no client's permission to be published.
+    await expect(page.getByRole('link', { name: /see what we run/i }).first()).toBeVisible();
   });
 
   test('the work section is present and points at the index', async ({ page }) => {
     await page.goto('/');
     const heading = page.getByRole('heading', { name: /built for someone else/i });
     await expect(heading).toBeVisible();
-    await page.getByRole('link', { name: /see the work/i }).first().click();
-    await expect(page).toHaveURL(/\/work/);
+    // The section's own outbound link, not the hero CTA: the hero leads at
+    // /products, and the work section points at its own index.
+    const section = page.locator('section#work');
+    await section.getByRole('link', { name: /work|products|read the whole explanation/i }).first().click();
+    await expect(page).toHaveURL(/\/(work|products)/);
   });
 
   test('has a non-degenerate empty state when there is no content', async ({ page }) => {

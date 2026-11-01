@@ -105,12 +105,12 @@ const HOME_FAQ = content.faq.slice(0, 6);
           <p class="hero__lede">{studio.hero.lede}</p>
 
           <div class="hero__actions">
-            <a class="btn btn--primary" href="/work">
-              See the work
+            <a class="btn btn--primary" href={studio.hero.primary.href}>
+              {studio.hero.primary.label}
               <span class="btn__arrow" aria-hidden="true">→</span>
             </a>
-            <a class="btn btn--quiet" href="/contact">
-              Start a project
+            <a class="btn btn--quiet" href={studio.hero.secondary.href}>
+              {studio.hero.secondary.label}
             </a>
           </div>
 

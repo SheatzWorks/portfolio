@@ -13,7 +13,7 @@
  * content is ever allowed to take the statement position.
  */
 import type { Project } from '~/lib/types';
-import { resolveProjectPreview, safeAspectRatio, type ResolveOptions } from '~/lib/preview';
+import { resolveProjectPreview, safeAspectRatio } from '~/lib/preview';
 import ProjectCard from './ProjectCard.astro';
 
 type Span = 'a' | 'b' | 'c' | 'd' | 'full';
@@ -22,12 +22,11 @@ interface Props {
   projects: Project[];
   /** Only the first N cards load media eagerly. */
   priorityCount?: number;
-  resolveOptions?: ResolveOptions;
   /** Offset added to the index, so a filtered list keeps a coherent rhythm. */
   startIndex?: number;
 }
 
-const { projects, priorityCount = 2, resolveOptions = {}, startIndex = 0 } = Astro.props;
+const { projects, priorityCount = 2, startIndex = 0 } = Astro.props;
 
 const PATTERN: Span[] = ['a', 'b', 'c', 'd', 'full'];
 
@@ -55,7 +54,7 @@ function spanFor(index: number, ratio: number): Span {
     projects.map((project, i) => (
       <ProjectCard
         project={project}
-        preview={resolveProjectPreview(project, resolveOptions)}
+        preview={resolveProjectPreview(project)}
         span={spanFor(i, safeAspectRatio(project.aspectRatio))}
         priority={i < priorityCount}
       />

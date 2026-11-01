@@ -40,7 +40,7 @@ These are the only invented values left. Nothing else is approximated; everywher
 
 ## Final "remove one accessory" note
 
-The `.scroll-progress` fixed bar (decorative scroll indicator) has been removed as the weakest decorative accessory. The `hero-figure` hairline animation, the `data-intro` reveal choreography, and the `.grain` texture were kept because they are either the site's signature concept or part of its editorial identity. The native cursor is preserved; no custom cursor follower was ever added.
+The `.scroll-progress` fixed bar (decorative scroll indicator) has been removed as the weakest decorative accessory. The `hero-figure` working ledger, the `data-intro` reveal choreography, and the `.grain` texture were kept because they are either the site's signature concept or part of its editorial identity. The native cursor is preserved; no custom cursor follower was ever added.
 
 ## Verified state at hand-off
 

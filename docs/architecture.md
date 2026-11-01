@@ -35,8 +35,8 @@ sets `imageService: 'compile'` to avoid it.
 That last row is the important architectural discovery. The preview system
 cannot live entirely in the Worker, so it is split:
 
-- `src/lib/metadata-pipeline.ts` — Worker-safe. URL validation, framability
-  probe, metadata extraction.
+- `src/lib/metadata-pipeline.ts` — Worker-safe. URL validation, metadata
+  extraction.
 - `scripts/capture.mjs` — Node-only. Playwright, screencast-to-video, sharp
   variant generation, R2 upload.
 
@@ -194,7 +194,7 @@ src/
     db.ts              D1 access; every row is converted in one place
     env.ts             Runtime bindings, resolved once
     safe-fetch.ts      SSRF guard — the security boundary
-    metadata.ts        og:/twitter:/favicon extraction, framability probe
+    metadata.ts        og:/twitter:/favicon extraction
     metadata-pipeline.ts  Worker-safe half of the preview system
     preview.ts         The fallback chain; guarantees a renderable card
     markdown.ts        Safe renderer for database-sourced case-study copy

@@ -299,15 +299,25 @@ a wrapped token is wrong even when nothing catches it.
 Transform and opacity only, never layout properties. Two speeds: 120–240ms for
 anything the visitor caused, 520–800ms for anything that arrives on its own.
 
-`src/scripts/motion.ts` is the only module, and it runs three things:
+Two bundled modules, each with one job:
+
+`src/scripts/motion.ts` runs two things:
 
 - **The hero entrance** — the headline splits into words and they settle in
   sequence, once, on first paint.
 - **Scroll reveals** — 14px and fade, staggered 55ms, triggered by an
   IntersectionObserver and then unobserved. The observer decides *when*; GSAP
   (core only, 28 KB gzip, no ScrollTrigger) does the interpolation.
-- **The scroll-progress rule** — `scaleX` on a fixed 2px bar, written from a
-  single passive scroll listener.
+
+`src/scripts/hero-driver.ts` owns the one thing that has to be **shared**:
+pointer position and hero scroll progress, published as `--hero-x`, `--hero-y`
+and `--hero-scroll`. The hero type used to drift on them too; it is anchored
+now, because headline text that floats on the cursor is harder to read and
+reads as a party trick. The working ledger answers the pointer on its own — a
+few pixels of parallax and a lift as the hero scrolls out, from the same numbers
+the driver publishes — and its build loop runs on CSS alone, so it lives on
+touch and reduced-motion without any script. When the pointer rests the driver
+eases into a slow sine drift, so the drawing keeps breathing.
 
 Hover and focus states stay on CSS transitions, because they are reactions
 rather than choreography.
@@ -340,7 +350,8 @@ disabled, the design is working.**
 | Uniform card grid | A fractional, ratio-aware composition |
 | Hero headline | Positioning, one primary action, and a status line |
 | "Welcome to our website" | "Software, built and shown." |
-| Gradient placeholder art | A monogram plate: registration ticks, a hairline grid, the product's initial set in the display face, and the reason it has no screenshot stated in the margin |
+| Gradient placeholder art | A measurement plate: registration ticks, a hairline grid, the product's initial set in the display face behind its own mark, and the kind of thing it is noted in the corner |
+| A screenshot of every product on the index | The product's own mark, a one-line tagline and the link out. A capture is evidence, and evidence belongs on the case study, where there is room to read it |
 
 ### Content over decoration
 
@@ -366,9 +377,19 @@ The same rule covers zero testimonials, zero Instagram posts and zero services:
 the section does not render. A heading over nothing is always a bug.
 
 The one place a slot *is* labelled is the product plate, and it carries a fact
-rather than an apology — `NO PUBLIC BUILD TO CAPTURE YET`, next to a
-published lifecycle state. That is a statement about the software, not about the
-site.
+rather than an apology — the kind of thing the product is (`Mobile app`,
+`Web app`, `AI tool`), set in the corner of the measurement field. The
+lifecycle state sits under it in the card body, published as a fact about the
+software rather than as a badge. Nothing on the card says the studio failed to
+take a screenshot: there was never a screenshot on the index to fail.
+
+The outbound link is named from the host rather than assumed. A product listed
+on Google's store is labelled **Play Store**, one on Apple's says **App
+Store**, and everything else says **Website** — a mobile product with an
+unlisted target still says Play Store, because that is where a mobile app is
+distributed, and a claim has to be true rather than merely plausible. A
+placeholder domain (`example.com`) is not published at all: the link
+suppresses rather than shipping a broken destination.
 
 ---
 
@@ -399,7 +420,7 @@ more useful to the next person than a list of what is.
 | Hero: symmetric padding, display at `--step-6` on any viewport | Hero that fits the fold at 1280x800 — measured, not asserted | 44 |
 | Section heads with an eyebrow and a note on one row | Single column by construction, in the `Section` component, so a caller cannot produce the multi-column version | 54 |
 | Feature grid of icon-above-heading tiles | A spec sheet: label left, body right, hairline between rows | 3 |
-| Product card unnamed and uncategorised | Product card with a published lifecycle state | — |
+| Product card unnamed and uncategorised | Product card as identity: mark, name, one-line tagline, link out, published lifecycle state | — |
 | "Two people" in metadata, hero copy, the team page and `Person` JSON-LD | No people anywhere; `/about` carries practices instead | — |
 
 ### Components
@@ -409,8 +430,8 @@ more useful to the next person than a list of what is.
 | `SiteNav.astro` | Masthead. No button-right; the primary destination is the last link in accent. The mark is a hand-spun spark: three uneven strokes crossing off-centre in accent-deep plus one acid swipe, which keeps the accent a fill; the whole mark sits a few degrees off-axis. |
 | `SiteFooter.astro` | Statement footer. Leads with a closing line. |
 | `Section.astro` | Single-column head. `headingLevel` is explicit because exactly one `<h1>` per page is a hard requirement. |
-| `HeroFigure.astro` | The hero's right column and the site's signature moment: a file of ruled lines that answers the pointer (`@lucasmarkes/hairline`, `format`). The live figure loads as a separate chunk only on fine pointers with motion allowed; touch, reduced motion and no-JS get a static SVG of the same composition, so the box never shifts and the poster frame still works. Decorative by contract; the library supplies its own accessible label. Replaced the hand-drawn studio scene. |
-| `ProductCard.astro` | Publishes `product_status`. Its plate carries "no public build to capture yet" rather than repeating the product name beside its own heading. |
+| `HeroFigure.astro` | The hero's right column and the site's signature moment: the **working ledger** — a hairline sheet ruled with two lines, the method on the upper one (*Build → Run → Ship*) and the work on the lower one. Two people are two dots riding the upper line; each finished stage drops a hairline receipt down to the lower line, Run draws a check, Ship delivers a crate with a flag that rides the lower line out of the sheet with the pair following. Plain SVG and a twelve-second CSS loop with per-element keyframes, so it needs no pointer, works on touch and costs no JavaScript of its own. The pointer-driven layer is the figure's parallax lift only; the hero type is anchored on purpose. Touch, reduced motion and no-JS get the same composition frozen with the build already finished — the poster frame, not a placeholder — and the box is reserved in CSS, so nothing shifts. Decorative by contract; the hero's words carry the meaning. |
+| `ProductCard.astro` | An identity card: the product's own mark over a monogram ghost, the name, a one-line tagline that is always visible, and the link out — *Play Store* for a mobile app, *Website* otherwise, named from the host when the product lists a specific store. The lifecycle state is published as a fact. A capture is evidence and evidence lives on the case study, not on the index. |
 | `WorkGrid.astro` | Irregular fractional rows on a 12-column grid, ratio-aware. |
 | `NotFound.astro` | Shared 404 content for the framework route and for a slug that resolves to nothing (a product, a commission or a service). Offers real onward links — the products on a project 404, the services on a service 404 — because a 404 that suggests somewhere useful beats one that apologises. |
 | `SpecSheet.astro`, `Metrics.astro` | **Removed.** No page imported either one; the CSS budget went to the hero instead. |

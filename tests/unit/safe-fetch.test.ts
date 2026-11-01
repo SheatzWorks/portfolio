@@ -12,7 +12,7 @@ import {
   isChallenge,
   __internals,
 } from '../../src/lib/safe-fetch';
-import { readFramability, extractMeta, deriveTitle, toPlainText } from '../../src/lib/metadata';
+import { extractMeta, deriveTitle, toPlainText } from '../../src/lib/metadata';
 
 const { isBlockedAddress, looksLikeIpLiteral, isPlausibleHostname } = __internals;
 
@@ -205,35 +205,6 @@ describe('isChallenge', () => {
   });
 });
 
-describe('readFramability', () => {
-  const h = (obj: Record<string, string>) => new Headers(obj);
-
-  it('allows when no headers restrict framing', () => {
-    expect(readFramability(h({})).framable).toBe(true);
-  });
-
-  it('denies on X-Frame-Options: DENY', () => {
-    expect(readFramability(h({ 'x-frame-options': 'DENY' })).framable).toBe(false);
-  });
-
-  it('allows SAMEORIGIN, because the embed and the page share an origin', () => {
-    expect(readFramability(h({ 'x-frame-options': 'SAMEORIGIN' })).framable).toBe(true);
-  });
-
-  it('denies ALLOW-FROM, which no modern browser implements', () => {
-    expect(readFramability(h({ 'x-frame-options': 'ALLOW-FROM https://a.com' })).framable).toBe(false);
-  });
-
-  it('honours CSP frame-ancestors', () => {
-    expect(readFramability(h({ 'content-security-policy': "frame-ancestors 'none'" })).framable).toBe(false);
-    expect(readFramability(h({ 'content-security-policy': "frame-ancestors 'self'" })).framable).toBe(true);
-    expect(readFramability(h({ 'content-security-policy': 'frame-ancestors *' })).framable).toBe(true);
-    expect(
-      readFramability(h({ 'content-security-policy': 'frame-ancestors https://only-them.com' })).framable,
-    ).toBe(false);
-  });
-});
-
 describe('metadata extraction', () => {
   const enc = (s: string) => new TextEncoder().encode(s);
 
@@ -292,6 +263,45 @@ describe('metadata extraction', () => {
       );
       expect(meta.favicon, rel).toBe('https://example.com/favicon.png');
     }
+  });
+
+  /*
+   * The product card shows the icon as the software's mark, at a size a person
+   * can read — so the smallest declaration is not the one to pick. The largest
+   * wins, and a vector beats every raster.
+   */
+  it('prefers the largest declared icon over the smallest', () => {
+    const meta = extractMeta(
+      enc(`<html><head>
+        <link rel="icon" sizes="16x16" href="/small.png">
+        <link rel="apple-touch-icon" href="/touch.png">
+        <link rel="icon" sizes="192x192" href="/large.png">
+      </head></html>`),
+      'https://example.com/',
+    );
+    expect(meta.favicon).toBe('https://example.com/large.png');
+  });
+
+  it('prefers a vector icon over every raster', () => {
+    const meta = extractMeta(
+      enc(`<html><head>
+        <link rel="icon" sizes="192x192" href="/large.png">
+        <link rel="icon" sizes="any" href="/icon.svg">
+      </head></html>`),
+      'https://example.com/',
+    );
+    expect(meta.favicon).toBe('https://example.com/icon.svg');
+  });
+
+  it('ignores links that are not icons', () => {
+    const meta = extractMeta(
+      enc(`<html><head>
+        <link rel="mask-icon" href="/mask.svg">
+        <link rel="stylesheet" href="/style.css">
+      </head></html>`),
+      'https://example.com/',
+    );
+    expect(meta.favicon).toBeNull();
   });
 
   it('rejects a non-http og:image scheme', () => {

@@ -8,6 +8,7 @@
  */
 import type { APIRoute } from 'astro';
 import { getEnv, getDb } from '~/lib/env';
+import { studio } from '~/config/site';
 import {
   checkRateLimit,
   recordAttempt,
@@ -115,22 +116,42 @@ export const POST: APIRoute = async ({ request, locals }) => {
     userAgent: (request.headers.get('user-agent') ?? '').slice(0, 300),
     referer: (request.headers.get('referer') ?? '').slice(0, 300),
   });
+  // Set by the deliver step below: which stored enquiry reached your inbox,
+  // so the admin can show the difference between "saved" and "emailed".
+  let enquiryId: number | null = null;
 
   try {
-    await db
+    const result = await db
       .prepare(
         `INSERT INTO enquiries (name, email, company, project_type, budget, timeline, message, context)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
       )
       .bind(name, email, company, projectType, budget, timeline, message, context)
       .run();
+    // Used by the admin to show which enquiries also reached your inbox.
+    enquiryId = result?.meta?.last_row_id ?? null;
   } catch (err) {
     console.error(JSON.stringify({ event: 'contact.store_failed', error: String(err) }));
     return json({ ok: false, error: 'Something went wrong on our side. Please email us directly.' }, 500);
   }
 
   // ---- Deliver ----------------------------------------------------------
-  if (env.RESEND_API_KEY && env.CONTACT_TO_EMAIL && env.CONTACT_FROM_EMAIL) {
+  /*
+   * Where the enquiry goes.
+   *
+   * `CONTACT_TO_EMAIL` wins when it is set, so a staging deployment can point
+   * somewhere else without touching the code. With no secret set, the studio
+   * mailbox in src/config/site.ts is the destination — the same address the
+   * contact page publishes, so there is one inbox and one place to change it.
+   */
+  const recipient = (env.CONTACT_TO_EMAIL ?? studio.email).trim();
+
+  /* Whether this enquiry actually left the building as an email. The visitor
+     is told the truth about it: "sent" means sent, "with us" means it is
+     stored and waiting to be read. */
+  let delivered = false;
+
+  if (env.RESEND_API_KEY && recipient && env.CONTACT_FROM_EMAIL) {
     try {
       const { Resend } = await import('resend');
       const resend = new Resend(env.RESEND_API_KEY);
@@ -140,7 +161,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
       await resend.emails.send({
         from: env.CONTACT_FROM_EMAIL,
-        to: env.CONTACT_TO_EMAIL,
+        to: recipient,
         // Reply goes to the sender, not to the studio's own inbox.
         replyTo: email,
         subject: `New enquiry — ${name}${projectType ? ` (${projectType})` : ''}`,
@@ -170,17 +191,48 @@ export const POST: APIRoute = async ({ request, locals }) => {
   <p style="margin:0;white-space:pre-wrap">${escapeHtml(message)}</p>
 </div>`,
       });
+
+      // The email went out. Mark the row so /admin can distinguish "stored"
+      // from "emailed". Never allowed to fail the request: the lead is safe
+      // either way, worst case the badge is momentarily wrong.
+      delivered = true;
+      if (enquiryId !== null) {
+        void db
+          .prepare('UPDATE enquiries SET delivered = 1 WHERE id = ?1')
+          .bind(enquiryId)
+          .run()
+          .catch(() => undefined);
+      }
     } catch (err) {
       // The enquiry is safely stored, so this is a degraded notification, not
       // a lost lead. Say so in the log and still confirm to the user.
       console.error(JSON.stringify({ event: 'contact.email_failed', error: String(err) }));
     }
   } else {
-    console.log(JSON.stringify({ event: 'contact.stored_only', reason: 'email_not_configured' }));
+    /*
+     * No email provider configured. The enquiry is stored and will be read in
+     * /admin, so the lead is not lost — but the visitor is not told it was
+     * emailed, because it was not.
+     */
+    console.log(
+      JSON.stringify({
+        event: 'contact.stored_only',
+        reason: !env.RESEND_API_KEY
+          ? 'resend_api_key_missing'
+          : !env.CONTACT_FROM_EMAIL
+            ? 'contact_from_email_missing'
+            : 'no_recipient',
+      }),
+    );
   }
 
   return json(
-    { ok: true, message: 'Thanks — your message has been sent. We reply to everything.' },
+    {
+      ok: true,
+      message: delivered
+        ? 'Thanks — your message has been sent. We reply to everything.'
+        : 'Thanks — your message is with us. We reply to everything.',
+    },
     200,
   );
 };

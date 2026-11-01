@@ -25,9 +25,9 @@ change if you edit D1 instead, but names, email and social links live here.
 | `social[]` | Label, href, optional handle |
 | `siteUrl` | Absolute origin. Must match `PUBLIC_SITE_URL` |
 
-`media.framableHosts` is the live-iframe allowlist. **Empty by default**, which
-means no project is ever iframed. Add hosts to opt in — see
-[security.md](security.md).
+Previews are a screenshot, the page's own `og:image`, or the site's own
+favicon — in that order. Nothing is ever framed inside the site; see
+[preview-pipeline.md](preview-pipeline.md) and [security.md](security.md).
 
 ### The Open Graph image
 

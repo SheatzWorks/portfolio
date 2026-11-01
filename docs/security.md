@@ -87,8 +87,11 @@ undici's DNS-filter proposal is still open upstream. Three things compensate:
 With this set, SSRF is not "mitigated" — it is impossible, because the set of
 hostnames a caller can choose from is finite and yours. For a studio capturing
 its own work this is a short list, and it is the strongest setting available.
-The same reasoning applies to `media.framableHosts` in `src/config/site.ts`,
-which is empty by default: **live iframes are off until you opt in by host.**
+
+A third-party page is never framed inside this site. There is no iframe tier in
+the preview chain, no framing probe, and no allowlist to opt into — so a
+project's page cannot execute inside the studio's origin, and cannot lay the
+card out on top of it.
 
 `ALLOW_LOCAL_CAPTURE=1` disables the guard for local testing. It is read only by
 `scripts/capture.mjs`, is not a Wrangler variable, prints a warning, and is not
@@ -216,6 +219,11 @@ not per page, so a new admin page cannot ship unprotected.
   The token is never exposed to page JavaScript.
 - **Failed sign-in sleeps 500ms** before responding, so a guess cannot run at
   line speed.
+- **Per-IP sign-in lockout.** Five failed tokens from one address within an
+  hour locks that address out for an hour (HTTP 429), reusing the same D1
+  limiter and hashing as the contact form. Failures are charged, successes are
+  not, and without D1 the limiter fails open — as everywhere else, the attempt
+  sleep and the token comparison remain the primary defence.
 - **No open redirect.** The `next` parameter must be a single-slash relative
   path with no backslash or whitespace. `//evil.com` *and* `/\evil.com` are both
   rejected — the second matters because WHATWG URL parsing normalises it to

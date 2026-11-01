@@ -207,35 +207,8 @@ async function capturePage(browser, url, { wantVideo = false } = {}) {
     });
   }
 
-  const framability = await probeFramability(context, url).catch(() => null);
-
   await context.close();
-  return { screenshot, video, framability };
-}
-
-/** Reads framing permission by attempting a real navigation and inspecting headers. */
-async function probeFramability(context, url) {
-  const page = await context.newPage();
-  try {
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15_000 });
-    if (!response) return { framable: false, reason: 'no response' };
-    const headers = response.headers();
-    const xfo = (headers['x-frame-options'] ?? '').toLowerCase();
-    const csp = headers['content-security-policy'] ?? '';
-    if (xfo.includes('deny')) return { framable: false, reason: 'x-frame-options: DENY' };
-    if (xfo.includes('allow-from')) return { framable: false, reason: 'x-frame-options: ALLOW-FROM' };
-    const fa = /frame-ancestors([^;]*)/i.exec(csp);
-    if (fa) {
-      const v = fa[1].trim().toLowerCase();
-      if (v === "'none'") return { framable: false, reason: 'csp frame-ancestors: none' };
-      if (v !== '*' && !v.includes("'self'")) {
-        return { framable: false, reason: 'csp frame-ancestors: explicit list' };
-      }
-    }
-    return { framable: true, reason: 'no restrictive framing headers' };
-  } finally {
-    await page.close().catch(() => {});
-  }
+  return { screenshot, video };
 }
 
 /**
@@ -491,7 +464,7 @@ async function runOne(s3, { url, slug, wantVideo }) {
   const addresses = await assertPublicHost(host);
   console.log(`  host ${host} → ${addresses.join(', ')} (public)`);
 
-  const { screenshot, video, framability } = await withBrowser((browser) =>
+  const { screenshot, video } = await withBrowser((browser) =>
     capturePage(browser, safeUrl.toString(), { wantVideo }),
   );
   console.log(`  captured ${(screenshot.length / 1024).toFixed(0)} KB raw`);
@@ -512,7 +485,7 @@ async function runOne(s3, { url, slug, wantVideo }) {
     console.log(`  video ${(video.length / 1024).toFixed(0)} KB uploaded`);
   }
 
-  return { variants, poster, dominant, width, height, video: videoAsset, framability };
+  return { variants, poster, dominant, width, height, video: videoAsset };
 }
 
 async function recordToDatabase(slug, assets) {
@@ -533,9 +506,7 @@ async function recordToDatabase(slug, assets) {
     width: assets.width,
     height: assets.height,
     source: 'screenshot',
-    frameable: assets.framability?.framable ?? existing.frameable,
     checkedAt: new Date().toISOString(),
-    note: assets.framability?.reason,
   };
   if (assets.video) next.video = assets.video.key;
 

@@ -114,6 +114,9 @@ td.actions .btn { margin-right: 0.3rem; }
 .badge[data-on='true'] { border-color: var(--accent); color: var(--accent); }
 
 .mono { font-family: var(--mono); font-size: 0.75rem; color: var(--ink-muted); word-break: break-all; }
+.enquiry-msg { max-width: 32rem; min-width: 14rem; font-size: 0.8rem; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+td a.mono { color: var(--ink-muted); }
+td a.mono:hover { color: var(--accent); }
 
 /* ---- forms ---- */
 .card { border: 1px solid var(--line); border-radius: 2px; padding: 1.1rem; background: var(--bg-raised); }

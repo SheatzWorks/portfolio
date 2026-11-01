@@ -1,7 +1,7 @@
 ---
 import Base from '~/layouts/Base.astro';
 import Section from '~/components/Section.astro';
-import { studio, publishableSocial } from '~/config/site';
+import { studio, publishableSocial, publishableEmail } from '~/config/site';
 import { getEnv } from '~/lib/env';
 import { getSiteContent } from '~/lib/db';
 
@@ -182,11 +182,25 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
       </div>
 
       <aside class="contact__aside">
-        <h2 class="contact__aside-heading">Or reach us directly</h2>
-        <a class="copy-email" href={`mailto:${studio.email}`} data-copy-email title="Copy email address">
-          <span>{studio.email}</span>
-          <span class="copy-email__state" data-copy-state aria-live="polite"></span>
-        </a>
+        {publishableEmail() ? (
+          <>
+            <h2 class="contact__aside-heading">Or reach us directly</h2>
+            <a
+              class="copy-email"
+              href={`mailto:${publishableEmail()}`}
+              data-copy-email
+              title="Copy email address"
+            >
+              <span>{publishableEmail()}</span>
+              <span class="copy-email__state" data-copy-state aria-live="polite"></span>
+            </a>
+          </>
+        ) : (
+          <p class="contact__aside-note">
+            The form is the fastest way to reach us — it lands with the studio
+            directly, and everything below is what happens to it.
+          </p>
+        )}
 
         {/*
           Rendered only when there is somewhere to go. An "Elsewhere" heading

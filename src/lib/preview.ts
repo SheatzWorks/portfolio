@@ -3,18 +3,21 @@
  * renders.
  *
  * The four tiers, in the order they are preferred:
- *   1. live      — iframe, only when the site permits framing AND the host is
- *                  on the framable allowlist. Never used on mobile by default.
- *   2. screenshot — our own capture in R2. The normal case.
- *   3. og        — the page's own social image, hot-linked and resized by us.
- *   4. favicon   — last resort, or a designed typographic plate.
+ *   1. screenshot — our own capture in R2. The normal case.
+ *   2. og        — the page's own social image, hot-linked and resized by us.
+ *   3. favicon   — the app's or site's own mark, shown as a logo treatment.
+ *   4. plate     — a designed typographic plate with a ghost monogram.
+ *
+ * Third-party pages are never rendered live inside a card: a preview iframe
+ * was a feature once and has been removed — a screenshot (or, failing that,
+ * the product's own mark) is the honest rendering. See docs/security.md.
  *
  * The invariant: `imageUrl` is never empty and `background` is always a colour,
  * so a card cannot render as a broken image or an unstyled void — including
  * when every external service is down.
  */
 
-import { media, studio } from '~/config/site';
+import { media } from '~/config/site';
 import type { Preview, Product, Project, ResolvedPreview } from './types';
 
 /**
@@ -35,21 +38,6 @@ export const PRODUCT_STATUS_LABELS: Record<string, string> = {
 export const CARD_WIDTHS = [480, 768, 1200, 1600] as const;
 
 const FALLBACK_BG = '#e4e9f4';
-
-/** True when this host is allowed to be iframed by the site. */
-export function isFramableHost(url: string, allowlist: readonly string[] = media.framableHosts): boolean {
-  if (!allowlist.length) return false;
-  let host: string;
-  try {
-    host = new URL(url).hostname.toLowerCase();
-  } catch {
-    return false;
-  }
-  return allowlist.some((entry) => {
-    const e = entry.trim().toLowerCase().replace(/^\*\./, '');
-    return e && (host === e || host.endsWith(`.${e}`));
-  });
-}
 
 /**
  * Chooses a surface that is neutral and light enough that any screenshot reads
@@ -101,34 +89,16 @@ function buildSrcset(keys: readonly string[] | undefined): string | undefined {
   return parts.length ? parts.join(', ') : undefined;
 }
 
-export interface ResolveOptions {
-  /**
-   * Whether a live iframe may be used. False on mobile by default: an iframe
-   * pulls a whole second document over a metered connection, and the poster is
-   * a strictly better first paint.
-   */
-  allowLive?: boolean;
-  /** Overrides the framable allowlist (used by tests). */
-  framableHosts?: readonly string[];
-}
-
 /**
  * Produces the final render descriptor for a project card.
  */
 export function resolvePreview(
   preview: Preview | null | undefined,
-  projectUrl: string,
-  options: ResolveOptions = {},
 ): ResolvedPreview {
   const p: Preview = preview ?? {};
   const background = safeBackground(p.dominant);
 
-  const liveAllowed =
-    options.allowLive === true &&
-    p.frameable === true &&
-    isFramableHost(projectUrl, options.framableHosts ?? media.framableHosts);
-
-  // ---- Tier 2/3/4: pick the still image -------------------------------
+  // ---- Pick the still image -------------------------------------------
   let imageUrl = '';
   let srcset: string | undefined;
   let source: ResolvedPreview['source'] = 'placeholder';
@@ -161,8 +131,6 @@ export function resolvePreview(
     background,
     videoUrl: p.video ? mediaUrl(p.video) : undefined,
     videoPoster: p.poster ? mediaUrl(p.poster) : undefined,
-    live: liveAllowed,
-    liveUrl: projectUrl,
     source,
     width,
     height,
@@ -171,24 +139,18 @@ export function resolvePreview(
 
 /** Convenience for the project card. */
 export function resolveProjectPreview(
-  project: Pick<Project, 'url' | 'preview'>,
-  options: ResolveOptions = {},
+  project: Pick<Project, 'preview'>,
 ): ResolvedPreview {
-  return resolvePreview(project.preview, project.url, options);
+  return resolvePreview(project.preview);
 }
 
 /**
  * Convenience for the product card.
- *
- * A product may have an availability link (a waitlist, a store, a beta invite)
- * that differs from its canonical URL. Framing and hot-linking always resolve
- * against the canonical URL, never the availability link.
  */
 export function resolveProductPreview(
-  product: Pick<Product, 'url' | 'preview'>,
-  options: ResolveOptions = {},
+  product: Pick<Product, 'preview'>,
 ): ResolvedPreview {
-  return resolvePreview(product.preview, product.url, { allowLive: false, ...options });
+  return resolvePreview(product.preview);
 }
 
 /** Aspect ratio clamped to something that cannot break the grid. */

@@ -33,7 +33,7 @@ Scores are originality / fit / feasibility / portability (portability: lower is 
 | **Anchor** | The products-vs-commissions split is the architecture, not a section order. | On-device AI is a real product claim; the site can demonstrate the same property. | The name and the actual artefacts (screenshots, specs, ranges). |
 | **Layout rule** | Two vertical lines; every block starts on one of them. Split hero, split case pages. | Media and type sit on a single plane; nothing waits for a network state. | Full-bleed sheets, one per route; page transitions slide the stack. |
 | **Motion verb** | *rule* — the line draws itself and things align to it. | *compute* — instant, local, idle drift. | *turn the sheet* — lift, slide, settle. |
-| **Signature** | The hero hairline is the ledger line being drawn. | The pointer-driven hairline figure. | Sheet-to-sheet transition. |
+| **Signature** | The working ledger: the hero figure draws the site's own tagline — the method on the upper line (*Build → Run → Ship*), the work being delivered on the lower line. | The hairline figure, drawn as one. | Sheet-to-sheet transition. |
 | **Risk** | Can read as broadsheet (gates already keep it from becoming decoration). | Concept lives only in the hero — the skill says kill it if so. | Skeuomorphism; heaviest to build. |
 | **Score** | **4 / 5 / 5 / 2** | 4 / 4 / 4 / 3 | 5 / 4 / 3 / 2 |
 
@@ -46,13 +46,15 @@ details: from **B**, the interaction must feel local and must keep moving at res
 
 - **Idea:** the site is a ledger with one line through it — ours above, yours below.
 - **Metaphor:** ruled paper / a register, not a gallery grid.
-- **Signature moment:** one continuous hairline in the hero, drawn by pointer position and
-  scroll progress, separating *what we run* from *what we build for you*. It continues as the
-  section rules and resolves into the footer rule.
+- **Signature moment:** one drawing in the hero — the **working ledger**: two lines, the method
+  on the upper one (*Build → Run → Ship*), receipts landing on the lower one, two people as two
+  dots riding the line, one delivered build riding out with a flag. It continues as the section
+  rules and resolves into the footer rule.
 - **Motion verb:** rule.
 - **Emotion:** precise, calm, accountable. The opposite of a sales page.
-- **Screenshot frame:** hero at 1440 px, line crossing the full viewport, mono labels pinned to
-  it, the two product cards below it — readable as a poster with motion off.
+- **Screenshot frame:** hero at 1440 px, the working ledger in the right column, mono labels
+  pinned to its rules, the four studio facts in a strip along the bottom — readable as a
+  poster with motion off.
 
 ## 3. Art direction
 
@@ -103,10 +105,10 @@ No gradients, glows or glass. Selection colour, focus ring and scrollbar use the
 
 ```
 HERO            [ eyebrow ......................... ]
-                [ display headline .......... ]   [ hairline ]
-                [ lede ...................... ]   [ figure   ]
-                [ primary → ] [ secondary ]       [ pointer  ]
-                [ meta dl: focus/engagement/status/reply ]
+                [ display headline .......... ]   [ working ledger ]
+                [ lede ...................... ]   [ Fig. 01    ]
+                [ primary → ] [ secondary ]       [ readout    ]
+                [ meta strip: focus · engagement · status · reply ]  (full width)
 PRODUCTS        [ eyebrow ] [ title ................ ] [ note ]
                 [ card ] [ card ] [ card ]      (index rows, not a card grid)
 WORK            [ eyebrow ] [ title ]  →  staggered pairs (gallery wall)
@@ -117,6 +119,11 @@ STACK           [ eyebrow ] [ title ]  →  mono index, grouped
 FAQ             [ eyebrow ] [ title ]  →  statement + disclosure rows
 CLOSING         [ big line ] [ email ] [ social ]   full-bleed curtain
 ```
+
+The hero's four facts run across the **full width** of the hero, under both columns, not
+stacked inside the left one: four across from 48rem, two-by-two below. The strip is the first
+ruled line of the ledger, and pinning the studio's four facts along it made the hero fit an
+800 px laptop screen that the stacked version overflowed by 77 px.
 
 Case pages (`/work/[slug]`, `/products/[slug]`) keep the same ledger line: meta in the left
 column, narrative in the right, media full-bleed only when it is the proof.
@@ -133,23 +140,53 @@ Serif; italic-accented word as the only typographic idea; "A · B · C" meta str
 A jury should be able to crop any section and still recognise the studio. If a new element
 could be pasted into any other studio site unchanged, it is not finished.
 
-## 4. Signature moment — the hero hairline
+## 4. Signature moment — the working ledger
+
+**What it is**
+
+One drawing in the hero's right column: the site's own idea, being worked. A hairline sheet
+ruled with exactly **two lines** — the upper line is the method (*Build → Run → Ship*), the
+lower line is what it leaves behind. Two people are two dots riding the upper line: they walk
+in, take each station in turn, and every finished stage drops a hairline down to the lower
+line — a receipt, landing where we build for you. Run draws a check. Ship delivers a crate
+with a flag, which rides the lower line out of the sheet with both people following it off
+the edge. The readout under the sheet names the stage. A twelve-second loop; then the sheet
+rests, and the next build walks in from the left.
+
+It replaces a read-head on a static sheet. That figure answered the pointer, but it answered
+with nowhere to go; this one is the ledger itself, with entries being made and work being
+delivered, drawn in the studio's own hairline hand.
 
 **Contract**
 
-- One driver module owns pointer position (normalised −1…1) and hero scroll progress (0…1).
-  Both the figure and the hero type respond to the same driver, so nothing disagrees.
+- One driver module owns pointer position (normalised −1…1) and hero scroll progress (0…1),
+  published as custom properties the drawing consumes.
+  - **The type does not move.** The hero words are anchored: text that floats on the cursor is
+    harder to read and says the page is reacting to the visitor rather than to their work. Only
+    the drawing answers the pointer — a few pixels of parallax and a lift as the hero scrolls out.
+- **The loop is SVG and CSS, and it runs without the driver.** Every animated property is
+  `transform`, `opacity` or `stroke-dashoffset`, so the loop is compositor-only, works on touch
+  and costs no JavaScript of its own.
+- **The loop is one twelve-second timeline with per-element keyframes.** Every element's 0%
+  keyframe is the loop's own first frame and every hold is pinned, so nothing drifts or
+  half-undraws at the wrap. Short one-shot animations (`3` iterations of 1.33s) are the
+  historical bug: they stop after the first build and the second one happens in silence.
 - **Idle motion:** a slow sine drift so the concept breathes with the pointer still.
 - **Mount only** when `(pointer: fine)` and `prefers-reduced-motion: no-preference` and JS is on.
   Otherwise render a static composed frame (same geometry, no driver).
+- **Three states, never a fourth:** driven · animated loop · poster frame. Under reduced motion
+  the same composition is frozen with the build already finished — all three stations on the
+  sheet, receipts down, check drawn, both people at the edge, readout on Ship. The box is never
+  empty, so the poster frame is the design and not a fallback.
 - **No layout shift:** the figure's box is reserved in CSS before the module runs.
 - **Budget:** the module and the figure package together must keep total JS under
   `BUDGETS.totalJsKb` (40 KB) in `scripts/perf.mjs`.
 - **CSP:** bundled Astro module only. Never inline script.
 
-**Does it survive the concept test?** Yes — it is the ledger line, and the same line is the
-section rule, the case-page column edge and the footer rule. If it only lived in the hero it
-would be an effect, and it would be cut.
+**Does it survive the concept test?** Yes — it *is* the ledger line, and the same line is the
+section rule, the case-page column edge and the footer rule. The two lines of the drawing are
+the site's two lines: what we run above, what we build for you below. If the drawing only lived
+in the hero it would be an effect, and it would be cut.
 
 ## 5. Motion system
 

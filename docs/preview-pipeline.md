@@ -11,18 +11,17 @@ colour, whatever state the pipeline is in.
 
 | # | Tier | When it wins | Cost |
 |---|---|---|---|
-| 1 | Live iframe | Site permits framing **and** host is allowlisted **and** pointer device | An extra document load; never autoloaded on mobile |
-| 2 | Screenshot | The normal case | One capture, cached forever |
-| 3 | og:image | Capture unavailable, or unnecessary | Hot-linked from the project |
-| 4 | Favicon | Nothing better | Hot-linked |
-| 5 | Designed plate | Everything failed | Nothing |
+| 1 | Screenshot | The normal case | One capture, cached forever |
+| 2 | og:image | Capture unavailable, or unnecessary | Hot-linked from the project |
+| 3 | Favicon | Nothing better | Hot-linked, and shown as a logo treatment |
+| 4 | Designed plate | Everything failed | Nothing |
 
-Tier 1 is gated three ways on purpose. A site sending
-`X-Frame-Options: DENY` is refused. A site with a CSP `frame-ancestors` list that
-does not include us is refused. And the host must appear in
-`media.framableHosts` in `src/config/site.ts`, which ships empty — so **live
-iframes are off until you opt in by host**. A preview that loads a third-party
-page inside yours is a decision, not a default.
+There is no live tier. A third-party page is never rendered inside this site:
+there is no `<iframe>`, no framing probe, and no allowlist to opt into. A
+preview that loads someone else's document inside yours costs a second document
+load, inherits their scripts and their layout, and breaks the moment they set
+`X-Frame-Options` — a card whose image is a screenshot is both cheaper and more
+honest about what it is showing.
 
 ## The split
 
@@ -37,7 +36,6 @@ So it is split across two runtimes, meeting at the `preview` JSON column:
                       ┌─────────────────────────────┐
    paste URL ────────▶│  Cloudflare Worker          │
                       │  · validate URL (SSRF)      │
-                      │  · probe framability        │
                       │  · fetch HTML, parse og:    │
                       │  · write preview descriptor │
                       └──────────────┬──────────────┘
@@ -61,8 +59,8 @@ worth attempting at all:
 
 - A site behind a bot challenge returns `403` with `cf-mitigated: challenge`. A
   Worker cannot solve that, so the pipeline stops and records why.
-- A site that already hands over a good `og:image` **and** permits framing does
-  not need a browser at all.
+- A site that already hands over a good `og:image` does not need a browser at
+  all.
 
 Metadata is also what fills in the title and description, so a project added with
 nothing but a URL appears with real text immediately.

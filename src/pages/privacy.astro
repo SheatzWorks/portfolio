@@ -10,7 +10,7 @@
  */
 import Base from '~/layouts/Base.astro';
 import Section from '~/components/Section.astro';
-import { studio } from '~/config/site';
+import { studio, publishableEmail } from '~/config/site';
 
 export const prerender = true;
 ---
@@ -71,10 +71,14 @@ export const prerender = true;
       <h2>Your rights</h2>
       <p>
         You can ask what we hold about you, ask for it to be corrected, or ask
-        for it to be deleted. Email
-        <a href={`mailto:${studio.email}`}>{studio.email}</a> and we will
-        action it. There is no automated decision-making or profiling here, so
-        there is nothing else to opt out of.
+        for it to be deleted. Write to us through the
+        {publishableEmail() ? (
+          <a href={`mailto:${publishableEmail()}`}>{publishableEmail()}</a>
+        ) : (
+          <a href="/contact">contact form</a>
+        )}
+        {' '}and we will action it. There is no automated decision-making or
+        profiling here, so there is nothing else to opt out of.
       </p>
 
       <h2>Before launch</h2>

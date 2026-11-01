@@ -22,6 +22,8 @@ import { getProjectBySlug, listOwnProducts } from '~/lib/db';
 import { resolveProductPreview, PRODUCT_STATUS_LABELS } from '~/lib/preview';
 import type { Project } from '~/lib/types';
 
+import { publishableUrl } from '~/config/site';
+
 export const prerender = false;
 
 const { slug = '' } = Astro.params;
@@ -50,7 +52,7 @@ if (!found) Astro.response.status = 404;
 
 const item = product as Project;
 
-const preview = found ? resolveProductPreview(item, { allowLive: false }) : null;
+const preview = found ? resolveProductPreview(item) : null;
 const status = found ? PRODUCT_STATUS_LABELS[item.productStatus ?? 'planning'] : '';
 
 /**
@@ -122,7 +124,9 @@ const jsonLd = found
         ...(item.year ? { datePublished: String(item.year) } : {}),
         ...(item.technologies.length ? { keywords: item.technologies.join(', ') } : {}),
         ...(preview?.imageUrl ? { screenshot: preview.imageUrl } : {}),
-        ...(item.availabilityUrl ? { offers: { '@type': 'Offer', url: item.availabilityUrl } } : {}),
+        ...(publishableUrl(item.availabilityUrl)
+          ? { offers: { '@type': 'Offer', url: publishableUrl(item.availabilityUrl) } }
+          : {}),
       },
       {
         '@type': 'BreadcrumbList',
@@ -180,10 +184,14 @@ const jsonLd = found
           <p class="case__state" data-status={item.productStatus ?? 'planning'}>
             <span class="product__dot" data-status={item.productStatus ?? 'planning'} aria-hidden="true" />
             {status}
-            {item.availabilityUrl && (
+            {publishableUrl(item.availabilityUrl) && (
               <>
                 {' · '}
-                <a href={item.availabilityUrl} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={publishableUrl(item.availabilityUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   {item.productStatus === 'live' ? 'Open it' : 'Ask for access'}
                 </a>
               </>

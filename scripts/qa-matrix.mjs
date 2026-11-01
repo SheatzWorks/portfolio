@@ -83,6 +83,33 @@ for (const vp of VIEWPORTS) {
         scrollWidth: document.documentElement.scrollWidth,
         hasHorizontalScroll: document.documentElement.scrollWidth > docWidth + 1,
         overflowing: overflowing.slice(0, 5),
+        /*
+         * The section-fit measurement.
+         *
+         * A section taller than the viewport is not automatically a defect —
+         * a page of prose cannot be made to fit a phone screen without
+         * deleting the prose. What matters is that the measurement exists, so
+         * the choice to let a section run long is a decision rather than an
+         * accident, and so the fold-critical one can be checked separately.
+         */
+        sections: [...document.querySelectorAll('body > section, body > main > section')]
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return {
+              id: el.id || el.className.split(' ')[0] || el.tagName.toLowerCase(),
+              height: Math.round(r.height),
+            };
+          })
+          .filter((s) => s.height > 0),
+        /*
+         * The fold: the hero's primary action must be on screen without
+         * scrolling. This is the one section that has to fit, because it is
+         * the one that decides whether a visitor reads any of it.
+         */
+        heroCtaBottom: (() => {
+          const cta = document.querySelector('.hero .btn--primary');
+          return cta ? Math.round(cta.getBoundingClientRect().bottom) : null;
+        })(),
         // A tap target audit is only meaningful on touch viewports.
         smallTargets: window.matchMedia('(hover: none)').matches
           ? [...document.querySelectorAll('a, button, input, select, textarea')]
@@ -96,7 +123,13 @@ for (const vp of VIEWPORTS) {
                 // (a nav row, a heading link) is a discrete target, and
                 // exempting it hid three undersized links behind this line.
                 if (el.tagName === 'A' && s.display === 'inline' && el.closest('p, .prose, figcaption')) return false;
-                return r.height < 44 || r.width < 44;
+                /*
+                 * Half a pixel of tolerance. A target sized exactly `44px`
+                 * measures 43.9996px on a fractional root font size, and the
+                 * audit was failing it intermittently — a rounding artefact
+                 * reported as a broken button.
+                 */
+                return r.height < 43.5 || r.width < 43.5;
               })
               .map((el) => `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}`)
               .slice(0, 5)
@@ -112,9 +145,18 @@ for (const vp of VIEWPORTS) {
     if (audit.overflowing.length) issues.push(`overflow: ${audit.overflowing.join(', ')}`);
     if (audit.smallTargets.length) issues.push(`small targets: ${audit.smallTargets.join(', ')}`);
     if (errors.length) issues.push(`console: ${errors.slice(0, 2).join(' | ')}`);
+    /*
+     * The fold is a failure: the hero's primary action has to be on screen.
+     * Everything else is reported — a long section is a fact about the page,
+     * not a broken layout.
+     */
+    if (audit.heroCtaBottom !== null && audit.heroCtaBottom > vp.height) {
+      issues.push(`hero CTA at ${audit.heroCtaBottom}px, below the ${vp.height}px fold`);
+    }
     if (issues.length) problems++;
 
-    report.push({ viewport: vp.name, path, issues, file });
+    const long = audit.sections.filter((s) => s.height > vp.height);
+    report.push({ viewport: vp.name, path, issues, file, long, viewportHeight: vp.height });
     await page.close();
   }
 
@@ -129,7 +171,12 @@ for (const row of report) {
     console.log(`\n${row.viewport}`);
     last = row.viewport;
   }
-  console.log(`  ${row.issues.length ? 'FAIL' : 'ok  '} ${row.path.padEnd(12)} ${row.issues.join('; ')}`);
+  const long = row.long.length
+    ? `  | longer than the fold: ${row.long.map((s) => `${s.id} ${s.height}px`).join(', ')}`
+    : '';
+  console.log(
+    `  ${row.issues.length ? 'FAIL' : 'ok  '} ${row.path.padEnd(12)} ${row.issues.join('; ')}${long}`,
+  );
 }
 
 console.log(`\n${report.length - problems}/${report.length} viewport x route combinations clean.`);

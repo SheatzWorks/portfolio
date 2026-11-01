@@ -1,108 +1,156 @@
 ---
 /**
- * HeroFigure — the hero's right column.
+ * HeroFigure — the hero's right column: the ledger, being worked.
  *
  * The studio's idea is a ledger with one line through it: what we run above,
- * what we build for you below. The figure is a file of ruled lines; the
- * pointer runs the formatter down it and each line above snaps square.
+ * what we build for you below. The figure is that idea, drawn and then set in
+ * motion — two lines, one method, one delivery.
+ *
+ * The drawing
+ * -----------
+ * A hairline sheet, ruled with exactly two lines:
+ *
+ *   * the upper line — the method — carries three stations: Build, Run, Ship;
+ *   * the lower line — the work — is what each station leaves behind.
+ *
+ * Two people are two dots riding the upper line. They arrive together, take
+ * each station in turn, and every finished stage drops a hairline down to the
+ * lower line — a receipt, landing where we build for you. Run drops a check.
+ * Ship drops a crate with a flag, and the crate rides the lower line out of
+ * the sheet to the right, with both people following it off the edge.
+ *
+ * The loop is twelve seconds and resets by fading, then the next build walks
+ * in from the left.
  *
  * Three states, in order of preference:
  *
- *   1. Live: `@lucasmarkes/hairline` draws an isometric sheet that answers the
- *      pointer and plays a slow loop at rest. Loaded as a separate chunk, only
- *      on fine pointers with motion allowed.
- *   2. Static: the same composition as plain SVG, for touch, reduced motion,
- *      and no-JS. It is the poster frame, not a placeholder.
- *   3. Nothing: never. The box is reserved in CSS so there is no layout shift
- *      between the two.
+ *   1. Driven: the sheet answers the pointer with a few pixels of parallax
+ *      and lifts as the hero scrolls out.
+ *   2. Animated: the loop runs on its own, on touch too — no pointer, no
+ *      script.
+ *   3. Poster: under reduced motion the same composition is frozen at the
+ *      delivery moment — receipts down, check drawn, crate at the edge, flag
+ *      up, both people right behind it.
  *
- * Decorative by contract: the hero's words carry the meaning, so the stage is
- * hidden from assistive tech. The library supplies its own accessible label
- * on the element it mounts into.
+ * Plain SVG, plain CSS, no JavaScript beyond the driver it shares.
+ * Decorative by contract: the hero's words carry the meaning.
  */
 ---
 
 <figure class="hero-figure" data-hero-figure>
-  <div class="hero-figure__stage" data-hero-figure-stage>
-    <svg class="hero-figure__static" viewBox="0 0 400 320" aria-hidden="true" focusable="false">
-      <rect class="hf-plate" x="34" y="26" width="332" height="268" />
-      <path class="hf-ticks" d="M46 38v-6h6M354 38v-6h-6M46 282v6h6M354 282v6h-6" />
-      <g class="hf-rule">
-        <line x1="64" y1="72" x2="300" y2="72" />
-        <line x1="64" y1="90" x2="280" y2="90" />
-        <line x1="64" y1="108" x2="312" y2="108" />
-        <line x1="64" y1="126" x2="252" y2="126" />
-        <line class="hf-rule--accent" x1="64" y1="144" x2="296" y2="144" />
-        <line x1="64" y1="162" x2="268" y2="162" />
-        <line x1="64" y1="180" x2="308" y2="180" />
-        <line x1="64" y1="198" x2="240" y2="198" />
-        <line x1="64" y1="216" x2="288" y2="216" />
-        <line x1="64" y1="234" x2="260" y2="234" />
-      </g>
-      <path class="hf-dash" d="M56 62v188" />
-    </svg>
+  <div class="hero-figure__drift" data-hero-figure-drift>
+    <div class="hero-figure__stage" data-hero-figure-stage>
+      <svg class="hero-figure__static" viewBox="0 56 400 264" aria-hidden="true" focusable="false">
+        {/* The sheet: a hairline bound, nothing else. It is the page this
+            studio ships. Its rule band is vertically balanced against the
+            two lines it carries. */}
+        <rect class="hf-sheet" x="22" y="88" width="356" height="200" />
+
+        {/* The upper line: what we run. The method's spine. */}
+        <line class="hf-run-line" x1="22" y1="150" x2="378" y2="150" />
+
+        {/* The lower line: what we build for you. */}
+        <line class="hf-built-line" x1="22" y1="250" x2="378" y2="250" />
+
+        {/*
+          The pair — two people, riding the upper line. The move layer carries
+          their walk, the bob layer keeps them breathing while they stand.
+        */}
+        <g class="hf-pair">
+          <g class="hf-pair-bob">
+            <circle class="hf-dot hf-dot--lead" cx="102" cy="150" r="3.4" />
+            <circle class="hf-dot hf-dot--follow" cx="118" cy="150" r="3.4" />
+          </g>
+        </g>
+
+        {/* Station 1 · Build */}
+        <g class="hf-station hf-station--build">
+          <line class="hf-tick" x1="110" y1="150" x2="110" y2="138" />
+          <text class="hf-label" x="110" y="132" text-anchor="middle">Build</text>
+          {/* The receipt: a drop, and the work landing on the lower line. */}
+          <line class="hf-drop" x1="110" y1="150" x2="110" y2="250" />
+          <rect class="hf-land" x="102" y="247" width="16" height="3.2" />
+        </g>
+
+        {/* Station 2 · Run */}
+        <g class="hf-station hf-station--run">
+          <line class="hf-tick" x1="212" y1="150" x2="212" y2="138" />
+          <text class="hf-label" x="212" y="132" text-anchor="middle">Run</text>
+          {/* The check: the stage receipt, drawn to the right of the tick —
+              clear of the label above and the dots standing at the station. */}
+          <path class="hf-check" d="M220 141 l5 6 l10 -13" />
+          <line class="hf-drop" x1="212" y1="150" x2="212" y2="250" />
+          <rect class="hf-land" x="204" y="247" width="16" height="3.2" />
+        </g>
+
+        {/* Station 3 · Ship */}
+        <g class="hf-station hf-station--ship">
+          <line class="hf-tick" x1="314" y1="150" x2="314" y2="138" />
+          <text class="hf-label" x="314" y="132" text-anchor="middle">Ship</text>
+          <line class="hf-drop" x1="314" y1="150" x2="314" y2="250" />
+          <rect class="hf-land" x="306" y="247" width="16" height="3.2" />
+        </g>
+
+        {/*
+          The crate: the delivered build, riding the lower line out of the
+          sheet. Its flag pops on it at the ship station.
+        */}
+        <g class="hf-crate">
+          <rect class="hf-crate-body" x="296" y="236" width="22" height="14" />
+          <line class="hf-line hf-line--faint" x1="296" y1="243" x2="318" y2="243" />
+          <line class="hf-line hf-line--faint" x1="307" y1="236" x2="307" y2="250" />
+          <g class="hf-flag">
+            <line class="hf-line" x1="307" y1="236" x2="307" y2="222" />
+            <path class="hf-flag-mark" d="M307 222 l10 3.6 l-10 3.6 z" />
+          </g>
+        </g>
+      </svg>
+    </div>
   </div>
 
   <figcaption class="hero-figure__caption">
     <span class="hero-figure__index">Fig. 01</span>
-    <span class="hero-figure__note">A file of ten lines. The pointer rules it.</span>
-    <span class="hero-figure__readout" data-hero-figure-readout aria-hidden="true">rest</span>
+    <span class="hero-figure__note">One method. Two lines. Two people.</span>
+    <span class="hero-figure__readout" aria-hidden="true">
+      <span class="hf-phase hf-phase--build">Build</span>
+      <span class="hf-phase hf-phase--run">Run</span>
+      <span class="hf-phase hf-phase--ship">Ship</span>
+    </span>
   </figcaption>
 </figure>
 
 <script>
   /*
-   * One driver, one figure. The library already owns pointer position, the
-   * idle tour and the reduced-motion rest; this module only decides whether
-   * it is allowed to run, and hands it the read-out.
+   * One driver, one figure.
    *
-   * The import is dynamic so touch, reduced-motion and no-JS visitors never
-   * download the figure chunk at all.
+   * src/scripts/hero-driver.ts owns pointer position and hero scroll progress
+   * and publishes them as custom properties. The figure reads them for a few
+   * pixels of parallax and for the lift as the hero scrolls out — that is the
+   * whole of this module's job. The loop itself is CSS.
    */
-  type Figure = { destroy(): void; update(options: Record<string, unknown>): void };
+  import { mountHeroDriver, type HeroDriver } from '~/scripts/hero-driver';
 
-  const FINE = '(pointer: fine)';
-  const REDUCED = '(prefers-reduced-motion: reduce)';
-
-  let live: Figure | null = null;
+  let driver: HeroDriver | null = null;
 
   function teardown(): void {
-    live?.destroy();
-    live = null;
+    driver?.destroy();
+    driver = null;
     document.querySelector<HTMLElement>('[data-hero-figure]')?.removeAttribute('data-mounted');
   }
 
-  async function mount(): Promise<void> {
+  function mount(): void {
     const figure = document.querySelector<HTMLElement>('[data-hero-figure]');
-    const stage = figure?.querySelector<HTMLElement>('[data-hero-figure-stage]');
-    if (!figure || !stage || figure.dataset.mounted === 'true') return;
+    if (!figure || figure.dataset.mounted === 'true') return;
 
-    if (window.matchMedia(REDUCED).matches) return;
-    if (!window.matchMedia(FINE).matches) return;
+    const hero = figure.closest<HTMLElement>('.hero');
+    if (!hero) return;
 
-    const readout = figure.querySelector<HTMLElement>('[data-hero-figure-readout]');
+    driver = mountHeroDriver(hero);
+    /* No driver means touch, reduced motion or no script: the static
+       composition is the design, not a fallback. */
+    if (!driver) return;
 
-    try {
-      const { format } = await import('@lucasmarkes/hairline');
-
-      /* The page may have been swapped while the chunk was in flight. */
-      if (!stage.isConnected) return;
-
-      live = format(stage, {
-        intensity: 0.62,
-        theme: 'light',
-        play: true,
-        onRead: (text) => {
-          if (readout) readout.textContent = text;
-        },
-      }) as Figure;
-
-      figure.dataset.mounted = 'true';
-    } catch (error) {
-      /* The static frame is already on screen; a failed upgrade must leave it
-         there rather than empty the column. */
-      console.error('[hero-figure]', error);
-    }
+    figure.dataset.mounted = 'true';
   }
 
   document.addEventListener('astro:page-load', mount);

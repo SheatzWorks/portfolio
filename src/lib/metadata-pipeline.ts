@@ -8,7 +8,7 @@
  *   - there is no Chromium, so no page can be rendered in-process
  *
  * So the Worker does what it *can* do cheaply and safely — validate the URL,
- * probe framability, read the page's own metadata — and the capture worker
+ * read the page's own metadata — and the capture worker
  * (src/capture/worker.ts, run on Node) does the browser and the image work.
  * The two meet at the `preview` JSON column on each project row.
  *
@@ -20,7 +20,7 @@ import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import type { Env } from './env';
 import { parseHostAllowlist } from './env';
 import { safeFetch, UnsafeUrlError, isChallenge } from './safe-fetch';
-import { extractMeta, deriveTitle, readFramability } from './metadata';
+import { extractMeta, deriveTitle } from './metadata';
 import { isHotlinkable } from './preview';
 import { selectProvider, type CaptureProvider } from './capture';
 import type { Preview } from './types';
@@ -90,13 +90,12 @@ export async function generateMetadata(
       timeoutMs: 10_000,
     });
 
-    const framability = readFramability(response.headers);
     const checkedAt = new Date().toISOString();
 
     if (isChallenge(response)) {
       return {
         ok: false,
-        preview: { frameable: false, checkedAt, note: `bot challenge (${response.status})` },
+        preview: { checkedAt, note: `bot challenge (${response.status})` },
         outcome: 'challenge',
         error: 'The site is behind a bot challenge and could not be read.',
       };
@@ -117,11 +116,7 @@ export async function generateMetadata(
     if (meta.image && isHotlinkable(meta.image)) preview.og = meta.image;
     if (meta.favicon && isHotlinkable(meta.favicon)) preview.favicon = meta.favicon;
 
-    preview.frameable = framability.framable;
     preview.checkedAt = checkedAt;
-    // The reason is recorded either way: "x-frame-options: DENY" is exactly what
-    // an operator needs to see to understand why live preview is unavailable.
-    preview.note = framability.reason;
 
     const source = preview.og ? 'og' : preview.favicon ? 'favicon' : 'placeholder';
     preview.source = source;
@@ -206,7 +201,7 @@ export async function saveMetadata(
   /*
    * Merge, do not replace.
    *
-   * The metadata pass only learns about {og, favicon, frameable, checkedAt}. It
+   * The metadata pass only learns about {og, favicon, checkedAt}. It
    * knows nothing about a screenshot that a previous capture produced. Writing
    * its result wholesale erased `thumb` from the descriptor, so pressing
    * Re-capture on a project that already had one visibly regressed the card to
@@ -231,7 +226,6 @@ export async function saveMetadata(
     ...existing,
     og: incoming.og ?? existing.og,
     favicon: incoming.favicon ?? existing.favicon,
-    frameable: incoming.frameable ?? existing.frameable,
     checkedAt: incoming.checkedAt ?? existing.checkedAt,
     note: incoming.note ?? existing.note,
   };

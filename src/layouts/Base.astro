@@ -9,7 +9,7 @@ import '../styles/global.css';
 import '../styles/components.css';
 
 import { ClientRouter } from 'astro:transitions';
-import { studio, publishableSocial } from '~/config/site';
+import { studio, publishableSocial, publishableEmail } from '~/config/site';
 import SiteNav from '~/components/SiteNav.astro';
 import SiteFooter from '~/components/SiteFooter.astro';
 import { getEnv } from '~/lib/env';
@@ -59,7 +59,9 @@ const graph = {
       name: studio.name,
       url: siteUrl,
       description: studio.description,
-      email: studio.email,
+      // Filtered like sameAs below: an unresolved placeholder mailbox must
+      // not be indexed as a real contact point.
+      ...(publishableEmail() ? { email: publishableEmail() } : {}),
       ...(studio.location ? { address: { '@type': 'PostalAddress', addressLocality: studio.location } } : {}),
       // Filtered, not raw: an unresolved placeholder must not reach
       // sameAs, where it would be indexed as a real profile.
