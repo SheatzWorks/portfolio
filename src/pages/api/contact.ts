@@ -17,6 +17,7 @@ import {
   hashIdentifier,
   MIN_FILL_MS,
 } from '~/lib/rate-limit';
+import { getProjectBySlug } from '~/lib/db';
 
 export const prerender = false;
 
@@ -56,13 +57,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return json({ ok: true, message: 'Thanks — your message has been sent.' }, 200);
   }
 
-  // ---- 2. Minimum fill time --------------------------------------------
-  const renderedAt = Number(str(form.get('rendered_at'), 20));
-  if (Number.isFinite(renderedAt) && renderedAt > 0 && Date.now() - renderedAt < MIN_FILL_MS) {
-    console.log(JSON.stringify({ event: 'contact.too_fast', outcome: 'dropped' }));
-    return json({ ok: true, message: 'Thanks — your message has been sent.' }, 200);
-  }
-
   const name = str(form.get('name'), MAX.name);
   const email = str(form.get('email'), MAX.email);
   const message = str(form.get('message'), MAX.message);
@@ -79,6 +73,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   if (Object.keys(errors).length > 0) {
     return json({ ok: false, error: 'Please check the highlighted fields.', errors }, 422);
+  }
+
+  // ---- 2. Minimum fill time --------------------------------------------
+  /*
+   * After validation, deliberately. A submission that is both instant and
+   * incomplete is much more likely a person with browser autofill than a bot,
+   * and the answer to that person cannot be "sent" while the enquiry is thrown
+   * away. A bot that fills everything correctly in under two seconds is still
+   * dropped here, before the rate-limit write or any Turnstile call.
+   */
+  const renderedAt = Number(str(form.get('rendered_at'), 20));
+  if (Number.isFinite(renderedAt) && renderedAt > 0 && Date.now() - renderedAt < MIN_FILL_MS) {
+    console.log(JSON.stringify({ event: 'contact.too_fast', outcome: 'dropped' }));
+    return json({ ok: true, message: 'Thanks — your message has been sent.' }, 200);
   }
 
   // ---- 3. Rate limit ----------------------------------------------------
@@ -112,9 +120,25 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   // ---- Persist first, deliver second -----------------------------------
   // A lead must never be lost because an email provider had a bad day.
+
+  /*
+   * Which product the enquiry is about, when the visitor came from a product
+   * page. The submitted value is a slug, never free text: it is looked up in
+   * D1 and only a published own-product's stored title is kept, so a client
+   * that posts an arbitrary `product` value contributes nothing to the email.
+   * An unrecognised slug is dropped silently — the enquiry is still real.
+   */
+  const productSlug = str(form.get('product'), 80).toLowerCase();
+  let productTitle: string | null = null;
+  if (/^[a-z0-9][a-z0-9-]{0,79}$/.test(productSlug)) {
+    const match = await getProjectBySlug(db as never, productSlug).catch(() => null);
+    if (match?.published && match.ownership === 'own') productTitle = match.title;
+  }
+
   const context = JSON.stringify({
     userAgent: (request.headers.get('user-agent') ?? '').slice(0, 300),
     referer: (request.headers.get('referer') ?? '').slice(0, 300),
+    ...(productTitle ? { product: productTitle } : {}),
   });
   // Set by the deliver step below: which stored enquiry reached your inbox,
   // so the admin can show the difference between "saved" and "emailed".
@@ -164,12 +188,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
         to: recipient,
         // Reply goes to the sender, not to the studio's own inbox.
         replyTo: email,
-        subject: `New enquiry — ${name}${projectType ? ` (${projectType})` : ''}`,
+        subject: `New enquiry${productTitle ? ` about ${productTitle}` : ''} — ${name}${projectType ? ` (${projectType})` : ''}`,
         // Idempotency key: a double-submit cannot produce two emails.
         headers: { 'Idempotency-Key': `enquiry-${Date.now()}-${identifier.slice(0, 12)}` },
         text: [
           `Name: ${name}`,
           `Email: ${email}`,
+          productTitle ? `About: ${productTitle}` : '',
           company ? `Company: ${company}` : '',
           projectType ? `Project type: ${projectType}` : '',
           budget ? `Budget: ${budget}` : '',
@@ -183,6 +208,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   <p style="margin:0 0 16px;font-size:18px;color:#141a26">New enquiry from ${escapeHtml(name)}</p>
   <table style="border-collapse:collapse;margin-bottom:16px">
     ${rowOf('Email', email)}
+    ${rowOf('About', productTitle ?? '')}
     ${rowOf('Company', company)}
     ${rowOf('Type', projectType)}
     ${rowOf('Budget', budget)}

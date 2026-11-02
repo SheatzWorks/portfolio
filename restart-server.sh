@@ -4,6 +4,10 @@
 # restarted afterwards or it 404s on everything.
 set -u
 cd "$(dirname "$0")"
+# /tmp is cleaned on reboot and by tmpfiles. Without the directory the redirect
+# below fails before wrangler starts, and the script reports only "did not come
+# up" — the real reason is gone with the log it never wrote.
+mkdir -p /tmp/opencode
 pkill -f "wrangler dev" 2>/dev/null || true
 sleep 2
 setsid nohup npx wrangler dev --port 4321 --ip 127.0.0.1 >/tmp/opencode/wrangler.log 2>&1 </dev/null &

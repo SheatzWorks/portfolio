@@ -245,6 +245,13 @@ const jsonLd = found
 
           <footer class="case__foot">
             <p>
+              {/* The enquiry carries the product by slug, so "which one" never
+                  depends on the visitor typing it. `/contact` reads the slug,
+                  shows it as a locked row, and the endpoint re-validates it
+                  against the published products before it reaches the email. */}
+              <a class="btn btn--primary" href={`/contact/?product=${item.slug}`}>
+                Enquire about {item.title}
+              </a>
               <a class="btn btn--quiet" href="/products">
                 <span class="btn__arrow btn__arrow--back" aria-hidden="true">←</span>
                 All products

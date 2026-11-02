@@ -208,7 +208,9 @@ src/
     products/          Own products: index + case studies (SSR)
     services/          Services with published ranges + detail (SSR)
     about.astro        How the studio works, no team section (SSR)
-    contact.astro      Lead form (prerendered shell, /api/contact handles POST)
+    contact.astro      Lead form (prerendered shell, /api/contact handles POST).
+                       ?product=<slug> selects the product it came from; the
+                       slug is validated against D1, never trusted as text.
     admin/             Sign-in and dashboard
     api/               contact, admin, cron
   styles/

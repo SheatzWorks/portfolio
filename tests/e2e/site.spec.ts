@@ -241,6 +241,102 @@ test.describe('contact form', () => {
     await expect(trap).toHaveCount(1);
     await expect(trap).toHaveAttribute('tabindex', '-1');
   });
+
+  test('the direct address opens a composed mail, and copying is its own control', async ({
+    page,
+  }) => {
+    // The address used to be an anchor whose click handler copied it instead
+    // of navigating, so "email us" never opened a mail client and one click
+    // on a touch device silently overwrote the clipboard. Both actions now
+    // exist, separately declared.
+    await page.goto('/contact');
+    const direct = page.locator('[data-direct-mailto]');
+    test.skip((await direct.count()) === 0, 'no publishable address configured');
+
+    const href = await direct.getAttribute('href');
+    expect(href, 'the link is a mailto, not a bare address').toMatch(/^mailto:[^?]+\?subject=/);
+    expect(href, 'a subject with no body is a half-written mail').toContain('body=');
+    expect(href, 'mail clients need CRLF, and %0D%0A is the only legal encoding').toMatch(/%0D%0A/);
+
+    await expect(page.locator('a[data-copy-email]'), 'no anchor hijacks its own click').toHaveCount(
+      0,
+    );
+    await expect(page.locator('button[data-copy-email]').first()).toBeVisible();
+  });
+
+  test('a product deep link selects the product and rewrites the direct link', async ({ page }) => {
+    await page.goto('/products');
+    const card = page.locator('.product__name a').first();
+    test.skip((await card.count()) === 0, 'no products in the local database');
+    const detailHref = await card.getAttribute('href');
+    test.skip(!detailHref?.startsWith('/products/'), 'card links off-site');
+    const slug = detailHref!.split('/').filter(Boolean).pop()!;
+    const title = (await card.textContent())?.trim() ?? '';
+
+    await page.goto(`/contact/?product=${slug}`);
+    const field = page.locator('#product');
+    await expect(field, 'the field is a labelled control, not a hidden input').toBeVisible();
+    await expect(page.locator('label[for="product"]')).toHaveCount(1);
+    await expect(field).toHaveValue(slug);
+
+    const direct = page.locator('[data-direct-mailto]');
+    if ((await direct.count()) > 0) {
+      expect(await direct.getAttribute('href')).toContain(
+        encodeURIComponent(`Enquiry about ${title}`),
+      );
+    }
+
+    // An unmatched slug selects nothing rather than trusting the URL.
+    await page.goto('/contact/?product=not-a-real-product');
+    await expect(page.locator('#product')).toHaveValue('');
+  });
+
+  test('the fill-time field is stamped when the page is seen, not when it was built', async ({
+    page,
+  }) => {
+    // /contact is prerendered, so the timestamp in the HTML is a build time.
+    // Left alone it makes the endpoint's "nobody types this fast" layer inert,
+    // which is the kind of defence that reads as present and is not.
+    await page.goto('/contact');
+    const age = await page.evaluate(() => {
+      const field = document.querySelector<HTMLInputElement>('[name="rendered_at"]');
+      return field ? Date.now() - Number(field.value) : Number.NaN;
+    });
+    expect(Number.isFinite(age), 'the field carries a timestamp').toBe(true);
+    expect(age, 'seconds old, not build old').toBeLessThan(10_000);
+    expect(age).toBeGreaterThanOrEqual(0);
+  });
+
+  test('the chosen product travels with the enquiry', async ({ page }) => {
+    // The response is fulfilled in the browser so the assertion covers the
+    // wire — the part header and its value — without writing a row to D1.
+    await page.goto('/products');
+    const card = page.locator('.product__name a').first();
+    test.skip((await card.count()) === 0, 'no products in the local database');
+    const detailHref = await card.getAttribute('href');
+    test.skip(!detailHref?.startsWith('/products/'), 'card links off-site');
+    const slug = detailHref!.split('/').filter(Boolean).pop()!;
+
+    let posted = '';
+    await page.route('**/api/contact', (route) => {
+      posted = route.request().postData() ?? '';
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, message: 'captured by the test' }),
+      });
+    });
+
+    await page.goto(`/contact/?product=${slug}`);
+    await page.fill('#name', 'E2E Enquiry');
+    await page.fill('#email', 'e2e-enquiry@example.org');
+    await page.fill('#message', 'A message long enough to satisfy the validator.');
+    await page.getByRole('button', { name: /send it/i }).click();
+
+    expect(posted).toContain('name="product"');
+    expect(posted, 'the slug is the value, so the product is identified not described').toMatch(
+      new RegExp(`name="product"[\\r\\n]+[\\r\\n]+${slug}`),
+    );
+  });
 });
 
 test.describe('accessibility', () => {
@@ -555,6 +651,26 @@ test.describe('products vs work', () => {
     // branch, so an unknown slug returned 500 instead of the designed 404.
     const response = await request.get('/products/not-a-real-product');
     expect(response.status()).toBe(404);
+  });
+
+  test('a product detail page ends with an enquiry that names that product', async ({ page }) => {
+    // The strongest page on the site had no way to ask about the thing it was
+    // describing. The CTA carries the slug, not a title typed by the visitor,
+    // so "which one" cannot be transcribed wrongly.
+    await page.goto('/products');
+    const card = page.locator('.product__name a').first();
+    test.skip((await card.count()) === 0, 'no products in the local database');
+    const detailHref = await card.getAttribute('href');
+    test.skip(!detailHref?.startsWith('/products/'), 'card links off-site');
+    const slug = detailHref!.split('/').filter(Boolean).pop()!;
+
+    await page.goto(detailHref!);
+    const cta = page.getByRole('link', { name: /enquire about/i });
+    await expect(cta, 'one enquiry CTA per product page').toHaveCount(1);
+    await expect(cta).toHaveAttribute('href', `/contact/?product=${slug}`);
+
+    // Adding it must not have displaced what was already there.
+    await expect(page.getByRole('link', { name: /all products/i })).toBeVisible();
   });
 });
 

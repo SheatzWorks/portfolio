@@ -399,7 +399,25 @@ manual(44, 'measured in-browser at 1280×800 (see fold step)');
         const res = await fetch(BASE + r);
         const html = await res.text();
         const body = /<body[\s\S]*?<\/body>/i.exec(html)?.[0] ?? html;
-        return body.replace(/<script[\s\S]*?<\/script>/g, '');
+        /*
+         * Percent-escapes are decoded here, not skipped.
+         *
+         * A prefilled `mailto:` carries its subject and body inside the URL,
+         * so the sequence `%20users` — an encoded space in the studio's own
+         * enquiry draft — matched the rule below as "0 users". That is an
+         * encoding artefact, not a claim, and a gate that reports one loses
+         * the reader's trust in the list. Decoding keeps every word of that
+         * draft in the scan, as the words a person would actually read.
+         */
+        return body
+          .replace(/<script[\s\S]*?<\/script>/g, '')
+          .replace(/mailto:[^"'\\\s]*/g, (href) => {
+            try {
+              return decodeURIComponent(href);
+            } catch {
+              return href;
+            }
+          });
       } catch {
         return '';
       }

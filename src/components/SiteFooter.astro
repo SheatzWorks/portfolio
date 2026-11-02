@@ -7,9 +7,10 @@
  * one leads with a statement, which is what a two-person studio can actually
  * say and an agency cannot.
  */
-import { studio, publishableSocial, publishableEmail } from '~/config/site';
+import { studio, publishableSocial, publishableEmail, mailtoHref, enquiryDraft } from '~/config/site';
 const year = new Date().getFullYear();
 const email = publishableEmail();
+const mailto = mailtoHref(enquiryDraft('New project enquiry'));
 
 const nav = [
   { href: '/work', label: 'Work' },
@@ -26,11 +27,24 @@ const nav = [
   <div class="shell">
     <p class="foot__statement">{studio.closing}</p>
 
-    {email ? (
-      <a class="foot__email" href={`mailto:${email}`} data-copy-email title="Copy email address">
-        <span>{email}</span>
+    {email && mailto ? (
+      <>
+        {/*
+          The link now navigates instead of copying. Copying on click looked
+          clever and was wrong on the two things it touched: it silently
+          swallowed the hand-off every visitor actually wanted — a compose
+          window already addressed — and on a device with no mail client
+          configured it appeared to do nothing at all. Copy is still here, as
+          its own control, because the address is worth being able to paste.
+        */}
+        <a class="foot__email" href={mailto}>{email}</a>
+        <button
+          type="button"
+          class="foot__copy"
+          data-copy-email={email}
+          aria-label={`Copy ${email}`}>Copy</button>
         <span class="copy-email__state" data-copy-state aria-live="polite"></span>
-      </a>
+      </>
     ) : (
       /* The mailbox is unresolved. The slot keeps its weight but points at the
          form, which works with no configuration — a dead mailto: to a
@@ -71,40 +85,44 @@ const nav = [
 
 <script>
   /**
-   * Click-to-copy on the email address. Falls back to opening the mail client
-   * when the clipboard is unavailable (insecure context, denied permission).
+   * Click-to-copy on the email address — now a button of its own rather than
+   * a hijacked link, so opening the mail client and copying the address are
+   * two different actions with two different affordances.
    *
-   * This is the only copy handler on the site: `contact.astro` used to carry a
-   * second one, so a single click ran both and the confirmation raced itself.
    * `astro:page-load` re-binds after a client-side swap; the guard stops a
    * node that survived from getting two listeners.
    */
   function initCopy() {
-    for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-copy-email]')) {
-      if (link.dataset.copyBound === 'true') continue;
-      link.dataset.copyBound = 'true';
+    for (const button of document.querySelectorAll<HTMLButtonElement>(
+      'button[data-copy-email]',
+    )) {
+      if (button.dataset.copyBound === 'true') continue;
+      button.dataset.copyBound = 'true';
 
-      const state = link.querySelector<HTMLElement>('[data-copy-state]');
-      const href = link.getAttribute('href') ?? '';
-      /* Only a real mailto: is copyable. The fallback slot points at the
-         contact form and must keep its default navigation. */
-      if (!href.startsWith('mailto:')) continue;
-      const email = href.replace(/^mailto:/, '');
-      if (!email) continue;
+      const address = button.dataset.copyEmail ?? '';
+      if (!address) continue;
+      // The status slot sits next to the button in the footer and wraps the
+      // control on the contact page, so look for both shapes.
+      const state =
+        button.parentElement?.querySelector<HTMLElement>('[data-copy-state]') ??
+        button.querySelector<HTMLElement>('[data-copy-state]');
+      const label = button.dataset.copyLabel ?? button.textContent ?? 'Copy';
 
-      link.addEventListener('click', async (event) => {
-        // A modified click is a request to hand off to the OS, not to copy.
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-        event.preventDefault();
+      button.addEventListener('click', async () => {
         try {
-          await navigator.clipboard.writeText(email);
-          if (state) {
-            state.textContent = 'Copied';
-            setTimeout(() => (state.textContent = ''), 1800);
-          }
+          await navigator.clipboard.writeText(address);
+          button.textContent = 'Copied';
+          if (state) state.textContent = '';
         } catch {
-          window.location.href = `mailto:${email}`;
+          // No clipboard (insecure context, denied permission). Say so rather
+          // than pretending the copy happened.
+          button.textContent = 'Press and hold';
+          if (state) state.textContent = address;
         }
+        setTimeout(() => {
+          button.textContent = label;
+          if (state) state.textContent = '';
+        }, 1800);
       });
     }
   }

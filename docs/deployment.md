@@ -214,40 +214,80 @@ never lost to a mail provider outage.
 
 ### Storing enquiries in your own Gmail
 
-`CONTACT_TO_EMAIL` can be any address, a personal Gmail included. How to set up
-the sender side depends on whether you have a domain ready.
+`CONTACT_TO_EMAIL` can be any address, a personal Gmail included. With no
+secret set, enquiries go to the address the site publishes — `studio.email` in
+`src/config/site.ts` — which is the same mailbox the `mailto:` links open, so
+there is one inbox and one place to change it.
 
-**Path A — no domain yet (fastest, works on the free tier).** Resend's shared
-testing sender `onboarding@resend.dev` delivers to exactly one address: the
-email your Resend account is registered with. That restriction is the feature
-here — make that account address your Gmail, and enquiries land in it.
+**Path B — send from a domain you own. This is the one to do.**
 
-1. Create a Resend account **with the Gmail address** you want enquiries in.
-2. Dashboard → API Keys → Create, and note the key.
-3. Set the secrets:
+1. Resend → Domains → Add domain. Use a sending subdomain — `send.yourdomain.com`.
+   A dedicated subdomain keeps mail reputation separate from the website's, and
+   it is what Resend's own setup screen generates.
+2. Resend shows the records with the exact values filled in. Their shapes:
+
+   | Type | Name                     | Value                                                |
+   | ---- | ------------------------ | ---------------------------------------------------- |
+   | MX   | `send`                   | `10 feedback-smtp.<region>.amazonses.com`            |
+   | TXT  | `send`                   | `v=spf1 include:amazonses.com ~all`                  |
+   | TXT  | `resend._domainkey.send` | `p=<the DKIM public key on your screen>`             |
+   | TXT  | `_dmarc`                 | `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`  |
+
+   Two ways this goes wrong and mail still looks "delivered": the MX region must
+   be the region the dashboard chose (a `us-east-1` record for a `eu-west-1`
+   domain passes nothing), and DMARC must be on the **root** `_dmarc`, not
+   `_dmarc.send`. Start at `p=none` — it reports, it does not block. Raise the
+   policy only after a few weeks of clean reports.
+3. Wait until Resend marks the domain **Verified** (green). Sending before that
+   returns an API error, which the endpoint swallows into `stored` rather than
+   losing the lead.
+4. Set the secrets. `CONTACT_FROM_EMAIL` takes a display name, and it should use
+   one:
+
    ```bash
    wrangler secret put RESEND_API_KEY
-   wrangler secret put CONTACT_TO_EMAIL    # your Gmail address — same one the Resend account is registered with
-   wrangler secret put CONTACT_FROM_EMAIL  # onboarding@resend.dev
+   wrangler secret put CONTACT_FROM_EMAIL  # "sheatz" <enquiries@send.yourdomain.com>
+   wrangler secret put CONTACT_TO_EMAIL    # the inbox the enquiries should land in
    ```
-4. Submit the form once to confirm; the email arrives in the Gmail inbox, and
-   replies from Gmail reach the sender via `replyTo` without any setup.
 
-Limits of Path A: it can only deliver to your own account address, the
-`From:` shows Resend's shared testing sender, and Google is free to treat
-`resend.dev` traffic with less trust than domain-verified mail. Good for
-launched-and-watching, not a long-term answer.
+   The address inside `< >` must be on the verified domain. Putting a Gmail
+   address in `From:` is the single most reliable way to be filed under Spam:
+   the mail did not come from Gmail, so it fails SPF and DMARC alignment by
+   definition. The visitor's address belongs in `replyTo`, which the endpoint
+   already does — that is why "Reply" in Gmail answers them and not yourself.
+5. If you move the studio mailbox to the domain, change `studio.email` in
+   `src/config/site.ts` as well. That one value drives the published `mailto:`
+   links, the admin page and the fallback recipient, so the form and the direct
+   link keep arriving in the same place.
 
-**Path B — you own a domain (the production way).**
+**Path A — no domain yet.** Resend's shared testing sender `onboarding@resend.dev`
+delivers to exactly one address: the email the Resend account is registered
+with. Register that account with the Gmail you want enquiries in, set
+`CONTACT_FROM_EMAIL=onboarding@resend.dev`, and one test enquiry arrives. It is
+a way to see the pipeline work in five minutes; it is not a way to run a studio,
+because `resend.dev` carries thousands of senders' reputation, including the
+spammy ones.
 
-1. Resend → Domains → Add domain (`send.yourdomain.com` is fine).
-2. Add the DNS records Resend lists — SPF, DKIM, and a DMARC policy on the
-   root domain — at your DNS provider. Propagation is usually minutes.
-3. Set the same three secrets, with `CONTACT_FROM_EMAIL` on the verified
-   domain (`studio@yourdomain.com`) and `CONTACT_TO_EMAIL` wherever the
-   enquiries should land — unrestricted in this path.
-4. Optional, in Gmail: a filter on the subject `New enquiry —` to label them
-   automatically.
+### Reading the result instead of guessing it
+
+Submit one real enquiry from the deployed site, open it in Gmail → **Show
+original**, and look for three lines:
+
+```
+spf=pass    (client-connect ...; identity=mailfrom)
+dkim=pass   (2048-bit rsasha ...; header d=send.yourdomain.com)
+dmarc=pass  (alignment=relaxed, ... )
+```
+
+- Any `softfail` / `temperror` / `none` → the DNS is not finished, or the region
+  is wrong. Nothing else matters until those three say `pass`.
+- All three `pass` and Gmail still files it in Spam → that is sender reputation,
+  which is built by volume and consistency over weeks, not by configuration.
+  The practical fix in the meantime is a Gmail filter for the sending address
+  with "Never send it to Spam" ticked. It is one manual step on your own inbox,
+  and it does not paper over a broken DNS check.
+- Watch for it landing in **Social/Promotions** rather than Spam: that is Gmail
+  categorising, it is harmless for delivery, and the same filter pins it to Primary.
 
 For both paths the delivery chain is unchanged: the enquiry is stored in D1
 first, emailed second, every send carries an idempotency key so a double-submit

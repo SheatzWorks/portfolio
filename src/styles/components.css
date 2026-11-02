@@ -2342,6 +2342,35 @@ main:has(.closing) ~ .foot .foot__statement {
   text-decoration-color: var(--accent-deep);
 }
 
+/* The copy control beside the address. Not a link — it performs an action —
+   and deliberately quieter than the address it copies, so the row reads as
+   "email, and also copyable" rather than two equal options. */
+.foot__copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * `--tap` on both axes. "Copy" is four letters of mono — 27px of ink —
+   * so the padding alone lands one pixel short of a thumb target, which is
+   * exactly the arithmetic a gate exists to catch. Width is floored rather
+   * than padded out: the label never changes what the hit area is.
+   */
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding-inline: var(--sp-2);
+  border: 0;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease);
+}
+
+.foot__copy:hover {
+  color: var(--accent-deep);
+}
+
 .foot__nav {
   display: flex;
   flex-wrap: wrap;
@@ -3864,6 +3893,14 @@ main > section {
   margin-top: var(--sp-8);
   padding-top: var(--sp-5);
   border-top: 1px solid var(--line);
+}
+
+.case__foot p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: 0;
 }
 
 .case__more {

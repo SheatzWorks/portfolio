@@ -94,10 +94,12 @@ invents a client, a metric, a testimonial or a claim.
    links, the price currency and the site URL. One file, one swap.
 2. **`wrangler.jsonc`** — set `PUBLIC_SITE_URL` to the real domain.
 3. **Cloudflare** — set `ADMIN_TOKEN` (see [docs/deployment.md](docs/deployment.md)).
-4. **Contact form delivery** — create a Resend account with the Gmail address
-   enquiries should land in, then set `RESEND_API_KEY`, `CONTACT_TO_EMAIL` and
-   `CONTACT_FROM_EMAIL` with `wrangler secret put`. The Gmail-only path needs
-   no domain: [docs/deployment.md](docs/deployment.md) → Contact form.
+4. **Contact form delivery** — verify a sending domain in Resend (SPF, DKIM and
+   a DMARC policy), then set `RESEND_API_KEY`, `CONTACT_FROM_EMAIL` (an address
+   on that domain, display name included) and `CONTACT_TO_EMAIL` with
+   `wrangler secret put`. Mail sent from an unverified sender is what puts
+   enquiries in Spam; the record shapes and how to read the result are in
+   [docs/deployment.md](docs/deployment.md) → Contact form.
 5. **Confirm `studio.priceCurrency`.** It is set to `GBP` as an assumption and is
    the one substantive value on this site that was not supplied. A bare
    `30,000 – 75,000` cannot be compared between two services, so it is rendered

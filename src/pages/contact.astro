@@ -1,20 +1,39 @@
 ---
 import Base from '~/layouts/Base.astro';
 import Section from '~/components/Section.astro';
-import { studio, publishableSocial, publishableEmail } from '~/config/site';
+import { studio, publishableSocial, publishableEmail, mailtoHref, enquiryDraft } from '~/config/site';
 import { getEnv } from '~/lib/env';
-import { getSiteContent } from '~/lib/db';
+import { getSiteContent, listOwnProducts } from '~/lib/db';
 
 export const prerender = true;
 
 const env = await getEnv(Astro.locals);
 let blurb: string | null = null;
+let products: Awaited<ReturnType<typeof listOwnProducts>> = [];
 if (env.DB) {
   blurb = (await getSiteContent(env.DB as never).catch(() => null))?.contactBlurb ?? null;
+  products = await listOwnProducts(env.DB as never).catch(() => []);
 }
 
-// Rendered at build time into a hidden field. A submission that arrives faster
-// than MIN_FILL_MS is dropped before it can cost a Turnstile verification.
+/*
+ * One "which product" option per shipped product, with its own prefilled
+ * `mailto:` carried on the option as data. The subject line and the direct
+ * link are both built here, at render time, from D1 titles — the client
+ * script only picks an existing row, never composes text. That keeps the
+ * ?product= deep link honest (an unknown slug selects nothing) and keeps the
+ * page inside the same CSP shape as the rest of the site.
+ */
+const productOptions = products.map((product) => ({
+  slug: product.slug,
+  title: product.title,
+  mailto: mailtoHref(enquiryDraft(`Enquiry about ${product.title}`)),
+}));
+
+// The build-time value below is a fail-open default, replaced the moment the
+// page is seen (see the stamp in the script): on a prerendered page "rendered"
+// and "read" are years apart, and an unstamped field makes the endpoint's
+// fill-time check inert. A submission that arrives faster than MIN_FILL_MS is
+// dropped before it can cost a Turnstile verification.
 const renderedAt = Date.now();
 const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
 ---
@@ -100,6 +119,37 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
             </div>
           </div>
 
+          {/*
+            Optional, and it stays out of the way when there is nothing to
+            choose: no products in D1 renders no field at all rather than an
+            empty dropdown. Arriving from a product page pre-selects it; the
+            value is a slug, so the enquiry carries the product identity and
+            not a string the visitor had to type.
+          */}
+          {
+            productOptions.length > 0 && (
+              <div class="field">
+                <label class="field__label" for="product">
+                  Which product?
+                </label>
+                <select class="select" id="product" name="product">
+                  <option value="">Not a specific product</option>
+                  {productOptions.map((option) => (
+                    <option
+                      value={option.slug}
+                      data-mailto={option.mailto ?? undefined}
+                    >
+                      {option.title}
+                    </option>
+                  ))}
+                </select>
+                <p class="field__hint">
+                  Pick one and we answer knowing exactly which one you mean.
+                </p>
+              </div>
+            )
+          }
+
           <div class="form__row form__row--2">
             <div class="field">
               <label class="field__label" for="timeline">Timeline</label>
@@ -182,18 +232,24 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
       </div>
 
       <aside class="contact__aside">
-        {publishableEmail() ? (
+        {publishableEmail() && mailtoHref(enquiryDraft('New project enquiry')) ? (
           <>
             <h2 class="contact__aside-heading">Or reach us directly</h2>
+            {/* Opens the visitor's own mail client already addressed and
+                composed; copy is kept as a separate action. */}
             <a
               class="copy-email"
-              href={`mailto:${publishableEmail()}`}
-              data-copy-email
-              title="Copy email address"
+              href={mailtoHref(enquiryDraft('New project enquiry'))}
+              data-direct-mailto
             >
-              <span>{publishableEmail()}</span>
-              <span class="copy-email__state" data-copy-state aria-live="polite"></span>
+              {publishableEmail()}
             </a>
+            <button
+              type="button"
+              class="foot__copy"
+              data-copy-email={publishableEmail()}
+              aria-label={`Copy ${publishableEmail()}`}>Copy</button>
+            <span class="copy-email__state" data-copy-state aria-live="polite"></span>
           </>
         ) : (
           <p class="contact__aside-note">
@@ -245,6 +301,19 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
 
     const status = form.querySelector<HTMLElement>('[data-form-status]');
     const submit = form.querySelector<HTMLButtonElement>('[data-submit]');
+
+    /*
+     * Re-stamp the fill-time field with the time this page was actually seen.
+     *
+     * `/contact` is prerendered, so the value baked into the HTML is a build
+     * timestamp: every real submission looked hours old and the endpoint's
+     * cheapest bot layer — nobody types a name, an address and a paragraph in
+     * under two seconds — never fired. The build value stays as the default,
+     * so a visitor with JavaScript off still submits (and still gets the
+     * honeypot, the rate limit and Turnstile in front of them).
+     */
+    const stamp = form.querySelector<HTMLInputElement>('[name="rendered_at"]');
+    if (stamp) stamp.value = String(Date.now());
 
     const setStatus = (message: string, state: 'success' | 'error') => {
       if (!status) return;
@@ -393,6 +462,41 @@ const turnstileSiteKey = env.TURNSTILE_SITE_KEY;
 
     // Click-to-copy lives in SiteFooter, which is on every page. It used to be
     // duplicated here, so one click copied twice and raced the two handlers.
+
+    /*
+     * ?product=<slug> from a product page.
+     *
+     * Every string this touches was rendered server-side: the option list
+     * comes from D1 and the direct-mail link for each product rides on its
+     * option as `data-mailto`. The script selects a row and copies an href
+     * that already existed in the HTML — it never builds text, so nothing it
+     * does can survive as forged content. An unknown slug leaves the form
+     * exactly as it was rendered, and a visitor with JavaScript disabled
+     * still gets a working dropdown, because the field is plain HTML.
+     */
+    const productField = form.querySelector<HTMLSelectElement>('select[name="product"]');
+    const directLink = document.querySelector<HTMLAnchorElement>('[data-direct-mailto]');
+    const defaultDirectHref = directLink?.getAttribute('href') ?? null;
+
+    const syncDirectLink = () => {
+      if (!directLink || !defaultDirectHref) return;
+      const chosen =
+        productField?.selectedOptions[0]?.getAttribute('data-mailto') ?? defaultDirectHref;
+      directLink.setAttribute('href', chosen);
+    };
+
+    if (productField) {
+      productField.addEventListener('change', syncDirectLink);
+
+      const requested = new URLSearchParams(window.location.search).get('product');
+      if (requested) {
+        const match = Array.from(productField.options).find((option) => option.value === requested);
+        if (match) {
+          productField.value = requested;
+          syncDirectLink();
+        }
+      }
+    }
   }
 
   /*

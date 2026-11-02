@@ -144,6 +144,52 @@ export function publishableEmail(): string | null {
 }
 
 /**
+ * A `mailto:` that opens the visitor's own mail client already composed to the
+ * studio — the email equivalent of the Instagram link landing on the profile
+ * instead of on instagram.com's front page.
+ *
+ * `encodeURIComponent`, deliberately not `URLSearchParams`: the latter encodes
+ * a space as `+`, and several clients put that literally into the subject line.
+ * Mail bodies want CRLF, so newlines are normalised before encoding.
+ *
+ * Returns null when there is no publishable mailbox, so every call site keeps
+ * its existing fallback to the contact form.
+ */
+export function mailtoHref(
+  opts: { subject?: string; body?: string } = {},
+): string | null {
+  const email = publishableEmail();
+  if (!email) return null;
+  const parts: string[] = [];
+  if (opts.subject) parts.push(`subject=${encodeURIComponent(opts.subject)}`);
+  if (opts.body) {
+    parts.push(`body=${encodeURIComponent(opts.body.replace(/\r?\n/g, '\r\n'))}`);
+  }
+  return `mailto:${email}${parts.length ? `?${parts.join('&')}` : ''}`;
+}
+
+/**
+ * The draft an email link hands the visitor's mail client.
+ *
+ * Kept to three prompts rather than a paragraph, because a compose window
+ * full of text to delete is slower than an empty one — and because a
+ * pre-written message is the visitor's words about their project, not ours.
+ */
+export function enquiryDraft(subject: string): { subject: string; body: string } {
+  return {
+    subject,
+    body: [
+      'Hi —',
+      '',
+      'What you want built:',
+      'When you want it live:',
+      'Anything already in place (repo, design, users):',
+      '',
+    ].join('\n'),
+  };
+}
+
+/**
  * External URLs that are safe to link to, or null.
  *
  * Products arrive from D1 with `url` / `availabilityUrl` columns that are

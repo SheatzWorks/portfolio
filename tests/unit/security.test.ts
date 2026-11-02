@@ -430,3 +430,186 @@ describe('contact enquiry delivery flag', () => {
   });
 });
 
+
+/**
+ * D1 stub for the product lookup.
+ *
+ * It records reads as well as writes, because "did the endpoint ask D1 about
+ * this slug at all" is the assertion that matters for a value rejected by the
+ * shape check — a stub that only recorded writes would pass that test for the
+ * wrong reason.
+ */
+function dbWithProject(row: Record<string, unknown> | null) {
+  const exec: { sql: string; values: unknown[] }[] = [];
+  const answer = (sql: string) => (sql.includes('FROM projects') ? row : null);
+  const db: D1Like = {
+    prepare(sql: string) {
+      const statement = {
+        bind(...values: unknown[]) {
+          return {
+            first: async () => {
+              exec.push({ sql, values });
+              return answer(sql);
+            },
+            all: async () => ({ results: [], meta: { changes: 0, last_row_id: 0 } }),
+            run: async () => {
+              exec.push({ sql, values });
+              return { meta: { changes: 1, last_row_id: 42 } };
+            },
+          };
+        },
+        first: async () => {
+          exec.push({ sql, values: [] });
+          return answer(sql);
+        },
+        all: async () => {
+          exec.push({ sql, values: [] });
+          return { results: [], meta: { changes: 0, last_row_id: 0 } };
+        },
+        run: async () => {
+          exec.push({ sql, values: [] });
+          return { meta: { changes: 1, last_row_id: 42 } };
+        },
+      };
+      return statement as unknown as import('../../src/lib/db').D1StatementLike;
+    },
+  };
+  return { db, exec };
+}
+
+const postForm = (fields: Record<string, string>) =>
+  contactPost({
+    request: new Request('https://x.test/api/contact', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'cf-connecting-ip': '203.0.113.21',
+      },
+      body: new URLSearchParams(fields),
+    }),
+  } as never) as Promise<Response>;
+
+const ENQUIRY = {
+  name: 'Ada Lovelace',
+  email: 'ada@example.com',
+  message: 'We would like a small web application built for our team, please.',
+};
+
+/** The context JSON is the only column that carries a JSON object. */
+const contextOf = (exec: { sql: string; values: unknown[] }[]) => {
+  const insert = exec.find((e) => e.sql.startsWith('INSERT INTO enquiries'));
+  expect(insert, 'the enquiry was never stored').toBeDefined();
+  const raw = insert!.values.find((v) => typeof v === 'string' && v.startsWith('{')) as string;
+  return JSON.parse(raw) as Record<string, unknown>;
+};
+
+describe('the fill-time layer, and the order it runs in', () => {
+  afterEach(() => {
+    setTestEnv(null);
+    vi.clearAllMocks();
+  });
+
+  it('drops a complete submission that arrived inside the window', async () => {
+    const { db, exec } = dbWithProject(null);
+    setTestEnv({ DB: db as never, RATE_LIMIT_SALT: 'salt' });
+
+    const res = await postForm({ ...ENQUIRY, rendered_at: String(Date.now()) });
+    expect(res.status).toBe(200);
+    expect(exec.some((e) => e.sql.startsWith('INSERT INTO enquiries'))).toBe(false);
+  });
+
+  it('answers a fast but incomplete form with its field errors', async () => {
+    // An instant submission that is missing fields is a person with browser
+    // autofill, not a bot. Run the timing check first, as it used to be, and
+    // that person is told "sent" while their enquiry is thrown away.
+    const { db, exec } = dbWithProject(null);
+    setTestEnv({ DB: db as never, RATE_LIMIT_SALT: 'salt' });
+
+    const res = await postForm({
+      name: 'A',
+      email: 'not-an-email',
+      message: 'too short',
+      rendered_at: String(Date.now()),
+    });
+    expect(res.status).toBe(422);
+    expect((await res.json() as { errors: Record<string, string> }).errors).toMatchObject({
+      name: expect.any(String),
+      email: expect.any(String),
+      message: expect.any(String),
+    });
+  });
+
+  it('accepts the same form once the page has been open past the window', async () => {
+    const { db, exec } = dbWithProject(null);
+    setTestEnv({ DB: db as never, RATE_LIMIT_SALT: 'salt' });
+
+    const res = await postForm({ ...ENQUIRY, rendered_at: String(Date.now() - MIN_FILL_MS - 10) });
+    expect(res.status).toBe(200);
+    expect(exec.some((e) => e.sql.startsWith('INSERT INTO enquiries'))).toBe(true);
+  });
+});
+
+describe('which product an enquiry is about', () => {
+  afterEach(() => {
+    setTestEnv(null);
+    vi.clearAllMocks();
+  });
+
+  const EMBER = {
+    id: 7,
+    slug: 'ember',
+    title: 'Ember',
+    url: '',
+    ownership: 'own',
+    published: 1,
+    status: 'live',
+    created_at: '',
+    updated_at: '',
+  };
+
+  it('stores the title resolved from D1, and puts it in the mail subject', async () => {
+    const { db, exec } = dbWithProject(EMBER);
+    setTestEnv({
+      DB: db as never,
+      RATE_LIMIT_SALT: 'salt',
+      RESEND_API_KEY: 're_test_key',
+      CONTACT_TO_EMAIL: 'studio-owner@example.com',
+      CONTACT_FROM_EMAIL: 'studio@send.example.net',
+    });
+
+    const res = await postForm({ ...ENQUIRY, rendered_at: String(Date.now() - 60_000), product: 'ember' });
+    expect(res.status).toBe(200);
+    expect(contextOf(exec).product).toBe('Ember');
+
+    const payload = resendSend.mock.calls[0][0] as { subject: string; text: string };
+    expect(payload.subject).toContain('about Ember');
+    expect(payload.text).toContain('About: Ember');
+  });
+
+  it('ignores a slug that is not a published product of the studio', async () => {
+    const { db, exec } = dbWithProject(null);
+    setTestEnv({ DB: db as never, RATE_LIMIT_SALT: 'salt' });
+
+    const res = await postForm({
+      ...ENQUIRY,
+      rendered_at: String(Date.now() - 60_000),
+      product: 'not-a-real-product',
+    });
+    expect(res.status).toBe(200);
+    expect(contextOf(exec).product).toBeUndefined();
+  });
+
+  it('never asks D1 for a value that is not shaped like a slug', async () => {
+    const { db, exec } = dbWithProject(EMBER);
+    setTestEnv({ DB: db as never, RATE_LIMIT_SALT: 'salt' });
+
+    const res = await postForm({
+      ...ENQUIRY,
+      rendered_at: String(Date.now() - 60_000),
+      product: "ember' OR 1=1--",
+    });
+    expect(res.status).toBe(200);
+    expect(exec.some((e) => e.sql.includes('FROM projects'))).toBe(false);
+    expect(contextOf(exec).product).toBeUndefined();
+  });
+});
