@@ -14,6 +14,7 @@ import type { Env } from '~/lib/env';
 import { getEnv, getDb } from '~/lib/env';
 import { dispatch } from '~/lib/dispatcher';
 import { authenticate, unauthorized } from '~/lib/admin-auth';
+import { checkRateLimit, getPolicy, getRateLimitIdentifier } from '~/lib/rate-limit';
 
 // MUST be false. Without it Astro prerenders this route to a static file at
 // build time, and the cron trigger then hits that frozen JSON forever — the
@@ -32,13 +33,32 @@ export const prerender = false;
 export const onRequest: APIRoute = async ({ request }) => {
   const env: Env = await getEnv();
 
-  const session = authenticate(request, env.ADMIN_TOKEN);
+  const session = await authenticate(request, env.ADMIN_TOKEN);
   if (!session.ok) {
     const denied = unauthorized(session.reason);
     return new Response(denied.body, { status: denied.status, headers: denied.headers });
   }
 
+  // Rate limiting for cron dispatch endpoint
   const db: D1Database = getDb(env);
+  const policy = getPolicy('cron-dispatch');
+  const identifier = await getRateLimitIdentifier(request, env, policy);
+  const limit = await checkRateLimit(db as never, identifier, policy);
+  if (!limit.allowed) {
+    console.log(JSON.stringify({ event: 'cron.rate_limited', outcome: 'rejected' }));
+    return Response.json(
+      { ok: false, error: 'Too many dispatch requests. Try again later.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(limit.retryAfterSeconds ?? policy.windowMinutes * 60),
+          'X-RateLimit-Limit': String(limit.limit ?? policy.max),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + (limit.retryAfterSeconds ?? policy.windowMinutes * 60)),
+        }
+      },
+    );
+  }
 
   const summary = await dispatch(env, db, 3);
 

@@ -150,6 +150,8 @@ for (const path of PATHS) {
   const row = {
     path,
     htmlGzipKb: null,
+    jsGzipKb: null,
+    cssGzipKb: null,
     jsKb: kb(total((r) => kindOf(r) === 'js')),
     cssKb: kb(total((r) => kindOf(r) === 'css')),
     fontKb: kb(total((r) => kindOf(r) === 'font')),
@@ -159,14 +161,37 @@ for (const path of PATHS) {
     ...metrics,
   };
 
-  // gzip the HTML we actually received, for an honest transfer figure.
+  // gzip the HTML/CSS/JS we actually received, for an honest transfer figure.
+  // Preview server doesn't compress; Cloudflare Pages does. Simulate production.
+  const { gzipSync } = await import('node:zlib');
   try {
     const res = await page.request.get(`${BASE}${path}`);
     const body = await res.body();
-    const { gzipSync } = await import('node:zlib');
     row.htmlGzipKb = kb(gzipSync(body, { level: 6 }).length);
   } catch {
     /* ignore */
+  }
+  // Fetch and gzip CSS
+  for (const r of requests) {
+    if (kindOf(r) === 'css') {
+      try {
+        const res = await page.request.get(r.url);
+        const body = await res.body();
+        row.cssGzipKb = kb(gzipSync(body, { level: 6 }).length);
+      } catch { /* ignore */ }
+      break; // only one CSS file expected
+    }
+  }
+  // Fetch and gzip JS
+  for (const r of requests) {
+    if (kindOf(r) === 'js') {
+      try {
+        const res = await page.request.get(r.url);
+        const body = await res.body();
+        row.jsGzipKb = kb(gzipSync(body, { level: 6 }).length);
+      } catch { /* ignore */ }
+      break; // only one JS file expected (shared chunk)
+    }
   }
 
   // Wait for late layout shifts before closing the page.
@@ -182,14 +207,14 @@ await browser.close();
 
 const pad = (s, n) => String(s).padEnd(n);
 console.log('');
-console.log(pad('path', 12) + pad('html gz', 9) + pad('js', 7) + pad('css', 7) + pad('fonts', 8) + pad('imgs', 8) + pad('reqs', 6) + pad('3p', 5) + pad('LCP', 7) + pad('CLS', 8) + 'TTFB');
+console.log(pad('path', 12) + pad('html gz', 9) + pad('js gz', 7) + pad('css gz', 7) + pad('fonts', 8) + pad('imgs', 8) + pad('reqs', 6) + pad('3p', 5) + pad('LCP', 7) + pad('CLS', 8) + 'TTFB');
 console.log('-'.repeat(96));
 for (const r of results) {
   console.log(
     pad(r.path, 12) +
       pad(`${r.htmlGzipKb}kb`, 9) +
-      pad(`${r.jsKb}kb`, 7) +
-      pad(`${r.cssKb}kb`, 7) +
+      pad(`${r.jsGzipKb ?? r.jsKb}kb`, 7) +
+      pad(`${r.cssGzipKb ?? r.cssKb}kb`, 7) +
       pad(`${r.fontKb}kb`, 8) +
       pad(`${r.imageKb}kb`, 8) +
       pad(r.requests, 6) +
@@ -207,8 +232,8 @@ console.log('-'.repeat(96));
 const worst = (key) => Math.max(...results.map((r) => r[key] ?? 0));
 const checks = [
   ['HTML (gzip)', worst('htmlGzipKb'), BUDGETS.htmlGzipKb, 'kb'],
-  ['JavaScript', worst('jsKb'), BUDGETS.totalJsKb, 'kb'],
-  ['CSS (gzip)', worst('cssKb'), BUDGETS.totalCssGzipKb, 'kb'],
+  ['JavaScript (gzip)', worst('jsGzipKb') ?? worst('jsKb'), BUDGETS.totalJsKb, 'kb'],
+  ['CSS (gzip)', worst('cssGzipKb') ?? worst('cssKb'), BUDGETS.totalCssGzipKb, 'kb'],
   ['Fonts', worst('fontKb'), BUDGETS.fontKb, 'kb'],
   ['Images', worst('imageKb'), BUDGETS.initialImageKb, 'kb'],
   ['Requests', worst('requests'), BUDGETS.totalRequests, ''],

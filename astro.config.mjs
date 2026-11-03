@@ -88,7 +88,7 @@ export default defineConfig({
         // Cloudflare Turnstile renders itself in an iframe. Both are only used
         // when the relevant feature is configured.
         "frame-src 'self' https: https://challenges.cloudflare.com",
-        "connect-src 'self' https://challenges.cloudflare.com",
+        "connect-src 'self' https://challenges.cloudflare.com https://example.com/api/csp-report",
 
         "object-src 'none'",
         "base-uri 'self'",
@@ -96,6 +96,8 @@ export default defineConfig({
         // frame-ancestors is deliberately NOT here: browsers ignore it in a
         // <meta> element, so it is sent as a header from src/middleware.ts.
         'upgrade-insecure-requests',
+        // CSP reporting endpoint
+        "report-uri /api/csp-report",
       ],
     },
   },
@@ -105,6 +107,10 @@ export default defineConfig({
   vite: {
     build: {
       cssMinify: 'lightningcss',
+    },
+    // Ensure Durable Object classes are included in the worker bundle
+    optimizeDeps: {
+      include: ['~/do-entry'],
     },
   },
 });

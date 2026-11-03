@@ -1,164 +1,64 @@
 ---
 /**
- * HeroFigure — the hero's right column: a project sheet being worked.
+ * HeroFigure — the hero's right column: frame-by-frame animation from video.
  *
- * The studio delivers software the way a document is made: a brief is written
- * down, specified, built, verified and handed over. The figure is that sheet,
- * drawn in the site's own ledger hand, with the entries being made on it.
+ * Extracts frames from the video (36 fps, ~10s = 360 frames) and plays them
+ * as a CSS animation. Keeps the same parallax drift and scroll-lift behaviour
+ * via CSS custom properties.
  *
- * The drawing
- * -----------
- * One ruled sheet, filled with the page's own paper so it reads as an object
- * and not as an empty outline. A ledger margin runs down the left; the two
- * people are two marks riding that margin, and they step down the sheet as
- * each stage is finished. The body carries the work:
+ * Three states:
+ *   1. Driven: frame animation + parallax drift + scroll lift (fine pointer, no reduced motion)
+ *   2. Static: frame animation only (touch/no-JS)
+ *   3. Poster: first frame only (reduced motion)
  *
- *   * BRIEF  — three entries written onto the rules;
- *   * SPEC   — two more, the scope getting its shape;
- *   * BUILD  — a small interface assembling: a frame, a sidebar, two lines,
- *              one filled block, which is the thing actually being made;
- *   * VERIFY — a check drawn over the built thing;
- *   * SHIP   — a stamp lands and the delivery rule runs out to the sheet edge.
- *
- * A stage rail down the right edge holds all five names at once, so the sheet
- * says where it is even to someone who arrives mid-loop and to someone who
- * never sees it move.
- *
- * Three states, in order of preference:
- *
- *   1. Driven: the sheet answers the pointer with a few pixels of parallax
- *      and lifts as the hero scrolls out.
- *   2. Animated: the loop runs on its own, on touch too — no pointer, no
- *      script.
- *   3. Poster: under reduced motion the same composition is frozen complete —
- *      every entry written, the build assembled, the check drawn, all five
- *      stages lit, the stamp down and the crew at the bottom of the margin.
- *
- * Plain SVG, plain CSS, no JavaScript beyond the driver it shares.
- * Decorative by contract: the hero's words carry the meaning.
+ * Lazy-loaded with skeleton placeholder.
  */
+
+import { studio } from '~/config/site';
+
+// Import all frame images - Vite will optimize them
+const frameModules = import.meta.glob('/hero-frames/frame-*.webp', { eager: true, import: 'default' });
+const frameUrls = Object.keys(frameModules).sort().map(k => frameModules[k] as string);
+const FRAME_COUNT = frameUrls.length;
+const FPS = 36;
+const FRAME_DURATION_MS = 1000 / FPS;
+const TOTAL_DURATION_MS = FRAME_COUNT * FRAME_DURATION_MS;
+
+const POSTER_SRC = frameUrls[0] || '/og-default.png';
 ---
 
 <figure class="hero-figure" data-hero-figure>
   <div class="hero-figure__drift" data-hero-figure-drift>
     <div class="hero-figure__stage" data-hero-figure-stage>
-      <svg class="hero-figure__static" viewBox="0 0 400 420" aria-hidden="true" focusable="false">
-        {/*
-          The static furniture is drawn first and never animates: the sheet,
-          its paper, the ledger margin, the rules, the rail and the two rules
-          that close the title block and the delivery strip. It is what gives
-          the composition weight before a single entry is made, and it is why
-          the box is never empty.
-        */}
-        <rect class="hf-sheet" x="16" y="12" width="368" height="396" />
-        <line class="hf-margin" x1="62" y1="12" x2="62" y2="408" />
-        <line class="hf-rule hf-rule--strong" x1="16" y1="54" x2="384" y2="54" />
-        <line class="hf-rule" x1="62" y1="84" x2="316" y2="84" />
-        <line class="hf-rule" x1="62" y1="114" x2="316" y2="114" />
-        <line class="hf-rule" x1="62" y1="144" x2="316" y2="144" />
-        <line class="hf-rule" x1="62" y1="174" x2="316" y2="174" />
-        <line class="hf-rule" x1="62" y1="204" x2="316" y2="204" />
-        <line class="hf-rule" x1="62" y1="234" x2="316" y2="234" />
-        <line class="hf-rule" x1="62" y1="264" x2="316" y2="264" />
-        <line class="hf-rule" x1="62" y1="294" x2="316" y2="294" />
-        <line class="hf-rule" x1="62" y1="324" x2="316" y2="324" />
-        <line class="hf-rule hf-rule--strong" x1="16" y1="348" x2="384" y2="348" />
+      <!-- Skeleton loader — shows while frames load -->
+      <div class="hero-figure__skeleton" aria-hidden="true">
+        <div class="hero-figure__skeleton-sheet"></div>
+        <div class="hero-figure__skeleton-margin"></div>
+        <div class="hero-figure__skeleton-rail"></div>
+        <div class="hero-figure__skeleton-crew"></div>
+        <div class="hero-figure__skeleton-frame"></div>
+        <div class="hero-figure__skeleton-stamp"></div>
+      </div>
 
-        {/*
-          The printed sign-off field. A real sheet has the box on it before
-          anyone stamps it, so the footer is furniture and not a reveal: the
-          field waits, the stamp lands inside it, the rule runs along the
-          printed track. Without these two marks the bottom fifth of the sheet
-          was blank for three quarters of every loop.
-        */}
-        <rect class="hf-field" x="72" y="364" width="116" height="32" />
-        <line class="hf-track" x1="200" y1="380" x2="310" y2="380" />
-
-        {/* Title block — the sheet's own identity, present at rest. */}
-        <text class="hf-meta" x="72" y="38">Project sheet</text>
-        <text class="hf-meta hf-meta--index" x="368" y="38">01</text>
-
-        {/* The stage rail: five names, held all the way down the right edge. */}
-        <line class="hf-rail" x1="336" y1="84" x2="336" y2="300" />
-        <line class="hf-rail-fill" x1="336" y1="84" x2="336" y2="300" />
-        <g class="hf-stage hf-stage--brief">
-          <circle class="hf-pip" cx="336" cy="84" r="2.8" />
-          <text class="hf-label" x="346" y="86.5">Brief</text>
-        </g>
-        <g class="hf-stage hf-stage--spec">
-          <circle class="hf-pip" cx="336" cy="138" r="2.8" />
-          <text class="hf-label" x="346" y="140.5">Spec</text>
-        </g>
-        <g class="hf-stage hf-stage--build">
-          <circle class="hf-pip" cx="336" cy="192" r="2.8" />
-          <text class="hf-label" x="346" y="194.5">Build</text>
-        </g>
-        <g class="hf-stage hf-stage--verify">
-          <circle class="hf-pip" cx="336" cy="246" r="2.8" />
-          <text class="hf-label" x="346" y="248.5">Verify</text>
-        </g>
-        <g class="hf-stage hf-stage--ship">
-          <circle class="hf-pip" cx="336" cy="300" r="2.8" />
-          <text class="hf-label" x="346" y="302.5">Ship</text>
-        </g>
-
-        {/*
-          The crew — two people, one behind the other, on the stage rail.
-
-          They used to ride the ledger margin at x=34/48, which put them in the
-          one empty band on the sheet and 300 units away from the pips they
-          light as they arrive. Two five-pixel dots walking down a blank margin
-          read as stray registration marks, not as the studio. On the rail they
-          are the thing the rail is for: the line, being walked.
-
-          The follower sits above the leader, because the pair travel downward
-          and the poster state parks them at the bottom of the rail — where a
-          follower below the last stage would hang off the end of the line.
-        */}
-        <g class="hf-crew">
-          <g class="hf-crew-bob">
-            <circle class="hf-dot hf-dot--follow" cx="322" cy="73" r="3.4" />
-            <circle class="hf-dot hf-dot--lead" cx="322" cy="84" r="3.4" />
-          </g>
-        </g>
-
-        {/* BRIEF · SPEC — entries written onto the rules. */}
-        <g class="hf-entries">
-          <line class="hf-entry hf-entry--1" x1="72" y1="84" x2="214" y2="84" />
-          <line class="hf-entry hf-entry--2" x1="72" y1="114" x2="252" y2="114" />
-          <line class="hf-entry hf-entry--3" x1="72" y1="144" x2="178" y2="144" />
-          <line class="hf-entry hf-entry--4" x1="72" y1="174" x2="236" y2="174" />
-          <line class="hf-entry hf-entry--5" x1="72" y1="204" x2="150" y2="204" />
-        </g>
-
-        {/* BUILD — the small interface assembling: a frame, a sidebar, two
-            lines of content and one filled block. The built thing, not a
-            terminal. */}
-        <g class="hf-work">
-          <rect class="hf-frame" x="72" y="240" width="128" height="66" />
-          <line class="hf-frame-part" x1="98" y1="240" x2="98" y2="306" />
-          <line class="hf-frame-part" x1="108" y1="258" x2="190" y2="258" />
-          <line class="hf-frame-part" x1="108" y1="274" x2="170" y2="274" />
-          <rect class="hf-frame-block" x="108" y="286" width="40" height="10" />
-        </g>
-
-        {/* VERIFY — the check, drawn over what was built. */}
-        <g class="hf-verify">
-          <path class="hf-check" d="M222 264 l7 8 l15 -18" />
-          <text class="hf-label hf-label--verify" x="252" y="268">Verified</text>
-        </g>
-
-        {/* SHIP — the stamp lands, and the delivery rule runs out. */}
-        <g class="hf-stamp">
-          <rect class="hf-stamp-box" x="72" y="364" width="116" height="32" />
-          <rect class="hf-stamp-bar" x="72" y="364" width="4" height="32" />
-          <text class="hf-stamp-label" x="134" y="384">Delivered</text>
-        </g>
-        <g class="hf-delivery">
-          <line class="hf-delivery-rule" x1="200" y1="380" x2="300" y2="380" />
-          <path class="hf-delivery-head" d="M300 374 l10 6 l-10 6 z" />
-        </g>
-      </svg>
+      <!-- Frame container - uses CSS animation to cycle through frames -->
+      <div
+        class="hero-figure__frames"
+        data-hero-figure-frames
+        style="--frame-count: {FRAME_COUNT}; --frame-duration: {FRAME_DURATION_MS}ms;"
+        aria-hidden="true"
+      >
+        {frameUrls.map((url, i) => (
+          <img
+            class="hero-figure__frame"
+            src={url}
+            alt=""
+            loading={i === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            style={`--frame-index: ${i}; --frame-url: url(${url});`}
+            aria-hidden="true"
+          />
+        ))}
+      </div>
     </div>
   </div>
 
@@ -175,14 +75,202 @@
   </figcaption>
 </figure>
 
+<style>
+  /* Frame container - uses CSS animation to cycle through frames */
+  .hero-figure__frames {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 640 / 360; /* Match extracted frame dimensions */
+  }
+
+  .hero-figure__frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    animation: frame-cycle var(--frame-duration) steps(1, end) infinite;
+    animation-delay: calc(var(--frame-index) * var(--frame-duration) * -1);
+    will-change: opacity;
+  }
+
+  @keyframes frame-cycle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* Reduced motion: show only first frame */
+  @media (prefers-reduced-motion: reduce) {
+    .hero-figure__frame {
+      animation: none !important;
+      opacity: 0;
+    }
+    .hero-figure__frame:first-child {
+      opacity: 1;
+    }
+    .hero-figure__skeleton {
+      display: none;
+    }
+  }
+
+  /* Stage — reserves space before frames load */
+  .hero-figure__stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 640 / 360;
+    background-color: var(--bg-raised);
+    overflow: hidden;
+  }
+
+  /* Skeleton — matches the hero figure's visual structure */
+  .hero-figure__skeleton {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 12% 8% 10%;
+    gap: 6%;
+    background: var(--bg-raised);
+    transition: opacity 300ms ease-out;
+    z-index: 1;
+  }
+
+  .hero-figure__skeleton.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .hero-figure__skeleton-sheet {
+    background: var(--lift-1);
+    border: 1px solid var(--line-strong);
+    border-radius: 2px;
+    height: 100%;
+    position: relative;
+  }
+
+  .hero-figure__skeleton-margin {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 6%;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .hero-figure__skeleton-rail {
+    position: absolute;
+    right: 8%;
+    top: 10%;
+    bottom: 10%;
+    width: 2px;
+    background: var(--line);
+  }
+
+  .hero-figure__skeleton-rail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 30%;
+    background: var(--accent);
+    transform-origin: top;
+    animation: skeleton-rail-fill 2s ease-out infinite;
+  }
+
+  @keyframes skeleton-rail-fill {
+    0% { transform: scaleY(0); }
+    50% { transform: scaleY(1); }
+    100% { transform: scaleY(0); }
+  }
+
+  .hero-figure__skeleton-crew {
+    position: absolute;
+    right: 8%;
+    bottom: 10%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .hero-figure__skeleton-crew span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  .hero-figure__skeleton-crew span:first-child {
+    background: var(--accent);
+    animation-delay: -0.5s;
+  }
+
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+
+  .hero-figure__skeleton-frame {
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    bottom: 18%;
+    height: 28%;
+    border: 1px solid var(--line-strong);
+    background: var(--lift-1);
+    animation: skeleton-frame-build 2s ease-out infinite;
+  }
+
+  @keyframes skeleton-frame-build {
+    0% { transform: scaleX(0); transform-origin: left; }
+    50% { transform: scaleX(1); transform-origin: left; }
+    100% { transform: scaleX(0); transform-origin: right; }
+  }
+
+  .hero-figure__skeleton-stamp {
+    position: absolute;
+    right: 12%;
+    bottom: 6%;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--accent-deep);
+    background: var(--lift-1);
+    opacity: 0;
+    animation: skeleton-stamp 2s ease-out infinite;
+  }
+
+  @keyframes skeleton-stamp {
+    0%, 60% { opacity: 0; transform: scale(0.5); }
+    80%, 100% { opacity: 1; transform: scale(1); }
+  }
+
+  /* Frames fade in when first frame loads */
+  .hero-figure__frames.is-loaded {
+    opacity: 1;
+  }
+
+  .hero-figure__frames {
+    opacity: 0;
+    transition: opacity 400ms ease-out;
+  }
+
+  /* Drift container receives the parallax transform */
+  .hero-figure__drift {
+    will-change: transform;
+  }
+</style>
+
 <script>
-  /*
-   * One driver, one figure.
+  /* One driver, one figure.
    *
    * src/scripts/hero-driver.ts owns pointer position and hero scroll progress
-   * and publishes them as custom properties. The figure reads them for a few
-   * pixels of parallax and for the lift as the hero scrolls out — that is the
-   * whole of this module's job. The loop itself is CSS.
+   * and publishes them as CSS custom properties. The figure reads them for
+   * parallax drift and lift as the hero scrolls out.
    */
   import { mountHeroDriver, type HeroDriver } from '~/scripts/hero-driver';
 
@@ -202,19 +290,65 @@
     if (!hero) return;
 
     driver = mountHeroDriver(hero);
-    /* No driver means touch, reduced motion or no script: the static
-       composition is the design, not a fallback. */
     if (!driver) return;
 
     figure.dataset.mounted = 'true';
   }
 
-  document.addEventListener('astro:page-load', mount);
+  /* Frame lazy-load + skeleton handoff */
+  function initFrames(): void {
+    const figure = document.querySelector<HTMLElement>('[data-hero-figure]');
+    if (!figure) return;
+
+    const framesContainer = figure.querySelector<HTMLElement>('.hero-figure__frames');
+    const skeleton = figure.querySelector<HTMLElement>('.hero-figure__skeleton');
+    if (!framesContainer || !skeleton) return;
+
+    // When first frame loads, fade in frames and hide skeleton
+    const firstFrame = framesContainer.querySelector<HTMLImageElement>('.hero-figure__frame');
+    if (!firstFrame) return;
+
+    const handleLoad = () => {
+      framesContainer.classList.add('is-loaded');
+      skeleton.classList.add('is-hidden');
+      setTimeout(() => skeleton.remove(), 400);
+      firstFrame.removeEventListener('load', handleLoad);
+    };
+
+    if (firstFrame.complete) {
+      handleLoad();
+    } else {
+      firstFrame.addEventListener('load', handleLoad, { once: true });
+    }
+
+    // Start loading frames when hero is near viewport (IntersectionObserver)
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          // Force load first frame by accessing it
+          firstFrame.src = firstFrame.src;
+          io.unobserve(entry.target);
+          break;
+        }
+      }
+    }, { rootMargin: '200px', threshold: 0.01 });
+
+    io.observe(figure);
+  }
+
+  document.addEventListener('astro:page-load', () => {
+    mount();
+    initFrames();
+  });
   document.addEventListener('astro:before-swap', teardown);
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      mount();
+      initFrames();
+    }, { once: true });
   } else {
     mount();
+    initFrames();
   }
 </script>

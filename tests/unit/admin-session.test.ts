@@ -76,25 +76,25 @@ describe('session cookie scoping', () => {
 describe('authenticate', () => {
   const cookieHeader = (cookie: string) => `studio_admin=${cookie.split(';')[0].split('=')[1]}`;
 
-  it('accepts a cookie it just issued', () => {
+  it('accepts a cookie it just issued', async () => {
     const cookie = sessionCookie(TOKEN, false);
     const request = new Request('https://example.com/api/admin/projects', {
       headers: { cookie: cookieHeader(cookie) },
     });
-    expect(authenticate(request, TOKEN).ok).toBe(true);
+    expect((await authenticate(request, TOKEN)).ok).toBe(true);
   });
 
-  it('rejects a tampered cookie', () => {
+  it('rejects a tampered cookie', async () => {
     const cookie = sessionCookie(TOKEN, false);
     const value = cookie.split(';')[0].split('=')[1];
     const request = new Request('https://example.com/api/admin/projects', {
       headers: { cookie: `studio_admin=${value}tampered` },
     });
-    expect(authenticate(request, TOKEN).ok).toBe(false);
+    expect((await authenticate(request, TOKEN)).ok).toBe(false);
   });
 
-  it('rejects a missing cookie', () => {
+  it('rejects a missing cookie', async () => {
     const request = new Request('https://example.com/api/admin/projects');
-    expect(authenticate(request, TOKEN).ok).toBe(false);
+    expect((await authenticate(request, TOKEN)).ok).toBe(false);
   });
 });

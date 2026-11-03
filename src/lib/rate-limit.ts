@@ -1,5 +1,5 @@
 /**
- * Rate limiting and spam defence for the contact form.
+ * Rate limiting and spam defence.
  *
  * Layered cheapest-first, so obvious bots never cost a Turnstile verification:
  *
@@ -10,6 +10,8 @@
  *
  * Privacy: no raw IP is stored. We keep a truncated, salted, one-way hash,
  * which is enough to rate-limit and cannot be reversed to an address.
+ *
+ * Route-specific policies are defined in RATE_LIMIT_POLICIES below.
  */
 
 import type { D1Like } from './db';
@@ -18,10 +20,78 @@ export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   retryAfterSeconds?: number;
+  limit?: number;
+  windowSeconds?: number;
 }
 
-const WINDOW_MINUTES = 60;
-const MAX_SUBMISSIONS = 5;
+export interface RateLimitPolicy {
+  /** Unique bucket name for this policy */
+  bucket: string;
+  /** Maximum requests allowed in the window */
+  max: number;
+  /** Time window in minutes */
+  windowMinutes: number;
+  /** Whether to use authenticated identity (for logged-in users) */
+  useAuth?: boolean;
+  /** Custom identifier extractor (defaults to IP hash) */
+  identifierExtractor?: (request: Request, env: { RATE_LIMIT_SALT?: string }) => Promise<string>;
+}
+
+/** Route-specific rate limit policies */
+export const RATE_LIMIT_POLICIES: Record<string, RateLimitPolicy> = {
+  'contact': {
+    bucket: 'contact',
+    max: 5,
+    windowMinutes: 60,
+  },
+  'admin-login': {
+    bucket: 'admin-login',
+    max: 5,
+    windowMinutes: 60,
+  },
+  'admin-crud': {
+    bucket: 'admin-crud',
+    max: 100,
+    windowMinutes: 60,
+    useAuth: true,
+  },
+  'api-public': {
+    bucket: 'api-public',
+    max: 60,
+    windowMinutes: 1,
+  },
+  'cron-dispatch': {
+    bucket: 'cron-dispatch',
+    max: 10,
+    windowMinutes: 10,
+    useAuth: true,
+  },
+  'turnstile': {
+    bucket: 'turnstile',
+    max: 20,
+    windowMinutes: 60,
+  },
+};
+
+const DEFAULT_POLICY: RateLimitPolicy = {
+  bucket: 'default',
+  max: 30,
+  windowMinutes: 60,
+};
+
+/** Get policy for a route, with fallback to default */
+export function getPolicy(route: string): RateLimitPolicy {
+  // Exact match first
+  if (RATE_LIMIT_POLICIES[route]) return RATE_LIMIT_POLICIES[route];
+  // Pattern match for dynamic routes
+  for (const [pattern, policy] of Object.entries(RATE_LIMIT_POLICIES)) {
+    if (pattern.includes('*') || pattern.endsWith('/')) {
+      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+      if (regex.test(route)) return policy;
+    }
+  }
+  return DEFAULT_POLICY;
+}
 
 /**
  * Salted, truncated SHA-256. Not reversible to an IP, but stable enough that
@@ -53,29 +123,75 @@ export function clientIp(request: Request): string {
   );
 }
 
+/**
+ * Extract identifier for rate limiting.
+ * For authenticated routes, uses the admin token; for public routes, uses hashed IP.
+ */
+export async function getRateLimitIdentifier(
+  request: Request,
+  env: { RATE_LIMIT_SALT?: string; ADMIN_TOKEN?: string },
+  policy: RateLimitPolicy
+): Promise<string> {
+  // For authenticated policies, use the auth token as identifier
+  if (policy.useAuth && env.ADMIN_TOKEN) {
+    const auth = request.headers.get('authorization');
+    if (auth?.startsWith('Bearer ')) {
+      const token = auth.slice(7).trim();
+      // Hash the token for privacy (same approach as IP)
+      return hashIdentifier(token, env.RATE_LIMIT_SALT ?? 'no-salt-configured');
+    }
+    const cookie = request.headers.get('cookie');
+    if (cookie) {
+      const match = cookie.match(/studio_admin=([^;]+)/);
+      if (match) {
+        const token = decodeURIComponent(match[1]).split('.')[0];
+        return hashIdentifier(token, env.RATE_LIMIT_SALT ?? 'no-salt-configured');
+      }
+    }
+  }
+  // Default: hash the client IP
+  const ip = clientIp(request);
+  return hashIdentifier(ip, env.RATE_LIMIT_SALT ?? 'no-salt-configured');
+}
+
 export async function checkRateLimit(
   db: D1Like,
   identifier: string,
-  bucket = 'contact',
-  max = MAX_SUBMISSIONS,
+  policy: RateLimitPolicy,
 ): Promise<RateLimitResult> {
-  const windowStart = iso(Date.now() - WINDOW_MINUTES * 60_000);
+  const windowStart = iso(Date.now() - policy.windowMinutes * 60_000);
 
   const row = await db
     .prepare('SELECT hits, window_start FROM rate_limits WHERE bucket = ?1 AND identifier = ?2')
-    .bind(bucket, identifier)
+    .bind(policy.bucket, identifier)
     .first<{ hits: number; window_start: string }>();
 
   // Missing row, or the window has rolled over: this is a fresh visitor.
   if (!row || row.window_start < windowStart) {
-    return { allowed: true, remaining: max };
+    return { 
+      allowed: true, 
+      remaining: policy.max,
+      limit: policy.max,
+      windowSeconds: policy.windowMinutes * 60,
+    };
   }
 
-  if (row.hits >= max) {
-    return { allowed: false, remaining: 0, retryAfterSeconds: WINDOW_MINUTES * 60 };
+  if (row.hits >= policy.max) {
+    return { 
+      allowed: false, 
+      remaining: 0, 
+      retryAfterSeconds: policy.windowMinutes * 60,
+      limit: policy.max,
+      windowSeconds: policy.windowMinutes * 60,
+    };
   }
 
-  return { allowed: true, remaining: max - row.hits - 1 };
+  return { 
+    allowed: true, 
+    remaining: policy.max - row.hits - 1,
+    limit: policy.max,
+    windowSeconds: policy.windowMinutes * 60,
+  };
 }
 
 /** SQLite's `datetime('now')` format, which is what the column stores. */
@@ -86,10 +202,10 @@ function iso(ms: number): string {
 export async function recordAttempt(
   db: D1Like,
   identifier: string,
-  bucket = 'contact',
+  policy: RateLimitPolicy,
 ): Promise<void> {
   const now = iso(Date.now());
-  const stale = iso(Date.now() - WINDOW_MINUTES * 60_000);
+  const stale = iso(Date.now() - policy.windowMinutes * 60_000);
 
   /*
    * The window MUST be re-armed here.
@@ -109,7 +225,7 @@ export async function recordAttempt(
          hits         = CASE WHEN window_start <= ?4 THEN 1 ELSE hits + 1 END,
          window_start = CASE WHEN window_start <= ?4 THEN ?3 ELSE window_start END`,
     )
-    .bind(bucket, identifier, now, stale)
+    .bind(policy.bucket, identifier, now, stale)
     .run();
 }
 

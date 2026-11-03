@@ -1,0 +1,64 @@
+# sheatz — Two-person software studio
+
+## Overview
+sheatz is a small independent software studio that designs, builds, and operates web applications, mobile apps, and on-device AI products. The studio is run by two people with no sales team, account managers, or handover layers.
+
+## Key Pages
+- Home: https://sheatz.work/
+- Products (software we build and run ourselves): https://sheatz.work/products
+- Work (client commissions): https://sheatz.work/work
+- Services (what we build and pricing): https://sheatz.work/services
+- About (how we work): https://sheatz.work/about
+- Contact: https://sheatz.work/contact
+
+## Products
+sheatz builds and operates its own software products. Each product is listed with its lifecycle state (planning, in-development, beta, live, paused, retired) so visitors know exactly what is available and what is still in development.
+
+Products are published at: https://sheatz.work/products/[slug]
+
+## Services
+Published price ranges for:
+- Web applications: £25,000 – £75,000 (fixed scope)
+- Mobile apps: £30,000 – £100,000 (fixed scope)
+- On-device AI integration: £20,000 – £60,000 (fixed scope)
+- Websites: £15,000 – £40,000 (fixed scope)
+- Automation: £10,000 – £30,000 (fixed scope)
+- Design systems: £15,000 – £35,000 (fixed scope)
+
+All ranges are in GBP. Full details at: https://sheatz.work/services
+
+## Process
+Every project follows a written process:
+1. Discovery — understand the problem, constraints, and success criteria
+2. Specification — written scope, fixed price, timeline
+3. Build — working software every week, code reviewed, tested
+4. Verify — automated gates, manual review, performance budgets
+5. Ship — deploy, monitor, stay on after launch
+
+## Differentiators (Practices)
+1. You own the code — every line, every repo, from day one
+2. Fixed scope, fixed price — no hourly rates, no surprise invoices
+3. Working software weekly — not demos, not Figma files, real code in your hands
+4. No sales layer — you talk to the person building it
+5. We run what we build — monitoring and fixes after launch are part of the job
+6. Written down before we start — scope, price, timeline agreed in writing
+
+## Contact
+Email: sheatz.work@gmail.com
+Instagram: @sheatz.any
+Contact form: https://sheatz.work/contact
+
+## Technical Stack
+- Frontend: Astro, TypeScript, vanilla CSS, GSAP
+- Backend: Cloudflare Workers, Cloudflare D1 (SQLite), Cloudflare R2
+- Email: Resend
+- Bot protection: Cloudflare Turnstile (optional)
+- Deployment: Cloudflare Pages
+- Testing: Vitest, Playwright
+
+## Important Notes
+- No client names, testimonials, or case studies are published without explicit permission
+- No fabricated metrics, awards, or "trusted by" claims
+- All pricing is published as ranges, not hourly rates
+- The studio is two people — no team page, no founder bios
+- All content is original, no AI-generated filler

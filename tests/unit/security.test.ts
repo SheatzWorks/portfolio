@@ -145,35 +145,37 @@ describe('timingSafeEqualStr', () => {
 describe('authenticate', () => {
   const req = (headers: Record<string, string> = {}) => new Request('https://x.test/admin', { headers });
 
-  it('is disabled when no token is configured, rather than open', () => {
-    expect(authenticate(req(), undefined)).toEqual({ ok: false, reason: 'disabled' });
-    expect(authenticate(req(), 'short')).toEqual({ ok: false, reason: 'disabled' });
+  it('is disabled when no token is configured, rather than open', async () => {
+    expect((await authenticate(req(), undefined)).ok).toBe(false);
+    expect((await authenticate(req(), undefined)).reason).toBe('disabled');
+    expect((await authenticate(req(), 'short')).ok).toBe(false);
+    expect((await authenticate(req(), 'short')).reason).toBe('disabled');
   });
 
-  it('accepts a correct bearer token', () => {
-    const r = authenticate(req({ authorization: `Bearer ${TOKEN}` }), TOKEN);
+  it('accepts a correct bearer token', async () => {
+    const r = await authenticate(req({ authorization: `Bearer ${TOKEN}` }), TOKEN);
     expect(r.ok).toBe(true);
   });
 
-  it('rejects a wrong bearer token', () => {
-    expect(authenticate(req({ authorization: 'Bearer wrong' }), TOKEN).reason).toBe('bad-token');
+  it('rejects a wrong bearer token', async () => {
+    expect((await authenticate(req({ authorization: 'Bearer wrong' }), TOKEN)).reason).toBe('bad-token');
   });
 
-  it('accepts a valid session cookie', () => {
+  it('accepts a valid session cookie', async () => {
     const cookie = sessionCookie(TOKEN, false).split(';')[0];
-    expect(authenticate(req({ cookie }), TOKEN).ok).toBe(true);
+    expect((await authenticate(req({ cookie }), TOKEN)).ok).toBe(true);
   });
 
-  it('rejects an expired session cookie', () => {
+  it('rejects an expired session cookie', async () => {
     // Correctly signed, but expired. Distinguishing this from 'bad-token'
     // requires a valid signature first.
     const expires = '1';
     const sig = sign(`${TOKEN}.${expires}`);
     const cookie = `studio_admin=${TOKEN}.${expires}.${sig}`;
-    expect(authenticate(req({ cookie }), TOKEN).reason).toBe('expired');
+    expect((await authenticate(req({ cookie }), TOKEN)).reason).toBe('expired');
   });
 
-  it('rejects a cookie whose expiry was extended after signing', () => {
+  it('rejects a cookie whose expiry was extended after signing', async () => {
     // The old format was `<token>.<expiry>` with no signature, so anyone could
     // edit the expiry. The signature covers both segments, so tampering with
     // either is now a bad token.
@@ -182,27 +184,27 @@ describe('authenticate', () => {
     const [token, , sig] = decodeURIComponent(value).split('.');
 
     const tampered = `${name}=${encodeURIComponent(`${token}.${Math.floor(Date.now() / 1000) + 99999}.${sig}`)}`;
-    expect(authenticate(req({ cookie: tampered }), TOKEN).reason).toBe('bad-token');
+    expect((await authenticate(req({ cookie: tampered }), TOKEN)).reason).toBe('bad-token');
   });
 
-  it('rejects a cookie with no signature at all', () => {
-    expect(authenticate(req({ cookie: `studio_admin=${TOKEN}.9999999999` }), TOKEN).reason).toBe(
+  it('rejects a cookie with no signature at all', async () => {
+    expect((await authenticate(req({ cookie: `studio_admin=${TOKEN}.9999999999` }), TOKEN)).reason).toBe(
       'bad-token',
     );
   });
 
-  it('rejects a cookie signed with a different secret', () => {
+  it('rejects a cookie signed with a different secret', async () => {
     const forged = `studio_admin=${TOKEN}.9999999999.${sign(`${TOKEN}.9999999999`, 'other-secret')}`;
-    expect(authenticate(req({ cookie: forged }), TOKEN).reason).toBe('bad-token');
+    expect((await authenticate(req({ cookie: forged }), TOKEN)).reason).toBe('bad-token');
   });
 
-  it('rejects a cookie signed with a different token', () => {
+  it('rejects a cookie signed with a different token', async () => {
     const other = sessionCookie('b'.repeat(32), false).split(';')[0];
-    expect(authenticate(req({ cookie: other }), TOKEN).reason).toBe('bad-token');
+    expect((await authenticate(req({ cookie: other }), TOKEN)).reason).toBe('bad-token');
   });
 
-  it('reports no-token when nothing is supplied', () => {
-    expect(authenticate(req(), TOKEN).reason).toBe('no-token');
+  it('reports no-token when nothing is supplied', async () => {
+    expect((await authenticate(req(), TOKEN)).reason).toBe('no-token');
   });
 });
 
@@ -231,20 +233,23 @@ describe('rate limiting', () => {
 
   it('allows a first-time identifier', async () => {
     const { db } = stubDb();
-    const r = await checkRateLimit(db, 'abc', 'contact', 5);
+    const policy = { bucket: 'contact', max: 5, windowMinutes: 60 };
+    const r = await checkRateLimit(db, 'abc', policy);
     expect(r.allowed).toBe(true);
   });
 
   it('blocks once the quota is exhausted', async () => {
     const { db } = stubDb({ hits: 5, window_start: '2099-01-01 00:00:00' });
-    const r = await checkRateLimit(db, 'abc', 'contact', 5);
+    const policy = { bucket: 'contact', max: 5, windowMinutes: 60 };
+    const r = await checkRateLimit(db, 'abc', policy);
     expect(r.allowed).toBe(false);
     expect(r.retryAfterSeconds).toBeGreaterThan(0);
   });
 
   it('treats a stale window as a fresh visitor', async () => {
     const { db } = stubDb({ hits: 99, window_start: '2000-01-01 00:00:00' });
-    const r = await checkRateLimit(db, 'abc', 'contact', 5);
+    const policy = { bucket: 'contact', max: 5, windowMinutes: 60 };
+    const r = await checkRateLimit(db, 'abc', policy);
     expect(r.allowed).toBe(true);
   });
 
@@ -256,19 +261,20 @@ describe('rate limiting', () => {
    */
   it('still blocks after many attempts across a rolled-over window', async () => {
     const { db, store } = stubDb();
+    const policy = { bucket: 'contact', max: 5, windowMinutes: 60 };
     const max = 5;
 
     for (let i = 0; i < 40; i++) {
-      const before = await checkRateLimit(db, 'abc', 'contact', max);
+      const before = await checkRateLimit(db, 'abc', policy);
       if (!before.allowed) break;
-      await recordAttempt(db, 'abc', 'contact');
+      await recordAttempt(db, 'abc', policy);
     }
 
     expect(store.row, 'the counter was never reset').not.toBeNull();
     expect(store.row!.hits, 'counter should stop at the cap, not climb to 40')
       .toBeLessThanOrEqual(max);
 
-    const after = await checkRateLimit(db, 'abc', 'contact', max);
+    const after = await checkRateLimit(db, 'abc', policy);
     expect(after.allowed, 'the limiter stopped limiting').toBe(false);
   });
 
@@ -276,11 +282,12 @@ describe('rate limiting', () => {
     const { db, store } = stubDb();
     // Backdate the window past the hour.
     store.row = { hits: 5, window_start: '2000-01-01 00:00:00' };
+    const policy = { bucket: 'contact', max: 5, windowMinutes: 60 };
 
-    const r = await checkRateLimit(db, 'abc', 'contact', 5);
+    const r = await checkRateLimit(db, 'abc', policy);
     expect(r.allowed).toBe(true);
 
-    await recordAttempt(db, 'abc', 'contact');
+    await recordAttempt(db, 'abc', policy);
     // Both the counter and the window must move forward together.
     expect(store.row!.hits).toBe(1);
     expect(store.row!.window_start).not.toBe('2000-01-01 00:00:00');

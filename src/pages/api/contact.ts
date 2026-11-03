@@ -16,6 +16,9 @@ import {
   clientIp,
   hashIdentifier,
   MIN_FILL_MS,
+  getPolicy,
+  getRateLimitIdentifier,
+  type RateLimitResult,
 } from '~/lib/rate-limit';
 import { getProjectBySlug } from '~/lib/db';
 
@@ -33,10 +36,10 @@ function isEmail(value: string): boolean {
   return /^[^\s@,;:<>()[\]\\]+@[^\s@.]+(\.[^\s@.]+)+$/.test(value) && value.length <= MAX.email;
 }
 
-function json(body: Record<string, unknown>, status: number): Response {
+function json(body: Record<string, unknown>, status: number, headers?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8' },
+    headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
   });
 }
 
@@ -90,22 +93,29 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   // ---- 3. Rate limit ----------------------------------------------------
-  const ip = clientIp(request);
-  const identifier = await hashIdentifier(ip, env.RATE_LIMIT_SALT ?? 'no-salt-configured');
+  const policy = getPolicy('contact');
+  const identifier = await getRateLimitIdentifier(request, env, policy);
 
   const db = getDb(env);
-  const limit = await checkRateLimit(db as never, identifier);
+  const limit = await checkRateLimit(db as never, identifier, policy);
   if (!limit.allowed) {
     console.log(JSON.stringify({ event: 'contact.rate_limited', outcome: 'rejected' }));
     return json(
       { ok: false, error: 'That is several submissions in a short window. Please email us instead.' },
       429,
+      {
+        'Retry-After': String(limit.retryAfterSeconds ?? policy.windowMinutes * 60),
+        'X-RateLimit-Limit': String(limit.limit ?? policy.max),
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + (limit.retryAfterSeconds ?? policy.windowMinutes * 60)),
+      },
     );
   }
 
   // ---- 4. Turnstile (only reached by a plausible submission) -----------
   if (env.TURNSTILE_SECRET_KEY) {
     const token = str(form.get('cf-turnstile-response'), 2048);
+    const ip = clientIp(request);
     const expectedHost = env.PUBLIC_SITE_URL ? new URL(env.PUBLIC_SITE_URL).hostname : undefined;
     const verdict = await verifyTurnstile(token, ip, env.TURNSTILE_SECRET_KEY, expectedHost);
     if (!verdict.success) {
@@ -116,7 +126,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   // Count the attempt only once it has passed every check, so a user who
   // mistypes an email is not charged against their own quota.
-  await recordAttempt(db as never, identifier);
+  await recordAttempt(db as never, identifier, policy);
 
   // ---- Persist first, deliver second -----------------------------------
   // A lead must never be lost because an email provider had a bad day.
@@ -260,6 +270,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
         : 'Thanks — your message is with us. We reply to everything.',
     },
     200,
+    {
+      'X-RateLimit-Limit': String(limit.limit ?? policy.max),
+      'X-RateLimit-Remaining': String(limit.remaining),
+      'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + (limit.windowSeconds ?? policy.windowMinutes * 60)),
+    },
   );
 };
 

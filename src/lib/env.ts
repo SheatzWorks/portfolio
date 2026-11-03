@@ -11,9 +11,13 @@
  * Vite. Tests inject a fake via `setTestEnv()` instead.
  */
 
+import type { D1Database, R2Bucket, DurableObjectNamespace } from '@cloudflare/workers-types';
+
 export interface Env {
   DB?: D1Database;
   MEDIA?: R2Bucket;
+  /** Durable Object namespace for distributed rate limiting */
+  RATE_LIMITER?: DurableObjectNamespace;
   /** Canonical origin, e.g. https://example.com */
   PUBLIC_SITE_URL?: string;
   MEDIA_BASE_URL?: string;
@@ -36,6 +40,8 @@ export interface Env {
   TURNSTILE_SITE_KEY?: string;
   /** Shared secret gating /admin and the job-dispatch endpoint. */
   ADMIN_TOKEN?: string;
+  /** Pepper for MFA secret hashing (should be different from ADMIN_TOKEN). */
+  MFA_PEPPER?: string;
   /** Salt for the truncated one-way IP hash used by the rate limiter. */
   RATE_LIMIT_SALT?: string;
 }

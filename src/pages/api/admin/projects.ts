@@ -12,6 +12,7 @@ import { enqueuePreview } from '~/lib/dispatcher';
 import { generateMetadata, saveMetadata } from '~/lib/metadata-pipeline';
 import { UnsafeUrlError, validateUrl } from '~/lib/safe-fetch';
 import { arBucketFor } from '~/lib/preview';
+import { requireCsrf } from '~/lib/csrf';
 
 export const prerender = false;
 
@@ -110,6 +111,12 @@ function parseJsonRecord(value: unknown): Record<string, unknown> {
 export const POST: APIRoute = async ({ request, locals }) => {
   const env = await getEnv();
   const db = getDb(env);
+
+  // CSRF validation for all mutating operations
+  if (!env.ADMIN_TOKEN || !requireCsrf(request, env.ADMIN_TOKEN)) {
+    return json({ ok: false, error: 'Invalid CSRF token.' }, 403);
+  }
+
   const action = new URL(request.url).searchParams.get('action') ?? '';
 
   let body: Record<string, unknown>;

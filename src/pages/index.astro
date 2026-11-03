@@ -37,6 +37,7 @@ import {
 } from '~/lib/db';
 import type { Product, Project, Service, Differentiator } from '~/lib/types';
 import type { SiteContent } from '~/lib/db';
+import { faqSchema } from '~/lib/structured-data';
 
 export const prerender = false;
 
@@ -86,6 +87,9 @@ const shownProducts = products.slice(0, 3);
 
 /** A short FAQ on the home page; the full set lives on /about. */
 const HOME_FAQ = content.faq.slice(0, 6);
+
+/** Homepage JSON-LD: FAQPage for the FAQ section. */
+const jsonLd = HOME_FAQ.length > 0 ? [faqSchema(HOME_FAQ)] : [];
 ---
 
 <Base
@@ -93,6 +97,7 @@ const HOME_FAQ = content.faq.slice(0, 6);
   description={studio.description}
   canonicalPath="/"
   ogType="website"
+  jsonLd={jsonLd}
 >
   <section class="hero">
     <div class="shell">

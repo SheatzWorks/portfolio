@@ -5,6 +5,21 @@
   "observability": {
     "enabled": true
   },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RATE_LIMITER",
+        "class_name": "RateLimiterDO",
+        "script_name": "dist/server/entry.mjs"
+      }
+    ]
+  },
+  "exports": {
+    "RateLimiterDO": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
   "d1_databases": [
     {
       "binding": "DB",

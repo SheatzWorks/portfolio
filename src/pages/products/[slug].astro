@@ -121,12 +121,17 @@ const jsonLd = found
         description: item.tagline ?? item.blurb ?? '',
         url: `${siteUrl}/products/${item.slug}`,
         applicationCategory: item.category,
+        operatingSystem: item.kind === 'mobile' ? 'iOS, Android' : item.kind === 'webapp' || item.kind === 'saas' ? 'Web' : undefined,
         ...(item.year ? { datePublished: String(item.year) } : {}),
         ...(item.technologies.length ? { keywords: item.technologies.join(', ') } : {}),
         ...(preview?.imageUrl ? { screenshot: preview.imageUrl } : {}),
         ...(publishableUrl(item.availabilityUrl)
-          ? { offers: { '@type': 'Offer', url: publishableUrl(item.availabilityUrl) } }
+          ? { offers: { '@type': 'Offer', url: publishableUrl(item.availabilityUrl), availability: 'https://schema.org/InStock' } }
           : {}),
+        ...(item.productStatus === 'live' ? { applicationSubCategory: 'Production' } : {}),
+        ...(item.productStatus === 'beta' ? { applicationSubCategory: 'Beta' } : {}),
+        ...(item.productStatus === 'in-development' ? { applicationSubCategory: 'Development' } : {}),
+        author: { '@type': 'Organization', name: studio.name, url: siteUrl },
       },
       {
         '@type': 'BreadcrumbList',

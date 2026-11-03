@@ -32,12 +32,30 @@ if (hasDb(env)) {
   const content = await getSiteContent(db);
   [products, differentiators, faq] = [await listOwnProducts(db), await listDifferentiators(db), content.faq];
 }
+
+const siteUrl = (env.PUBLIC_SITE_URL || 'https://example.com').replace(/\/+$/, '');
+
+const faqJsonLd = faq.length > 0
+  ? [{
+      '@type': 'FAQPage',
+      '@id': `${siteUrl}/about#faqpage`,
+      mainEntity: faq.map((entry) => ({
+        '@type': 'Question',
+        name: entry.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: entry.answer,
+        },
+      })),
+    }]
+  : [];
 ---
 
 <Base
   title="Studio"
   description="How sheatz works: fixed scope and price in writing, working software every week, and code you own from the first commit. No sales team and no handover."
   canonicalPath="/about"
+  jsonLd={faqJsonLd}
 >
   <section class="page-head">
     <div class="shell">

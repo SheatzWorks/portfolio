@@ -12,12 +12,19 @@
  * per-page script hashes, so it would block Astro's own inline scripts. One
  * policy, one place. The one directive that is invalid in a <meta> —
  * frame-ancestors — is sent below as its own single-directive policy.
+ *
+ * Additionally, we send a Content-Security-Policy-Report-Only header to collect
+ * violations without blocking. This allows us to monitor CSP issues before
+ * enforcing. The policy mirrors the one in astro.config.mjs.
  */
 
 import { defineMiddleware } from 'astro:middleware';
 import { getEnv } from '~/lib/env';
 import { setMediaBaseUrl } from '~/lib/preview';
 import { authenticate, unauthorized } from '~/lib/admin-auth';
+
+// Ensure Durable Object classes are registered with the Cloudflare Workers runtime
+import '~/durable-objects';
 
 const HEADERS: Record<string, string> = {
   'x-content-type-options': 'nosniff',
@@ -30,7 +37,51 @@ const HEADERS: Record<string, string> = {
   'strict-transport-security': 'max-age=31536000; includeSubDomains',
 };
 
-const FRAME_ANCESTORS = "frame-ancestors 'none'";
+/**
+ * CSP policy. Mirrors astro.config.mjs but with 'unsafe-inline' for scripts
+ * and styles to accommodate Astro's inline scripts and style attributes.
+ * The Astro CSP generation (security.csp in astro.config.mjs) does not work
+ * with the Cloudflare adapter, so we set the CSP header here.
+ *
+ * Per-page script hashes would be stronger but require Astro's CSP generation
+ * to work. This policy is still effective: it restricts external sources to
+ * self and Cloudflare Turnstile, and blocks object, base-uri manipulation,
+ * and form-action to external targets.
+ */
+const CSP = [
+  "default-src 'self'",
+  "img-src 'self' data: https:",
+  "media-src 'self' https:",
+  "font-src 'self'",
+  "frame-src 'self' https: https://challenges.cloudflare.com",
+  "connect-src 'self' https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+  "style-src 'self' 'unsafe-inline'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  'upgrade-insecure-requests',
+  "report-uri /api/csp-report",
+].join('; ');
+
+/** CSP Report-Only policy for monitoring without enforcement.
+ *  upgrade-insecure-requests is ignored in report-only mode, so omit it. */
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  "img-src 'self' data: https:",
+  "media-src 'self' https:",
+  "font-src 'self'",
+  "frame-src 'self' https: https://challenges.cloudflare.com",
+  "connect-src 'self' https://challenges.cloudflare.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+  "style-src 'self' 'unsafe-inline'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "report-uri /api/csp-report",
+].join('; ');
 
 /** Everything under these prefixes requires an admin session. */
 const PROTECTED = [/^\/admin(?:\/|$)/, /^\/api\/admin(?:\/|$)/];
@@ -61,7 +112,8 @@ function harden(headers: Headers, pathname: string): Headers {
   for (const [key, value] of Object.entries(HEADERS)) {
     headers.set(key, value);
   }
-  headers.append('content-security-policy', FRAME_ANCESTORS);
+  headers.set('content-security-policy', CSP);
+  headers.set('content-security-policy-report-only', CSP_REPORT_ONLY);
   if (PRIVATE.some((re) => re.test(pathname))) {
     headers.set('cache-control', 'no-store');
     headers.set('x-robots-tag', 'noindex, nofollow');
@@ -81,7 +133,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (PROTECTED.some((re) => re.test(pathname)) && !PUBLIC.some((re) => re.test(pathname))) {
     const env = await getEnv();
-    const session = authenticate(context.request, env.ADMIN_TOKEN);
+    const session = await authenticate(context.request, env.ADMIN_TOKEN);
 
     if (!session.ok) {
       const wantsJson =

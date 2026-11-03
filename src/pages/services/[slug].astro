@@ -33,6 +33,67 @@ const range =
   service?.priceFrom && service.priceTo
     ? `${studio.priceCurrency} ${service.priceFrom} – ${studio.priceCurrency} ${service.priceTo}`
     : (service?.engagement ?? null);
+
+const siteUrl = (env.PUBLIC_SITE_URL || studio.siteUrl).replace(/\/+$/, '');
+
+// Build JSON-LD for the service page (only when service exists)
+let serviceJsonLd = {};
+let breadcrumbJsonLd = {};
+if (service) {
+  serviceJsonLd = {
+    '@type': 'Service',
+    name: service.name,
+    description: service.outcome,
+    serviceType: service.name,
+    url: `${siteUrl}/services/${service.slug}`,
+    provider: { '@id': `${siteUrl}/#organization` },
+    areaServed: 'Worldwide',
+    ...(service.deliverables.length > 0
+      ? {
+          hasOfferCatalog: {
+            '@type': 'OfferCatalog',
+            name: `${service.name} deliverables`,
+            itemListElement: service.deliverables.map((item, index) => ({
+              '@type': 'Offer',
+              position: index + 1,
+              itemOffered: {
+                '@type': 'Service',
+                name: item,
+              },
+            })),
+          },
+        }
+      : {}),
+    ...(range && service.priceFrom
+      ? {
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: studio.priceCurrency,
+            ...(service.priceFrom ? { price: service.priceFrom.replace(/[^\d.]/g, '') } : {}),
+            ...(service.priceTo
+              ? {
+                  priceSpecification: {
+                    '@type': 'PriceSpecification',
+                    maxPrice: service.priceTo.replace(/[^\d.]/g, ''),
+                    priceCurrency: studio.priceCurrency,
+                  },
+                }
+              : {}),
+            availability: 'https://schema.org/InStock',
+          },
+        }
+      : {}),
+  };
+
+  breadcrumbJsonLd = {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+      { '@type': 'ListItem', position: 2, name: 'Services', item: `${siteUrl}/services` },
+      { '@type': 'ListItem', position: 3, name: service.name, item: `${siteUrl}/services/${service.slug}` },
+    ],
+  };
+}
 ---
 
 {
@@ -49,27 +110,7 @@ const range =
       title={`${service.name} — ${studio.name}`}
       description={service.outcome}
       canonicalPath={`/services/${service.slug}`}
-      jsonLd={[
-        {
-          '@type': 'Service',
-          name: service.name,
-          description: service.outcome,
-          serviceType: service.name,
-          url: `${(env.PUBLIC_SITE_URL || studio.siteUrl).replace(/\/+$/, '')}/services/${service.slug}`,
-          provider: { '@id': `${(env.PUBLIC_SITE_URL || studio.siteUrl).replace(/\/+$/, '')}/#organization` },
-          areaServed: 'Worldwide',
-          ...(range && service.priceFrom
-            ? {
-                offers: {
-                  '@type': 'Offer',
-                  priceCurrency: studio.priceCurrency,
-                  ...(service.priceFrom ? { price: service.priceFrom.replace(/[^\d.]/g, '') } : {}),
-                  ...(service.priceTo ? { priceSpecification: { maxPrice: service.priceTo.replace(/[^\d.]/g, '') } } : {}),
-                },
-              }
-            : {}),
-        },
-      ]}
+      jsonLd={[serviceJsonLd, breadcrumbJsonLd]}
     >
       <section class="section case">
         <div class="shell">

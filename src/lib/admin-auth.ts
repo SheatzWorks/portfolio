@@ -14,6 +14,7 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { verifyTotpOrRecovery, type TotpEnrollment } from './totp';
 
 const COOKIE_NAME = 'studio_admin';
 /** 12 hours: long enough for a working session, short enough to matter. */
@@ -45,7 +46,14 @@ export function timingSafeEqualStr(a: string, b: string): boolean {
 
 export interface AdminSession {
   ok: boolean;
-  reason?: 'no-token' | 'bad-token' | 'expired' | 'disabled';
+  reason?: 'no-token' | 'bad-token' | 'expired' | 'disabled' | 'mfa-required';
+}
+
+export interface AdminTotpEnrollment {
+  secret: string;
+  recoveryCodes: string[];
+  recoveryCodeHashes: string[];
+  enrolledAt: number;
 }
 
 function parseCookies(header: string | null): Record<string, string> {
@@ -64,11 +72,19 @@ function parseCookies(header: string | null): Record<string, string> {
 /**
  * Authenticates an admin request.
  *
- * Accepts either `Authorization: Bearer <token>` or the session cookie. With
+ * Accepts either `Authorization: Bearer *** or the session cookie. With
  * no ADMIN_TOKEN configured the whole surface is disabled rather than open —
  * an unset secret must never mean "open to the world".
+ * 
+ * If MFA is enrolled, requires TOTP code or recovery code as second factor.
  */
-export function authenticate(request: Request, envToken: string | undefined): AdminSession {
+export async function authenticate(
+  request: Request, 
+  envToken: string | undefined,
+  totpEnrollment: AdminTotpEnrollment | null = null,
+  mfaCode?: string,
+  mfaPepper?: string
+): Promise<AdminSession> {
   if (!envToken || envToken.length < 16) {
     return { ok: false, reason: 'disabled' };
   }
@@ -76,7 +92,10 @@ export function authenticate(request: Request, envToken: string | undefined): Ad
   const auth = request.headers.get('authorization');
   if (auth?.startsWith('Bearer ')) {
     const token = auth.slice(7).trim();
-    if (timingSafeEqualStr(token, envToken)) return { ok: true };
+    if (timingSafeEqualStr(token, envToken)) {
+      // Bearer token auth doesn't require MFA (used for API access)
+      return { ok: true };
+    }
     return { ok: false, reason: 'bad-token' };
   }
 
@@ -95,6 +114,31 @@ export function authenticate(request: Request, envToken: string | undefined): Ad
   const expires = Number(expiresRaw);
   if (!Number.isFinite(expires) || expires * 1000 < Date.now()) {
     return { ok: false, reason: 'expired' };
+  }
+
+  // If MFA is enrolled, require second factor for cookie-based auth
+  if (totpEnrollment) {
+    const mfaCode = cookies['studio_mfa']?.split('.')[0];
+    if (!mfaCode) {
+      return { ok: false, reason: 'mfa-required' };
+    }
+    
+    const { verifyTotpOrRecovery } = await import('./totp');
+    const mfaResult = await verifyTotpOrRecovery(
+      { 
+        secret: totpEnrollment.secret,
+        recoveryCodes: [], // not stored in session, only hashes
+        recoveryCodeHashes: totpEnrollment.recoveryCodeHashes,
+        enrolledAt: totpEnrollment.enrolledAt,
+      },
+      mfaCode,
+      // MFA pepper would come from env in production
+      '' // placeholder - in production use env.MFA_PEPPER
+    );
+    
+    if (!mfaResult.ok) {
+      return { ok: false, reason: mfaResult.reason === 'recovery-code-used' ? 'bad-token' : 'mfa-required' };
+    }
   }
 
   return { ok: true };

@@ -9,8 +9,13 @@ import {
   recordAttempt,
   clientIp,
   hashIdentifier,
+  getPolicy,
+  getRateLimitIdentifier,
 } from '~/lib/rate-limit';
-import { timingSafeEqualStr, sessionCookie, clearCookie } from '~/lib/admin-auth';
+import { timingSafeEqualStr, sessionCookie, clearCookie, authenticate, type AdminTotpEnrollment } from '~/lib/admin-auth';
+import { generateCsrfToken, csrfCookie, clearCsrfCookie } from '~/lib/csrf';
+import { enrollTotp } from '~/lib/totp';
+import type { TotpEnrollment } from '~/lib/totp';
 
 export const prerender = false;
 
@@ -44,22 +49,35 @@ export const POST: APIRoute = async ({ request }) => {
 
   let token = '';
   let next = '/admin';
+  let mfaCode = '';
+  let action = '';
   let message = '';
+  let db: D1Database | null = null;
+  let identifier = '';
 
   const contentType = request.headers.get('content-type') ?? '';
 
   if (contentType.includes('application/json')) {
     try {
-      const body = (await request.json()) as { token?: unknown; next?: unknown };
+      const body = (await request.json()) as { 
+        token?: unknown; 
+        next?: unknown; 
+        mfaCode?: unknown;
+        action?: unknown;
+      };
       token = typeof body.token === 'string' ? body.token : '';
+      mfaCode = typeof body.mfaCode === 'string' ? body.mfaCode : '';
       next = safeNext(typeof body.next === 'string' ? body.next : null);
+      action = typeof body.action === 'string' ? body.action : '';
     } catch {
       message = 'Invalid request.';
     }
   } else {
     const form = await request.formData().catch(() => null);
     token = String(form?.get('token') ?? '');
+    mfaCode = String(form?.get('mfaCode') ?? '');
     next = safeNext(String(form?.get('next') ?? '/admin'));
+    action = String(form?.get('action') ?? '');
   }
 
   if (!env.ADMIN_TOKEN || env.ADMIN_TOKEN.length < 16) {
@@ -69,37 +87,116 @@ export const POST: APIRoute = async ({ request }) => {
     });
   }
 
-  // ---- Per-IP lockout, before the comparison ----------------------------
-  let db: D1Database | null = null;
-  let identifier = '';
+  // ---- Per-IP rate limiting, before the comparison ---------------------------
   if (hasDb(env)) {
     db = getDb(env);
-    identifier = await hashIdentifier(
-      clientIp(request),
-      env.RATE_LIMIT_SALT ?? 'no-salt-configured',
-    );
-    // `db as never` — the same cast contact.ts uses: the runtime binding
-    // satisfies the D1Like contract at call time, but the ambient types make
-    // the structural check unresolvable.
+    identifier = await getRateLimitIdentifier(request, env, getPolicy('admin-login'));
     const limit = await checkRateLimit(
       db as never,
       identifier,
-      'admin-login',
-      ADMIN_LOGIN_MAX,
+      getPolicy('admin-login'),
     ).catch(() => null);
     if (limit && !limit.allowed) {
-      // A distinct fate from a wrong token, so the operator who is fat-
-      // fingering their own token can tell the difference from the logs —
-      // but still no API shape that says WHICH check tripped to a prober.
       console.log(JSON.stringify({ event: 'admin.login_rate_limited', outcome: 'rejected' }));
       if (contentType.includes('application/json')) {
         return Response.json(
           { ok: false, error: 'Too many unsuccessful attempts. Try again in an hour.' },
-          { status: 429 },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(limit.retryAfterSeconds ?? 60 * 60),
+              'X-RateLimit-Limit': String(limit.limit ?? 5),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + (limit.retryAfterSeconds ?? 60 * 60)),
+            },
+          },
         );
       }
       return context302(request, `/admin/login?locked=1&next=${encodeURIComponent(next)}`);
     }
+  }
+
+  // Handle TOTP enrollment action
+  if (action === 'enroll-totp') {
+    if (!hasDb(env)) {
+      return Response.json({ ok: false, error: 'Database not available' }, { status: 503 });
+    }
+    db = getDb(env);
+    const pepper = env.MFA_PEPPER ?? env.ADMIN_TOKEN;
+    const enrollment = await enrollTotp(pepper);
+    
+    // Store enrollment in D1 (replace any existing)
+    await db.prepare(`
+      INSERT INTO admin_totp (secret, recovery_codes, recovery_code_hashes, enrolled_at)
+      VALUES (?1, ?2, ?3, ?4)
+      ON CONFLICT(rowid) DO UPDATE SET
+        secret = excluded.secret,
+        recovery_codes = excluded.recovery_codes,
+        recovery_code_hashes = excluded.recovery_code_hashes,
+        enrolled_at = excluded.enrolled_at
+    `).bind(
+      enrollment.secret,
+      JSON.stringify(enrollment.recoveryCodes),
+      JSON.stringify(enrollment.recoveryCodeHashes),
+      enrollment.enrolledAt
+    ).run();
+
+    const secure = url.protocol === 'https:';
+    const csrf = generateCsrfToken(env.ADMIN_TOKEN);
+    const csrfCookieValue = csrfCookie(csrf, secure);
+    
+    if (contentType.includes('application/json')) {
+      const headers = new Headers();
+      headers.set('content-type', 'application/json');
+      headers.append('set-cookie', csrfCookieValue);
+      return new Response(JSON.stringify({ 
+        ok: true, 
+        recoveryCodes: enrollment.recoveryCodes,
+        secret: enrollment.secret // only returned once during enrollment
+      }), { status: 200, headers });
+    }
+    
+    const headers = new Headers();
+    headers.set('location', '/admin/totp-enrollment');
+    headers.append('set-cookie', csrfCookieValue);
+    return new Response(null, { status: 302, headers });
+  }
+
+  // Handle TOTP verification during login
+  if (action === 'verify-totp') {
+    if (!hasDb(env)) {
+      return Response.json({ ok: false, error: 'Database not available' }, { status: 503 });
+    }
+    db = getDb(env);
+    const pepper = env.MFA_PEPPER ?? env.ADMIN_TOKEN;
+    
+    // Load TOTP enrollment from D1
+    const enrollmentRow = await db.prepare(`
+      SELECT secret, recovery_code_hashes, enrolled_at FROM admin_totp LIMIT 1
+    `).first<{ secret: string; recovery_code_hashes: string; enrolled_at: number }>();
+    
+    let totpEnrollment: TotpEnrollment | null = null;
+    if (enrollmentRow) {
+      totpEnrollment = {
+        secret: enrollmentRow.secret,
+        recoveryCodes: [], // not stored in DB for security
+        recoveryCodeHashes: JSON.parse(enrollmentRow.recovery_code_hashes),
+        enrolledAt: enrollmentRow.enrolled_at,
+      };
+    }
+    
+    const { verifyTotpOrRecovery } = await import('~/lib/totp');
+    const mfaResult = await verifyTotpOrRecovery(totpEnrollment, mfaCode, pepper);
+    
+    if (!mfaResult.ok) {
+      if (contentType.includes('application/json')) {
+        return Response.json({ ok: false, error: mfaResult.reason === 'recovery-code-used' ? 'Recovery code already used' : 'Invalid MFA code' }, { status: 401 });
+      }
+      return context302(request, `/admin/login?error=mfa&next=${encodeURIComponent(next)}`);
+    }
+    
+    // MFA verified, proceed with normal login
+    // Fall through to token verification below
   }
 
   if (!message && (!token || !timingSafeEqualStr(token, env.ADMIN_TOKEN))) {
@@ -108,7 +205,8 @@ export const POST: APIRoute = async ({ request }) => {
     // The failed attempt is what earns the lockout, so only a wrong token
     // consumes one of the five. Limiter failures are swallowed: being unable
     // to count must not take sign-in down with it.
-    if (db) void recordAttempt(db as never, identifier, 'admin-login').catch(() => {});
+    const policy = getPolicy('admin-login');
+    if (db) void recordAttempt(db as never, identifier, policy).catch(() => {});
     if (contentType.includes('application/json')) {
       return Response.json({ ok: false, error: 'That token is not valid.' }, { status: 401 });
     }
@@ -117,17 +215,27 @@ export const POST: APIRoute = async ({ request }) => {
 
   const secure = url.protocol === 'https:';
   const cookie = sessionCookie(token, secure);
+  const csrf = generateCsrfToken(env.ADMIN_TOKEN);
+  const csrfCookieValue = csrfCookie(csrf, secure);
+  const headers = new Headers();
+  headers.set('content-type', 'application/json');
+  headers.append('set-cookie', cookie);
+  headers.append('set-cookie', csrfCookieValue);
 
   if (contentType.includes('application/json')) {
     return new Response(JSON.stringify({ ok: true, next }), {
       status: 200,
-      headers: { 'content-type': 'application/json', 'set-cookie': cookie },
+      headers,
     });
   }
 
+  const redirectHeaders = new Headers();
+  redirectHeaders.set('location', next);
+  redirectHeaders.append('set-cookie', cookie);
+  redirectHeaders.append('set-cookie', csrfCookieValue);
   return new Response(null, {
     status: 302,
-    headers: { location: next, 'set-cookie': cookie },
+    headers: redirectHeaders,
   });
 };
 
@@ -135,11 +243,10 @@ function context302(_request: Request, location: string): Response {
   return new Response(null, { status: 302, headers: { location } });
 }
 
-export const DELETE: APIRoute = async () =>
-  new Response(null, {
-    status: 302,
-    headers: {
-      location: '/admin/login',
-      'set-cookie': clearCookie(),
-    },
-  });
+export const DELETE: APIRoute = async () => {
+  const headers = new Headers();
+  headers.set('location', '/admin/login');
+  headers.append('set-cookie', clearCookie());
+  headers.append('set-cookie', clearCsrfCookie());
+  return new Response(null, { status: 302, headers });
+};
